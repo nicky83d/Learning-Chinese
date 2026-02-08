@@ -1,0 +1,18 @@
+steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    env:
+      - GOOGLE_RUNTIME_VERSION=3.11.0
+      - GOOGLE_PYTHON_VERSION=3.11.0
+    args:
+      - run
+      - deploy
+      - chinese
+      - --source=.
+      - --region=europe-west1
+      - --project=chinese-website-482900
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-build-env-vars=GOOGLE_PYTHON_VERSION=3.11.0,GOOGLE_RUNTIME_VERSION=3.11.0
+options:
+  logging: CLOUD_LOGGING_ONLY

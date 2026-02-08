@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Photo Upload Logs</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #f4f6fb;
+            color: #2c3e50;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1f6feb, #3b82f6);
+            color: white;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        /* Mobile toggle for sidebar */
+        .mobile-toggle {
+            display: none;
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            min-height: 80vh;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .filter-tab {
+            padding: 0.35rem 0.75rem;
+            border: 1px solid #d0d7de;
+            background: #f8fafc;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .filter-tab.active {
+            background: #1f6feb;
+            color: white;
+            border-color: #1f6feb;
+        }
+
+        .log-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .log-item {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+
+        .log-item.active {
+            background: #e8f0fe;
+        }
+
+        .log-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            font-weight: 600;
+        }
+
+        .log-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .log-filename {
+            font-size: 0.95rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .log-status {
+            padding: 0.15rem 0.55rem;
+            border-radius: 6px;
+            text-transform: capitalize;
+            font-size: 0.8rem;
+            border: 1px solid transparent;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .log-status.pending { background: #fff7e6; color: #b57600; border-color: #f4c35b; }
+        .log-status.validated { background: #e6ffed; color: #1f8b4d; border-color: #a9e6c2; }
+        .log-status.rejected { background: #ffe6e6; color: #c0392b; border-color: #f5b0a7; }
+
+        .log-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 0.75rem;
+            margin-top: 0.25rem;
+            color: #6c7a89;
+            font-size: 0.85rem;
+        }
+
+        .log-meta > span {
+            white-space: nowrap;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .collapsible-header:hover {
+            opacity: 0.8;
+        }
+
+        .collapse-icon {
+            transition: transform 0.2s ease;
+            font-size: 0.9em;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0 !important;
+        }
+
+        .content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 1.25rem;
+            min-height: 80vh;
+        }
+
+        .detail-panel.empty {
+            color: #95a5a6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .detail-title h2 {
+            margin: 0;
+            max-width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis; /* safety fallback */
+        }
+
+        .detail-meta { color: #6c7a89; }
+
+        .action-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        .btn {
+            padding: 0.5rem 0.9rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-validate { background: #28a745; color: white; }
+        .btn-reject { background: #e67e22; color: white; }
+        .btn-delete { background: #c0392b; color: white; }
+
+        .detail-section {
+            background: #f9fbff;
+            border: 1px solid #e4e7ed;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            row-gap: 0.4rem;
+            column-gap: 0.75rem;
+        }
+
+        .info-label { color: #6c7a89; font-weight: 600; }
+
+        .image-thumbnail {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        .view-full-link { color: #1f6feb; text-decoration: none; }
+
+        .vocab-entry {
+            background: white;
+            border: 1px solid #e4e7ed;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .vocab-field { margin-bottom: 0.35rem; }
+        .vocab-label { font-weight: 600; color: #6c7a89; }
+        .vocab-value.chinese { font-size: 1.2rem; }
+
+        .sentence-group { margin-top: 0.5rem; }
+        .sentence-label { font-weight: 700; margin-bottom: 0.35rem; }
+
+        .collapsible-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .collapsible-header:hover {
+            opacity: 0.8;
+        }
+
+        .collapse-icon {
+            transition: transform 0.2s ease;
+            font-size: 0.9em;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0 !important;
+        }
+
+        .ocr-text { white-space: pre-wrap; background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e4e7ed; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content { max-width: 90%; max-height: 90%; position: relative; }
+        .modal-image { max-width: 100%; max-height: 90vh; object-fit: contain; }
+
+        .modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .loading { text-align: center; padding: 2rem; color: #999; }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 4px;
+            border-left: 4px solid #dc3545;
+        }
+
+        /* Drawer backdrop for mobile sidebar */
+        .drawer-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.35);
+            z-index: 998;
+        }
+
+        .drawer-backdrop.active {
+            display: block;
+        }
+
+        /* Responsive layout */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 0.75rem;
+            }
+
+            .mobile-toggle {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+
+            /* Sidebar becomes a slide-in drawer */
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 86%;
+                max-width: 420px;
+                height: 100vh;
+                min-height: auto;
+                border-radius: 0 8px 8px 0;
+                box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 999;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .content {
+                min-height: calc(100vh - 120px);
+                padding: 1rem;
+                overflow-x: hidden;
+            }
+
+            .log-item {
+                padding: 1rem 1.1rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 120px 1fr;
+            }
+
+            .detail-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            /* Reduce table size by ~30% on mobile */
+            .detail-section table {
+                font-size: 0.7em;
+            }
+            .detail-section th,
+            .detail-section td {
+                padding: 0.5rem !important;
+            }
+            .detail-section thead th {
+                padding: 0.55rem !important;
+            }
+            /* Reduce vocab entries by ~30% on mobile */
+            .vocab-entry {
+                font-size: 0.7em;
+            }
+            .vocab-value.chinese {
+                font-size: 1.0rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="toggleSidebar" class="mobile-toggle">☰ Logs</button>
+            <a href="/admin/db" target="_blank" style="color: white; text-decoration: none; border: 1px solid rgba(255,255,255,0.3); padding: 0.4rem 0.75rem; border-radius: 6px; display: inline-block;">📊 DB Browser</a>
+            <a href="/" style="color: white; text-decoration: none; border: 1px solid rgba(255,255,255,0.3); padding: 0.4rem 0.75rem; border-radius: 6px; display: inline-block;">← Site</a>
+        </div>
+        <h1 style="margin: 0;">🔐 Admin Panel</h1>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Upload Logs</h2>
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">All</button>
+                    <button class="filter-tab" data-filter="pending">Pending</button>
+                    <button class="filter-tab" data-filter="validated">Validated</button>
+                    <button class="filter-tab" data-filter="rejected">Rejected</button>
+                </div>
+            </div>
+            <ul class="log-list" id="logList">
+                <li class="loading">Loading logs...</li>
+            </ul>
+        </div>
+
+        <div class="content">
+            <div class="detail-panel empty" id="detailPanel">
+                <p>← Select a log entry to view details</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+    <div class="modal" id="imageModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <img class="modal-image" id="modalImage" src="" alt="Full size image">
+        </div>
+    </div>
+
+    <script>
+        let allLogs = [];
+        let currentFilter = 'all';
+        let selectedLogId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLogs();
+            setupFilterTabs();
+            setupMobileDrawer();
+        });
+
+        async function loadLogs() {
+            try {
+                const response = await fetch('/admin/logs');
+                const data = await response.json();
+                allLogs = data;
+                renderLogList();
+            } catch (error) {
+                console.error('Error loading logs:', error);
+                document.getElementById('logList').innerHTML = '<li class="error-message">Failed to load logs</li>';
+            }
+        }
+
+        function setupFilterTabs() {
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentFilter = tab.dataset.filter;
+                    renderLogList();
+                });
+            });
+        }
+
+        function renderLogList() {
+            const filteredLogs = currentFilter === 'all' ? allLogs : allLogs.filter(log => log.status === currentFilter);
+
+            const logList = document.getElementById('logList');
+            if (filteredLogs.length === 0) {
+                logList.innerHTML = '<li class="loading">No logs found</li>';
+                return;
+            }
+
+            logList.innerHTML = filteredLogs.map(log => `
+                <li class="log-item ${log.id === selectedLogId ? 'active' : ''}" onclick="selectLog(${log.id})">
+                    <div class="log-header">
+                        <div class="log-header-top">
+                            <span class="log-filename" title="${escapeHtml(log.filename || 'Unknown')}">${escapeHtml(middleEllipsize(log.filename || 'Unknown', Math.max(20, getFilenameMaxLength() - 12)))}</span>
+                            <span class="log-status ${log.status}">${log.status}</span>
+                        </div>
+                    </div>
+                    <div class="log-meta">
+                        <span>📅 ${formatDate(log.timestamp)}</span>
+                        <span>🌐 ${log.user_ip || 'Unknown IP'}</span>
+                        <span>📚 +${log.created_count} ~${log.updated_count}</span>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        async function selectLog(logId) {
+            if (!logId || logId === 'undefined') {
+                alert('Error: Invalid log ID');
+                return;
+            }
+
+            selectedLogId = logId;
+            renderLogList();
+
+            // Auto-close drawer on mobile after selecting a log
+            if (window.innerWidth <= 768) {
+                closeSidebar();
+            }
+
+            const detailPanel = document.getElementById('detailPanel');
+            detailPanel.innerHTML = '<div class="loading">Loading details...</div>';
+            detailPanel.classList.remove('empty');
+
+            try {
+                const response = await fetch(`/admin/log/${logId}`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+                const log = await response.json();
+                if (!log.id) {
+                    throw new Error('Invalid log data: missing id');
+                }
+                renderLogDetails(log);
+            } catch (error) {
+                console.error('Error loading log details:', error);
+                detailPanel.innerHTML = '<div class="error-message">Failed to load log details: ' + escapeHtml(error.message) + '</div>';
+            }
+        }
+
+        function renderLogDetails(log) {
+            const detailPanel = document.getElementById('detailPanel');
+            const entries = log.entries || [];
+            const createdEntries = entries.filter(e => e && e.is_new);
+            const updatedEntries = entries.filter(e => e && !e.is_new);
+            const createdEnglishList = createdEntries.map(e => e.english || '').filter(Boolean).map(escapeHtml).join(', ');
+            const updatedEnglishList = updatedEntries.map(e => e.english || '').filter(Boolean).map(escapeHtml).join(', ');
+            const discardedCount = Number.isFinite(log.discarded_count)
+                ? log.discarded_count
+                : Math.max(0, entries.length - (log.created_count || 0) - (log.updated_count || 0));
+
+            const fullFilename = log.filename || 'Unknown File';
+            const truncatedFilename = middleEllipsize(fullFilename, getFilenameMaxLength());
+
+            let html = `
+                <div class="detail-header">
+                    <div class="detail-title">
+                        <h2 title="${escapeHtml(fullFilename)}">${escapeHtml(truncatedFilename)}</h2>
+                        <div class="detail-meta">
+                            <span class="log-status ${log.status}">${log.status}</span>
+                            <span style=\"margin-left: 1rem;\">📅 ${formatDate(log.timestamp)}</span>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        ${log.status !== 'validated' ? `<button class="btn btn-validate" onclick="validateLog(${log.id})">✓ Validate</button>` : ''}
+                        ${log.status !== 'rejected' ? `<button class="btn btn-reject" onclick="rejectLog(${log.id})">✗ Reject</button>` : ''}
+                        <button class="btn btn-delete" onclick="deleteLog(${log.id})">🗑 Delete</button>
+                    </div>
+                </div>
+
+                <div class="detail-section" style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+                    ${log.image_path ? `
+                    <div style="flex:0 0 240px; max-width:260px;">
+                        <h3>📷 Uploaded Image</h3>
+                        <div style="position: relative; display: inline-block; width: 100%; max-width: 240px;">
+                            <img class="image-thumbnail image-preview" id="logImage_${log.id}" src="/admin/image/${log.id}" alt="Uploaded image" style="width:100%; max-width:240px; height:auto; display: block;" onclick="openModal(${log.id})" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22100%22><text x=%2210%22 y=%2250%22>Image not available</text></svg>'">
+                            <canvas id="logCanvas_${log.id}" style="position: absolute; top: 0; left: 0; cursor: pointer;" onclick="openModal(${log.id})"></canvas>
+                        </div>
+                        <div style="margin-top:6px;"><a href="/admin/image/${log.id}" target="_blank" class="view-full-link">🔍 View Full Size</a></div>
+                    </div>
+                    ` : ''}
+
+                    <div style="flex:1; min-width:260px;">
+                        <h3>📋 Basic Information</h3>
+                        <div class="info-grid">
+                            <div class="info-label">User IP:</div>
+                            <div class="info-value">${escapeHtml(log.user_ip || 'Unknown')}</div>
+                            <div class="info-label">Section:</div>
+                            <div class="info-value">${escapeHtml(log.section || 'N/A')}</div>
+                            <div class="info-label">Language:</div>
+                            <div class="info-value">${escapeHtml(log.detected_language || 'N/A')}</div>
+                            <div class="info-label">Entries Created:</div>
+                            <div class="info-value">${log.created_count}${createdEnglishList ? ` &nbsp;•&nbsp; ${createdEnglishList}` : ''}</div>
+                            <div class="info-label">Entries Discarded:</div>
+                            <div class="info-value">${log.updated_count}${updatedEnglishList ? ` &nbsp;•&nbsp; ${updatedEnglishList}` : ''}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (log.ocr_text) {
+                html += `
+                    <div class="detail-section">
+                        <h3 class="collapsible-header" onclick="toggleCollapse('ocr-section')">
+                            <span class="collapse-icon collapsed" id="ocr-section-icon">▼</span>
+                            📝 OCR Detected Text
+                        </h3>
+                        <div id="ocr-section" class="collapsible-content collapsed" style="max-height: 0;">
+                            <div class="ocr-text">${escapeHtml(log.ocr_text)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (log.entries && log.entries.length > 0) {
+                html += `
+                    <div class="detail-section">
+                        <h3 class="collapsible-header" onclick="toggleCollapse('steps-section')">
+                            <span class="collapse-icon collapsed" id="steps-section-icon">▼</span>
+                            ✨ Processing Steps & Selected Words (${log.entries.length})
+                        </h3>
+                        <div id="steps-section" class="collapsible-content collapsed" style="max-height: 0;">
+                `;
+
+                log.entries.forEach((entry, index) => {
+                    const headerColor = entry.is_new ? '#28a745' : '#ff9800';
+                    const statusLabel = entry.is_new ? '✨ New' : '🔄 Exists';
+
+                    html += `
+                        <div style="margin-bottom: 1.5rem; overflow-x: auto;">
+                            <div style="font-weight: bold; margin-bottom: 0.75rem; color: #2c3e50; font-size: 1.05em;">Step ${index + 1} <span style="color: ${headerColor}; font-size: 0.85em; margin-left: 0.5rem;">${statusLabel}</span></div>
+                            <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; background: #f9f9f9;">
+                                <thead style="background: ${headerColor}; color: white;">
+                                    <tr>
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Language</th>
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Word</th>
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Example Sentence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="background: #fff;">
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; font-weight: bold;">Chinese</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; font-size: 1.1em; color: #333;">${escapeHtml(entry.hanzi || '')}</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; color: #555;">${escapeHtml(entry.sent_hanzi || '')}</td>
+                                    </tr>
+                                    ${entry.pinyin ? `
+                                    <tr style="background: #fafafa;">
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; font-weight: bold;">Pinyin</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; color: #666;">${escapeHtml(entry.pinyin)}</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; color: #888;">${escapeHtml(entry.sent_pinyin || '')}</td>
+                                    </tr>
+                                    ` : ''}
+                                    <tr style="background: #fff;">
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; font-weight: bold;">English</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; color: #333;">${escapeHtml(entry.english || '')}</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; color: #555;">${escapeHtml(entry.sent_english || '')}</td>
+                                    </tr>
+                                    ${entry.french ? `
+                                    <tr style="background: #fafafa;">
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; font-weight: bold;">French</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; color: #333;">${escapeHtml(entry.french)}</td>
+                                        <td style="padding: 0.75rem; border: 1px solid #ddd; color: #555;">${escapeHtml(entry.sent_french || '')}</td>
+                                    </tr>
+                                    ` : ''}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            }
+
+            if (log.vocab_entries && log.vocab_entries.length > 0) {
+                html += `
+                    <div class="detail-section">
+                        <h3 class="collapsible-header" onclick="toggleCollapse('vocab-section')">
+                            <span class="collapse-icon collapsed" id="vocab-section-icon">▼</span>
+                            📚 Vocabulary Entries (${log.vocab_entries.length})
+                        </h3>
+                        <div id="vocab-section" class="collapsible-content collapsed" style="max-height: 0;">
+                `;
+
+                log.vocab_entries.forEach(entry => {
+                    html += `
+                        <div class="vocab-entry">
+                            <div class="vocab-field">
+                                <div class="vocab-label">Chinese (汉字)</div>
+                                <div class="vocab-value chinese">${escapeHtml(entry.hanzi || '')}</div>
+                            </div>
+                            <div class="vocab-field">
+                                <div class="vocab-label">Pinyin</div>
+                                <div class="vocab-value">${escapeHtml(entry.pinyin || '')}</div>
+                            </div>
+                            <div class="vocab-field">
+                                <div class="vocab-label">English</div>
+                                <div class="vocab-value">${escapeHtml(entry.english || '')}</div>
+                            </div>
+                            <div class="vocab-field">
+                                <div class="vocab-label">French</div>
+                                <div class="vocab-value">${escapeHtml(entry.french || '')}</div>
+                            </div>
+                    `;
+
+                    if (entry.sent_hanzi || entry.sent_pinyin || entry.sent_english || entry.sent_french) {
+                        html += `
+                            <div class="sentence-group">
+                                <div class="sentence-label">📖 Example Sentences:</div>
+                                ${entry.sent_hanzi ? `<div class="vocab-value chinese" style="margin-bottom: 0.5rem;"><strong>Chinese:</strong> ${escapeHtml(entry.sent_hanzi)}</div>` : ''}
+                                ${entry.sent_pinyin ? `<div class="vocab-value" style="margin-bottom: 0.5rem;"><strong>Pinyin:</strong> ${escapeHtml(entry.sent_pinyin)}</div>` : ''}
+                                ${entry.sent_english ? `<div class="vocab-value" style="margin-bottom: 0.5rem;"><strong>English:</strong> ${escapeHtml(entry.sent_english)}</div>` : ''}
+                                ${entry.sent_french ? `<div class="vocab-value"><strong>French:</strong> ${escapeHtml(entry.sent_french)}</div>` : ''}
+                            </div>
+                        `;
+                    }
+
+                    html += `</div>`;
+                });
+
+                html += `</div></div>`;
+            }
+
+            if (log.error_message) {
+                html += `
+                    <div class="detail-section">
+                        <h3>⚠️ Error Message</h3>
+                        <div class="error-message">${escapeHtml(log.error_message)}</div>
+                    </div>
+                `;
+            }
+
+            detailPanel.innerHTML = html;
+            
+            // Draw bounding boxes on canvas after image loads
+            if (log.image_path && log.word_boxes && log.word_boxes.length > 0) {
+                setTimeout(() => {
+                    drawWordBoxes(log.id, log.word_boxes, log.image_width, log.image_height);
+                }, 100);
+            }
+        }
+
+        async function validateLog(logId) {
+            if (!logId || logId === 'undefined') {
+                alert('Error: Invalid log ID');
+                return;
+            }
+            if (!confirm('Validate this log entry?')) return;
+
+            try {
+                const response = await fetch(`/admin/log/${logId}/validate`, { method: 'POST' });
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(`Failed to validate log: ${error.error || 'Unknown error'}`);
+                    return;
+                }
+                const result = await response.json();
+                if (result.success) {
+                    await loadLogs();
+                    await selectLog(logId);
+                } else {
+                    alert('Failed to validate log');
+                }
+            } catch (error) {
+                console.error('Error validating log:', error);
+                alert('Failed to validate log: ' + error.message);
+            }
+        }
+
+        async function rejectLog(logId) {
+            if (!logId || logId === 'undefined') {
+                alert('Error: Invalid log ID');
+                return;
+            }
+            if (!confirm('Reject this log entry?')) return;
+
+            try {
+                const response = await fetch(`/admin/log/${logId}/reject`, { method: 'POST' });
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(`Failed to reject log: ${error.error || 'Unknown error'}`);
+                    return;
+                }
+                const result = await response.json();
+                if (result.success) {
+                    await loadLogs();
+                    await selectLog(logId);
+                } else {
+                    alert('Failed to reject log');
+                }
+            } catch (error) {
+                console.error('Error rejecting log:', error);
+                alert('Failed to reject log: ' + error.message);
+            }
+        }
+
+        async function deleteLog(logId) {
+            if (!logId || logId === 'undefined') {
+                alert('Error: Invalid log ID');
+                return;
+            }
+
+            if (!confirm('⚠️ WARNING: This will permanently delete the log entry AND all associated vocabulary entries. Are you sure?')) return;
+
+            try {
+                const response = await fetch(`/admin/log/${logId}/delete`, { method: 'DELETE' });
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(`Failed to delete log: ${error.error || 'Unknown error'}`);
+                    return;
+                }
+                const result = await response.json();
+                if (result.success) {
+                    selectedLogId = null;
+                    await loadLogs();
+                    document.getElementById('detailPanel').innerHTML = '<p>← Select a log entry to view details</p>';
+                    document.getElementById('detailPanel').classList.add('empty');
+                }
+            } catch (error) {
+                console.error('Error deleting log:', error);
+                alert('Failed to delete log');
+            }
+        }
+
+        function openModal(logId) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = `/admin/image/${logId}`;
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+
+        document.getElementById('imageModal').addEventListener('click', (e) => {
+            if (e.target.id === 'imageModal') {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        function toggleCollapse(sectionId) {
+            const content = document.getElementById(sectionId);
+            const icon = document.getElementById(sectionId + '-icon');
+            if (content && icon) {
+                content.classList.toggle('collapsed');
+                icon.classList.toggle('collapsed');
+                if (!content.classList.contains('collapsed')) {
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                } else {
+                    content.style.maxHeight = '0';
+                }
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function middleEllipsize(text, maxLength) {
+            if (!text) return '';
+            if (!Number.isFinite(maxLength) || maxLength <= 0) return text;
+            if (text.length <= maxLength) return text;
+            const keep = Math.max(2, Math.floor(maxLength / 2) - 1);
+            const start = text.slice(0, keep);
+            const end = text.slice(-keep);
+            return `${start}…${end}`;
+        }
+
+        function getFilenameMaxLength() {
+            const w = window.innerWidth || 1024;
+            // More conservative limits to ensure no overflow on mobile
+            if (w <= 360) return 20;
+            if (w <= 480) return 24;
+            if (w <= 768) return 32;
+            if (w <= 1024) return 48;
+            return 64;
+        }
+
+        function setupMobileDrawer() {
+            const toggleBtn = document.getElementById('toggleSidebar');
+            const sidebar = document.querySelector('.sidebar');
+            const backdrop = document.getElementById('drawerBackdrop');
+
+            if (!toggleBtn || !sidebar || !backdrop) return;
+
+            toggleBtn.addEventListener('click', () => {
+                sidebar.classList.add('open');
+                backdrop.classList.add('active');
+            });
+
+            backdrop.addEventListener('click', () => {
+                closeSidebar();
+            });
+
+            window.addEventListener('resize', () => {
+                // Ensure drawer is closed when switching to desktop
+                if (window.innerWidth > 768) {
+                    closeSidebar();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeSidebar();
+                }
+            });
+        }
+
+        function closeSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const backdrop = document.getElementById('drawerBackdrop');
+            if (sidebar) sidebar.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('active');
+        }
+
+        function drawWordBoxes(logId, wordBoxes, imageWidth, imageHeight) {
+            const img = document.getElementById(`logImage_${logId}`);
+            const canvas = document.getElementById(`logCanvas_${logId}`);
+            
+            if (!img || !canvas || !wordBoxes || wordBoxes.length === 0) {
+                return;
+            }
+            
+            // Wait for image to fully load
+            if (!img.complete) {
+                img.onload = () => {
+                    _drawBoxesOnCanvas(canvas, img, wordBoxes, imageWidth, imageHeight);
+                };
+            } else {
+                _drawBoxesOnCanvas(canvas, img, wordBoxes, imageWidth, imageHeight);
+            }
+        }
+
+        function _drawBoxesOnCanvas(canvas, img, wordBoxes, imageWidth, imageHeight) {
+            // Use displayed size for drawing so overlay matches the on-screen image
+            const displayWidth = img.offsetWidth || imageWidth || img.naturalWidth;
+            const displayHeight = img.offsetHeight || imageHeight || img.naturalHeight;
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            
+            // Draw each word box
+            wordBoxes.forEach(box => {
+                if (!box.vertices || box.vertices.length < 2) return;
+                
+                // Denormalize vertices from [0, 1] to pixel coordinates using displayed size
+                const pixels = box.vertices.map(v => ({
+                    x: v.x * displayWidth,
+                    y: v.y * displayHeight
+                }));
+                
+                // Set color: green (#28a745) for new, orange (#ff9800) for existing
+                const isNew = box.is_new === true;
+                const color = isNew ? '#28a745' : '#ff9800';
+                
+                // Draw polygon (usually a quadrilateral)
+                if (pixels.length > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(pixels[0].x, pixels[0].y);
+                    for (let i = 1; i < pixels.length; i++) {
+                        ctx.lineTo(pixels[i].x, pixels[i].y);
+                    }
+                    ctx.closePath();
+                    
+                    // Fill with 30% opacity
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = 0.3;
+                    ctx.fill();
+                    
+                    // Stroke with full opacity
+                    ctx.globalAlpha = 1;
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+            
+            ctx.globalAlpha = 1;
+        }
+    </script>
+</body>
+</html>

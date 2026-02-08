@@ -1,0 +1,28 @@
+# Core Framework
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Limiter==3.5.0
+Flask-CORS==4.0.0
+
+# Database
+SQLAlchemy==2.0.23
+
+# Google Cloud APIs
+google-cloud-vision==3.7.0
+google-cloud-speech==2.24.0
+
+# OpenAI
+openai==1.6.1
+
+# Image Processing
+Pillow==10.1.0
+
+# Utilities
+python-dotenv==1.0.0
+werkzeug==3.0.1
+
+# Production Server
+gunicorn==21.2.0
+
+# Security
+bcrypt==4.1.2

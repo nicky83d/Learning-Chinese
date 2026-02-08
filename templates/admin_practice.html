@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Practice Recordings</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #f4f6fb;
+            color: #2c3e50;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1f6feb, #3b82f6);
+            color: white;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .header-nav a, .header-nav button {
+            color: white;
+            text-decoration: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            display: inline-block;
+            background: rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .header-nav a:hover, .header-nav button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid #e8eef5;
+        }
+
+        .sidebar-header h2 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.1rem;
+        }
+
+        .word-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .word-item {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .word-item:hover {
+            background: #f8f9fc;
+        }
+
+        .word-item.active {
+            background: #e8f0fe;
+            border-left: 3px solid #1f6feb;
+            padding-left: calc(1rem - 3px);
+        }
+
+        .word-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .word-stats {
+            display: flex;
+            gap: 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stat-good {
+            color: #28a745;
+        }
+
+        .stat-bad {
+            color: #dc3545;
+        }
+
+        .content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .detail-panel.empty {
+            align-items: center;
+            justify-content: center;
+            color: #999;
+        }
+
+        .recording-item {
+            background: #f8f9fc;
+            border: 1px solid #e8eef5;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .recording-item:hover {
+            background: #f0f4fa;
+            border-color: #d0d8e8;
+        }
+
+        .recording-item.active {
+            background: #e8f0fe;
+            border-color: #1f6feb;
+        }
+
+        .recording-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .recording-status {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .recording-status.correct {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .recording-status.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .recording-text {
+            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .recording-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #6c7a89;
+            flex-wrap: wrap;
+        }
+
+        .recording-detail {
+            background: #f8f9fc;
+            border: 1px solid #e8eef5;
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .detail-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e8eef5;
+        }
+
+        .detail-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            min-width: 120px;
+            color: #6c7a89;
+        }
+
+        .detail-value {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        audio {
+            width: 100%;
+            margin: 1rem 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            background: #1f6feb;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0d47a1;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #a02830;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-nav">
+            <a href="/admin">📋 Upload Logs</a>
+            <a href="/admin/practice">🎤 Practice Recordings</a>
+            <a href="/admin/db" target="_blank">📊 DB Browser</a>
+            <a href="/">← Site</a>
+        </div>
+        <h1 style="margin: 0;">🎤 Practice Recordings</h1>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Words Practiced</h2>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #999;">Click to view recordings</p>
+            </div>
+            <ul class="word-list" id="wordList">
+                <li class="loading">Loading words...</li>
+            </ul>
+        </div>
+
+        <div class="content">
+            <div class="detail-panel empty" id="detailPanel">
+                <p>← Select a word to view practice recordings</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allWords = [];
+        let selectedWordId = null;
+        let selectedRecordingId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPracticeWords();
+        });
+
+        async function loadPracticeWords() {
+            try {
+                const response = await fetch('/admin/practice_words');
+                if (!response.ok) throw new Error('Failed to load words');
+                allWords = await response.json();
+                renderWordList();
+            } catch (error) {
+                console.error('Error loading words:', error);
+                document.getElementById('wordList').innerHTML = '<li class="loading" style="color: #dc3545;">Error loading words</li>';
+            }
+        }
+
+        function renderWordList() {
+            const wordList = document.getElementById('wordList');
+            if (allWords.length === 0) {
+                wordList.innerHTML = '<li class="loading">No practice recordings yet</li>';
+                return;
+            }
+
+            wordList.innerHTML = allWords.map(word => `
+                <li class="word-item ${word.id === selectedWordId ? 'active' : ''}" onclick="selectWord(${word.id})">
+                    <div class="word-name">${escapeHtml(word.hanzi || word.french || word.english)}</div>
+                    <div class="word-stats">
+                        <span class="stat stat-good">✅ ${word.correct_count}</span>
+                        <span class="stat stat-bad">❌ ${word.incorrect_count}</span>
+                        <span class="stat" style="color: #6c7a89;">📊 ${word.total_count}</span>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        async function selectWord(wordId) {
+            selectedWordId = wordId;
+            selectedRecordingId = null;
+            renderWordList();
+
+            const detailPanel = document.getElementById('detailPanel');
+            detailPanel.innerHTML = '<div class="loading">Loading recordings...</div>';
+            detailPanel.classList.remove('empty');
+
+            try {
+                const response = await fetch(`/admin/practice_word/${wordId}`);
+                if (!response.ok) throw new Error('Failed to load recordings');
+                const data = await response.json();
+                renderRecordings(data);
+            } catch (error) {
+                console.error('Error loading recordings:', error);
+                detailPanel.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading recordings: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        function renderRecordings(data) {
+            const detailPanel = document.getElementById('detailPanel');
+            const { word, recordings } = data;
+
+            let html = `
+                <div>
+                    <h2 style="margin-top: 0;">📚 ${escapeHtml(word.hanzi || word.french || word.english)}</h2>
+                    <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fc; border-radius: 6px;">
+                        <div><strong>Chinese:</strong> ${escapeHtml(word.hanzi)}</div>
+                        <div><strong>Pinyin:</strong> ${escapeHtml(word.pinyin)}</div>
+                        <div><strong>English:</strong> ${escapeHtml(word.english)}</div>
+                        <div><strong>French:</strong> ${escapeHtml(word.french)}</div>
+                    </div>
+                    
+                    <h3>Recordings (${recordings.length})</h3>
+            `;
+
+            if (recordings.length === 0) {
+                html += '<p style="color: #999;">No recordings for this word yet</p>';
+            } else {
+                html += recordings.map(rec => `
+                    <div class="recording-item ${rec.id === selectedRecordingId ? 'active' : ''}" onclick="selectRecording(${rec.id})">
+                        <div class="recording-header">
+                            <span class="recording-status ${rec.is_correct ? 'correct' : 'incorrect'}">
+                                ${rec.is_correct ? '✅ Correct' : '❌ Incorrect'}
+                            </span>
+                            <span style="font-size: 0.85rem; color: #999;">${formatDate(rec.timestamp)}</span>
+                        </div>
+                        <div class="recording-text">You said: <em>"${escapeHtml(rec.recognized_text || '(no speech)') }"</em></div>
+                        <div class="recording-meta">
+                            <span>🎯 Expected: "${escapeHtml(rec.expected_text)}"</span>
+                            <span>📊 Confidence: ${Math.round((rec.confidence || 0) * 100)}%</span>
+                            <span>🌐 ${rec.user_ip}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            html += '</div>';
+            detailPanel.innerHTML = html;
+
+            // Add event listeners for recording selection
+            document.querySelectorAll('.recording-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(item.getAttribute('onclick').match(/\d+/)[0]);
+                    selectRecording(id);
+                });
+            });
+        }
+
+        async function selectRecording(recordingId) {
+            selectedRecordingId = recordingId;
+
+            try {
+                const response = await fetch(`/admin/practice_recording/${recordingId}`);
+                if (!response.ok) throw new Error('Failed to load recording details');
+                const recording = await response.json();
+                showRecordingDetails(recording);
+            } catch (error) {
+                console.error('Error loading recording:', error);
+                alert('Error loading recording: ' + error.message);
+            }
+        }
+
+        function showRecordingDetails(recording) {
+            const detailPanel = document.getElementById('detailPanel');
+            const html = `
+                <div>
+                    <h2 style="margin-top: 0;">🎤 Recording Details</h2>
+                    
+                    <div class="recording-detail">
+                        <div class="detail-row">
+                            <div class="detail-label">Status</div>
+                            <div class="detail-value">
+                                <span class="recording-status ${recording.is_correct ? 'correct' : 'incorrect'}">
+                                    ${recording.is_correct ? '✅ Correct' : '❌ Incorrect'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="detail-row">
+                            <div class="detail-label">You said</div>
+                            <div class="detail-value"><em>"${escapeHtml(recording.recognized_text || '(no speech detected)')}"</em></div>
+                        </div>
+
+                        <div class="detail-row">
+                            <div class="detail-label">Expected</div>
+                            <div class="detail-value"><em>"${escapeHtml(recording.expected_text)}"</em></div>
+                        </div>
+
+                        <div class="detail-row">
+                            <div class="detail-label">Confidence</div>
+                            <div class="detail-value">${Math.round((recording.confidence || 0) * 100)}%</div>
+                        </div>
+
+                        <div class="detail-row">
+                            <div class="detail-label">Language</div>
+                            <div class="detail-value">${recording.language_code}</div>
+                        </div>
+
+                        <div class="detail-row">
+                            <div class="detail-label">Date & Time</div>
+                            <div class="detail-value">${formatDatetime(recording.timestamp)}</div>
+                        </div>
+
+                        <div class="detail-row">
+                            <div class="detail-label">User IP</div>
+                            <div class="detail-value">${escapeHtml(recording.user_ip || 'Unknown')}</div>
+                        </div>
+
+                        <div class="detail-row">
+                            <div class="detail-label">Audio</div>
+                            <div class="detail-value">
+                                <audio controls style="width: 100%;">
+                                    <source src="/admin/practice_recording/${recording.id}/audio" type="audio/webm">
+                                    Your browser does not support audio playback.
+                                </audio>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="danger" onclick="deleteRecording(${recording.id})">🗑️ Delete Recording</button>
+                    </div>
+                </div>
+            `;
+            detailPanel.innerHTML = html;
+        }
+
+        async function deleteRecording(recordingId) {
+            if (!confirm('Are you sure you want to delete this recording?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/practice_recording/${recordingId}/delete`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to delete recording');
+
+                // Reload the word recordings
+                if (selectedWordId) {
+                    selectWord(selectedWordId);
+                }
+            } catch (error) {
+                console.error('Error deleting recording:', error);
+                alert('Error deleting recording: ' + error.message);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(datetime) {
+            if (!datetime) return 'Unknown';
+            const date = new Date(datetime);
+            return date.toLocaleDateString();
+        }
+
+        function formatDatetime(datetime) {
+            if (!datetime) return 'Unknown';
+            const date = new Date(datetime);
+            return date.toLocaleString();
+        }
+    </script>
+</body>
+</html>

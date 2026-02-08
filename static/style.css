@@ -1,0 +1,274 @@
+:root {
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --primary: #4f46e5;
+  --radius: 12px;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+[data-theme="dark"] {
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  --primary: #818cf8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  padding: 15px;
+  margin: 0 auto;           /* Centers content but no hard width limit */
+  min-height: 100vh;
+}
+
+/* Optional: gentle max-width for ultra-wide screens (remove if you want unlimited width) */
+@media (min-width: 1600px) {
+  body {
+    max-width: 1600px;
+  }
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  position: absolute; top: 15px; right: 15px;
+  background: var(--card-bg); border: 1px solid var(--border-color);
+  color: var(--text-main); padding: 8px 12px; border-radius: 20px; cursor: pointer;
+}
+
+/* Search Bar Styling */
+.search-controls {
+  display: flex; max-width: 600px; margin: 0 auto 40px auto;
+  background: var(--card-bg); border: 1px solid var(--border-color);
+  border-radius: 10px; overflow: hidden;
+}
+.search-container { position: relative; flex: 3; display: flex; align-items: center; }
+#searchInput { width: 100%; border: none; padding: 12px; background: transparent; color: var(--text-main); outline: none; }
+#fieldSelect { flex: 1.5; border: none; border-left: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); padding: 0 10px; outline: none; }
+
+/* RESPONSIVE GRID */
+.vocab-grid {
+  display: grid;
+  gap: 12px;
+  padding: 0 15px;           /* Matches body padding for full-width feel */
+  width: 100%;
+}
+
+/* Mobile: 3 columns – keep exactly as you like it */
+@media (max-width: 500px) {
+  .vocab-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 0 10px;
+  }
+}
+
+/* Tablet / medium: 5 columns */
+@media (min-width: 501px) and (max-width: 1024px) {
+  .vocab-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Desktop: 12 columns to fully use the wide screen */
+@media (min-width: 1025px) {
+  .vocab-grid {
+    grid-template-columns: repeat(9, 1fr);
+  }
+}
+
+.vocab-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--card-bg); border: 1px solid var(--border-color);
+  border-radius: var(--radius); padding: 12px 4px; cursor: pointer; text-align: center;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* === HANZI SIZE FIXES - Higher specificity + !important === */
+/* Main grid tiles: Hanzi exactly 1.5× larger (1.8rem → 2.7rem) */
+.vocab-card .hanzi-cell {
+  font-size: 1.62rem !important;
+  font-weight: bold !important;
+  color: var(--primary) !important;
+  line-height: 1.2;
+  margin: 0 0 3px 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+/* Smaller Hanzi for long words (half the default) */
+.vocab-card .hanzi-cell.hanzi-small {
+  font-size: 1.62rem !important; /* exactly half of 2.7rem */
+}
+
+/* Modal top Hanzi display: exactly 4× larger (2em → 8em) */
+#mw_hanzi_display {
+  font-size: 8em !important;
+  font-weight: bold !important;
+  color: var(--primary) !important;
+  text-align: center !important;
+  line-height: 1 !important;
+  margin: 10px 0 20px 0 !important;
+}
+
+/* Mobile safety for huge modal Hanzi */
+@media (max-width: 480px) {
+  #mw_hanzi_display {
+    font-size: 5em !important;  /* Still massive but fits */
+  }
+}
+
+.pinyin-text { color: var(--primary); font-weight: 600; font-size: 0.9rem; }
+.translation-text { font-size: 0.85rem; }
+
+/* Modal Styling */
+.modal {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 10000; justify-content: center; align-items: center;
+}
+.modal-backdrop { position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+.modal-card {
+  position: relative; background: var(--card-bg); width: 90%; max-width: 500px;
+  padding: 25px; border-radius: 16px; color: var(--text-main);
+}
+.modal-body input { width: 100%; margin-bottom: 10px; padding: 12px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); border-radius: 8px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+button.primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+button.danger { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+
+button.secondary { background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+
+/* Make small control groups match the search bar height */
+.controls-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 50px;
+}
+.controls-inline > button,
+.controls-inline > select {
+  height: 44px; /* match approximate search input height */
+  display: inline-flex;
+  align-items: center;
+}
+.controls-inline > button.primary,
+.controls-inline > button.secondary {
+  padding: 0 18px; /* keep horizontal padding but ensure consistent height */
+  border-radius: 10px;
+}
+.controls-inline > select {
+  padding: 0 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-main);
+  flex: 1;                 /* expand to fill available space between buttons */
+  min-width: 120px;       /* don't collapse too small */
+  max-width: 720px;       /* reasonable max on wide screens */
+}
+
+/* Modal category/section row: ensure select and input align vertically */
+.modal-section-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.modal-section-row select,
+.modal-section-row input {
+  height: 40px;
+  padding: 0 12px; /* remove vertical padding to rely on flex centering */
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+.modal-section-row select { flex: 0 0 40%; min-width: 120px; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+.modal-section-row select::-ms-expand { display: none; }
+.modal-section-row input { flex: 1; }
+
+/* Nudge select slightly upward to match input baseline across browsers */
+.modal-section-row select {
+  transform: translateY(-2px);
+}
+
+/* Quiz option buttons: rectangular, responsive, thinner layout */
+.quiz-option-btn {
+  padding: 10px 8px;
+  border: 2px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-main);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 90px;
+}
+
+.quiz-option-btn .option-top { font-size: 1.1rem; font-weight: 700; }
+.quiz-option-btn .option-hanzi { font-size: 1.6rem; color: var(--text-muted); margin-top: 4px; }
+
+/* Adjust grid columns for quiz options: 2 columns on small screens, 4 on wide */
+#quizOptions {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 900px) {
+  #quizOptions { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Quiz Options Grid */
+#quizOptions {
+  display: grid !important;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 480px) {
+  #quizOptions {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 481px) {
+  #quizOptions {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+.quiz-option-btn {
+  min-height: 100px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.quiz-option-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-option-btn:active {
+  transform: translateY(0);
+}

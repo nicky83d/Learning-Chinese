@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vocab Lab</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- Hanzi Writer CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@latest/dist/hanzi-writer.min.js"></script>
+  <style>
+    #uploadToast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--card-bg);
+      border: 2px solid var(--primary);
+      border-radius: 8px;
+      padding: 16px 20px;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 9999;
+      display: none;
+      animation: slideIn 0.3s ease-out;
+    }
+    #uploadToast.show {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    #uploadToast.error {
+      border-color: #ff6b6b;
+      background: rgba(255, 107, 107, 0.1);
+    }
+    #uploadToast.success {
+      border-color: #51cf66;
+      background: rgba(81, 207, 102, 0.1);
+    }
+    #uploadToast .toast-content {
+      flex: 1;
+      font-size: 0.95em;
+    }
+    #uploadToast .toast-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.2em;
+      color: var(--text-muted);
+      padding: 0;
+      line-height: 1;
+    }
+    #uploadToast .toast-close:hover {
+      color: var(--text-main);
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    /* Hamburger Menu Styles */
+    .menu-container {
+      position: relative;
+    }
+    
+    #hamburgerBtn {
+      background: none;
+      border: none;
+      font-size: 1.8em;
+      cursor: pointer;
+      color: var(--text-main);
+      padding: 8px 12px;
+    }
+    
+    #hamburgerBtn:hover {
+      color: var(--primary);
+    }
+    
+    #hamburgerMenu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      min-width: 180px;
+      display: none;
+      z-index: 1000;
+      margin-top: 8px;
+    }
+    
+    #hamburgerMenu.show {
+      display: block;
+    }
+    
+    #hamburgerMenu button {
+      width: 100%;
+      padding: 12px 16px;
+      background: none;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      color: var(--text-main);
+      font-size: 1em;
+      transition: background-color 0.2s;
+    }
+    
+    #hamburgerMenu button:hover {
+      background: var(--primary);
+      color: white;
+      border-radius: 4px;
+      margin: 0 4px;
+      padding: 12px 12px;
+      width: calc(100% - 8px);
+    }
+    
+    #hamburgerMenu button:first-child {
+      border-radius: 8px 8px 0 0;
+    }
+    
+    #hamburgerMenu button:last-child {
+      border-radius: 0 0 8px 8px;
+    }
+    
+    #themeBtn {
+      border-top: 1px solid var(--border-color) !important;
+      margin-top: 8px !important;
+      padding-top: 12px !important;
+    }
+    /* Topbar layout: title centered, menu on right */
+    .topbar {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+    }
+    .topbar h1 {
+      margin: 0;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 2.1rem; /* 1.4rem * 1.5 = 2.1rem */
+      white-space: nowrap;
+    }
+    .topbar .top-menu {
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="uploadToast">
+    <div class="toast-content" id="toastContent"></div>
+    <button class="toast-close" onclick="document.getElementById('uploadToast').classList.remove('show')">×</button>
+  </div>
+
+  <header class="topbar">
+    <h1>我在学中文</h1>
+    <div class="menu-container top-menu">
+      <button id="hamburgerBtn">☰</button>
+      <div id="hamburgerMenu">
+        <button id="menuAddWord">+ Add Word</button>
+        <button id="menuUploadCamera">📷 Camera</button>
+        <button id="menuUploadLibrary">🖼️ Picture</button>
+        <button id="themeBtn">🌓 Dark Mode</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main controls: hidden in quiz mode -->
+  <div id="mainControls">
+    <div class="search-bar">
+      <div class="search-controls">
+        <div class="search-container">
+          <input type="text" id="searchInput" placeholder="Search..." autofocus>
+          <button id="clearSearch" style="position:absolute; right:10px; background:none; border:none; cursor:pointer; color:var(--text-muted);">&times;</button>
+        </div>
+        <select id="fieldSelect">
+          <option value="all">All Fields</option>
+          <option value="english">English</option>
+          <option value="french">French</option>
+          <option value="pinyin">Pinyin</option>
+        </select>
+      </div>
+      
+        <div class="controls-inline">
+          <button id="startChineseQuiz" class="primary">Quiz 中文</button>
+          <select id="sectionSelect">
+            <option value="all">All Categories</option>
+          </select>
+          <button id="startFrenchQuiz" class="primary">Quiz Français</button>
+        <!-- Hidden file inputs: camera input uses capture, library input opens picker -->
+        <input type="file" id="photoUploadCamera" accept="image/*" style="display:none;" capture="environment">
+        <input type="file" id="photoUploadLibrary" accept="image/*" style="display:none;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Only shown during quiz mode -->
+  <div id="quizHeader" style="display:none; text-align:center; margin-bottom:20px;">
+    <button id="exitQuiz" class="secondary">Exit Quiz</button>
+    <p style="margin-top:15px; font-size:1.1em; color:var(--text-muted);" id="quizCounter"></p>
+  </div>
+
+  <div id="resultsGrid" class="vocab-grid"></div>
+
+  <!-- Quiz Card -->
+  <div id="quizContainer" style="display:none; max-width:600px; margin:40px auto;">
+    <div id="quizCard" class="vocab-card" style="cursor:pointer; min-height:200px; display:flex; flex-direction:column; justify-content:center; align-items:center; font-size:1.5em;">
+    </div>
+    <div style="text-align:center; margin-top:20px;">
+      <button id="nextQuizCard" class="primary" style="padding:10px 20px; font-size:1.1em;">Next →</button>
+    </div>
+  </div>
+
+  <div id="wordModal" class="modal">
+    <div class="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal-card">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 id="modalTitle">Edit Word</h2>
+        <button onclick="closeModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="mw_id">
+        
+        <!-- Stroke animation / practice area -->
+        <div style="text-align:center; margin:15px 0;">
+          <div id="strokeAnimContainer" style="width:320px; height:180px; margin:0 auto; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; overflow-x:auto; overflow-y:hidden; display:flex; align-items:center;">
+            <!-- Horizontal scrollable wrapper will be injected here -->
+          </div>
+          <div style="margin-top:12px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+            <button id="startPracticeBtn" class="primary">✍️ Start Drawing Practice</button>
+            <button id="restartPracticeBtn" class="secondary" style="display:none;">🔄 Restart</button>
+          </div>
+        </div>
+
+        <!-- Chinese line -->
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <button class="speak-btn" onclick="playChinese(document.getElementById('mw_sent_hanzi').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇨🇳</button>
+          <input type="text" id="mw_hanzi" placeholder="Hanzi (e.g. 你好)" style="flex:1;">
+          <input type="text" id="mw_sent_hanzi" placeholder="Chinese sentence" style="flex:2;">
+        </div>
+
+        <!-- Pinyin line -->
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <button class="speak-btn" onclick="playChinese(document.getElementById('mw_sent_hanzi').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇨🇳</button>
+          <input type="text" id="mw_pinyin" placeholder="Pinyin (e.g. nǐ hǎo)" style="flex:1;">
+          <input type="text" id="mw_sent_pinyin" placeholder="Pinyin sentence" style="flex:2;">
+        </div>
+
+        <!-- English line -->
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <button class="speak-btn" onclick="playEnglish(document.getElementById('mw_sent_english').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇬🇧</button>
+          <input type="text" id="mw_english" placeholder="English (e.g. Hello)" style="flex:1;">
+          <input type="text" id="mw_sent_english" placeholder="English sentence" style="flex:2;">
+        </div>
+
+        <!-- French line -->
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <button class="speak-btn" onclick="playFrench(document.getElementById('mw_sent_french').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇫🇷</button>
+          <input type="text" id="mw_french" placeholder="French (e.g. Bonjour)" style="flex:1;">
+          <input type="text" id="mw_sent_french" placeholder="French sentence" style="flex:2;">
+        </div>
+
+        <!-- Category -->
+        <div class="form-group">
+          <label for="mw_section">Category / Section</label>
+          <div class="modal-section-row">
+            <input id="mw_section" list="mw_sections_list" placeholder="Select or type new" autocomplete="off" />
+            <datalist id="mw_sections_list"></datalist>
+          </div>
+          <small style="color:var(--text-muted); margin-top:4px; display:block;">Choose an existing category or type a new one.</small>
+        </div>
+      </div>
+      <div id="modalStatus" style="font-size:12px; margin-top:5px;"></div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <button id="deleteModalBtn" class="danger" style="display:none;">Delete</button>
+        <div>
+          <button onclick="closeModal()" class="secondary">Cancel</button>
+          <button id="saveModal" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Hamburger menu functionality
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const hamburgerMenu = document.getElementById('hamburgerMenu');
+  const menuAddWord = document.getElementById('menuAddWord');
+  const menuUploadCamera = document.getElementById('menuUploadCamera');
+  const menuUploadLibrary = document.getElementById('menuUploadLibrary');
+
+  hamburgerBtn.addEventListener('click', () => {
+    hamburgerMenu.classList.toggle('show');
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-container')) {
+      hamburgerMenu.classList.remove('show');
+    }
+  });
+
+  const photoInputCamera = document.getElementById('photoUploadCamera');
+  const photoInputLibrary = document.getElementById('photoUploadLibrary');
+
+  menuAddWord.addEventListener('click', () => {
+    hamburgerMenu.classList.remove('show');
+    openEditModal({});
+  });
+
+  menuUploadCamera.addEventListener('click', () => {
+    hamburgerMenu.classList.remove('show');
+    photoInputCamera.click();
+  });
+
+  menuUploadLibrary.addEventListener('click', () => {
+    hamburgerMenu.classList.remove('show');
+    photoInputLibrary.click();
+  });
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('uploadToast');
+    const content = document.getElementById('toastContent');
+    content.innerHTML = message;
+    toast.className = `show ${type}`;
+    
+    // Auto-hide after 6 seconds
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 6000);
+  }
+
+  function handlePhotoFile(file) {
+    if (!file) return;
+    showToast('⏳ Processing photo... (this may take 30-60s)', 'info');
+    const formData = new FormData();
+    formData.append('photo', file);
+    const selectedSection = (sectionSelect && sectionSelect.value && sectionSelect.value !== 'all') ? sectionSelect.value : '';
+    if (selectedSection) formData.append('section', selectedSection);
+
+    fetch('/process_photo', {
+      method: 'POST',
+      body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        showToast(`❌ Error: ${data.error}`, 'error');
+        return;
+      }
+      if (data.added_words && data.added_words.length) {
+        // Show the added words in a nice list
+        const list = data.added_words.filter(Boolean).slice(0, 10);
+        const html = `✅ <strong>Added words:</strong><br>${list.map(w => `• ${w}`).join('<br>')}`;
+        showToast(html, 'success');
+      } else {
+        const added = (data.added ?? data.created ?? 0);
+        showToast(`✅ Added ${added} new word${added !== 1 ? 's' : ''}!`, 'success');
+      }
+      performSearch();
+      loadSections();
+    })
+    .catch(err => {
+      showToast('❌ Upload failed', 'error');
+      console.error(err);
+    });
+  }
+
+  photoInputCamera.addEventListener('change', () => {
+    const file = photoInputCamera.files[0];
+    handlePhotoFile(file);
+  });
+
+  photoInputLibrary.addEventListener('change', () => {
+    const file = photoInputLibrary.files[0];
+    handlePhotoFile(file);
+  });
+</script>
+
+<script>
+  const searchInput = document.getElementById('searchInput');
+  const grid = document.getElementById('resultsGrid');
+  const modal = document.getElementById('wordModal');
+  const sectionSelect = document.getElementById('sectionSelect');
+  const startChineseQuizBtn = document.getElementById('startChineseQuiz');
+  const startFrenchQuizBtn = document.getElementById('startFrenchQuiz');
+  const exitQuizBtn = document.getElementById('exitQuiz');
+  const quizContainer = document.getElementById('quizContainer');
+  const quizCard = document.getElementById('quizCard');
+  const nextQuizBtn = document.getElementById('nextQuizCard');
+  const quizCounter = document.getElementById('quizCounter');
+  const mainControls = document.getElementById('mainControls');
+  const quizHeader = document.getElementById('quizHeader');
+
+  let currentWords = [];
+  let currentHanziWriters = [];
+  let currentQuizMode = 'chinese'; // default
+
+  // Theme Logic
+  document.getElementById('themeBtn').onclick = () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  };
+  if (localStorage.getItem('theme')) document.documentElement.setAttribute('data-theme', localStorage.getItem('theme'));
+
+  // Speech Synthesis
+  let voicesLoaded = false;
+  window.speechSynthesis.onvoiceschanged = () => { voicesLoaded = true; };
+
+  function speak(text, lang = 'zh-CN') {
+    if (!text || text.trim() === '') return;
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.trim());
+    utterance.lang = lang;
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    if (voicesLoaded) {
+      const voices = speechSynthesis.getVoices();
+      const preferred = voices.find(v => v.lang.startsWith(lang));
+      if (preferred) utterance.voice = preferred;
+    }
+    utterance.onerror = (e) => console.warn('Speech error:', e);
+    speechSynthesis.speak(utterance);
+  }
+
+  function playChinese(text) { speak(text, 'zh-CN'); }
+  function playEnglish(text) { speak(text, 'en-GB'); }
+  function playFrench(text) { speak(text, 'fr-FR'); }
+
+  function performSearch() {
+    const q = searchInput.value.trim();
+    const field = document.getElementById('fieldSelect').value;
+    const section = sectionSelect.value;
+
+    fetch(`/search?q=${encodeURIComponent(q)}&field=${field}`)
+      .then(r => r.json())
+      .then(data => {
+        grid.innerHTML = '';
+        let filtered = (section === 'all') ? data : data.filter(r => r.section === section);
+        currentWords = filtered;
+
+        filtered.forEach(row => {
+          const card = document.createElement('div');
+          card.className = 'vocab-card';
+
+          // Hanzi text (always use hanzi-cell class)
+          const hanziText = (row.hanzi || '').trim();
+          const hanziEsc = hanziText.replace(/'/g, "\\'");
+
+          card.innerHTML = `
+              <div class="hanzi-cell" style="margin-bottom:3px;">${hanziText}</div>
+
+              <div style="display:flex; align-items:center; gap:8px; margin:3px 0; justify-content:flex-start; width:100%; padding-left:6px; box-sizing:border-box;">
+                <div class="pinyin-text" onclick="event.stopPropagation(); playChinese('${hanziEsc}')" style="text-align:left; width:100%; cursor:pointer;">${row.pinyin || ''}</div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:8px; margin:2px 0; justify-content:flex-start; width:100%; padding-left:6px; box-sizing:border-box;">
+                <div class="pinyin-text" onclick="event.stopPropagation(); playFrench('${(row.french || '').replace(/'/g, "\\'")}')" style="text-align:left; width:100%; cursor:pointer;">${row.french || ''}</div>
+              </div>
+
+              <div class="translation-text" style="margin-top:8px; text-align:center; width:100%;">${row.english || ''}</div>
+            `;
+          card.onclick = () => openEditModal(row);
+          grid.appendChild(card);
+        });
+
+        if (quizContainer.style.display !== 'none') {
+          const modeText = currentQuizMode === 'chinese' ? 'Chinese → Translations' : 'Français → Translations';
+          quizCounter.textContent = `Words in quiz: ${filtered.length} (${modeText})`;
+          if (filtered.length === 0) {
+            quizCard.innerHTML = '<p>No words match current filters.</p>';
+          } else {
+            showRandomCard();
+          }
+        }
+      });
+  }
+
+  function startQuiz(mode) {
+    if (currentWords.length === 0) {
+      alert("No words available with current filters. Try broadening your search or category.");
+      return;
+    }
+
+    currentQuizMode = mode;
+
+    mainControls.style.display = 'none';
+    grid.style.display = 'none';
+
+    quizHeader.style.display = 'block';
+    quizContainer.style.display = 'block';
+
+    const modeText = mode === 'chinese' ? 'Chinese → Translations' : 'Français → Translations';
+    quizCounter.textContent = `Words in quiz: ${currentWords.length} (${modeText})`;
+    showRandomCard();
+  }
+
+  function exitQuiz() {
+    quizContainer.style.display = 'none';
+    quizHeader.style.display = 'none';
+
+    mainControls.style.display = 'block';
+    grid.style.display = 'grid';
+  }
+
+  function showRandomCard() {
+    if (currentWords.length === 0) return;
+    const randomWord = currentWords[Math.floor(Math.random() * currentWords.length)];
+
+    if (currentQuizMode === 'chinese') {
+      // Chinese-first mode: show Hanzi + speaker, then English + flagged words
+      const hanziEsc = (randomWord.hanzi || '').replace(/'/g, "\\'");
+      const frenchEsc = (randomWord.french || '').replace(/'/g, "\\'");
+
+      quizCard.innerHTML = `
+        <div style="font-size:2.6em; margin-bottom:20px; line-height:1.2;">${randomWord.hanzi || ''}</div>
+        
+        <button style="background:none; border:none; cursor:pointer; font-size:2.2em; padding:0; line-height:1;" onclick="event.stopPropagation(); playChinese('${hanziEsc}')">🔊</button>
+
+        <div class="hidden-info" style="display:none; text-align:center; margin-top:30px;">
+          <div class="translation-text" style="margin:15px 0; font-size:1.3em; font-weight:bold;">${randomWord.english || ''}</div>
+          
+          <div style="display:flex; align-items:center; justify-content:center; gap:15px; margin-top:20px; flex-wrap:wrap;">
+            <button style="background:none; border:none; cursor:pointer; font-size:1.8em; padding:0;" onclick="event.stopPropagation(); playChinese('${hanziEsc}')">🇨🇳</button>
+            <span style="font-size:0.95em;">${randomWord.hanzi || ''}</span>
+            
+            <button style="background:none; border:none; cursor:pointer; font-size:1.8em; padding:0;" onclick="event.stopPropagation(); playFrench('${frenchEsc}')">🇫🇷</button>
+            <span style="font-size:0.95em;">${randomWord.french || ''}</span>
+          </div>
+        </div>
+      `;
+
+      // Auto-play the Chinese word
+      playChinese(randomWord.hanzi || '');
+
+    } else {
+      // French-first mode: show French + speaker, then English + flagged words
+      const frenchEsc = (randomWord.french || '').replace(/'/g, "\\'");
+      const hanziEsc = (randomWord.hanzi || '').replace(/'/g, "\\'");
+
+      quizCard.innerHTML = `
+        <div style="font-size:2.6em; margin-bottom:20px; line-height:1.2;">${randomWord.french || ''}</div>
+        
+        <button style="background:none; border:none; cursor:pointer; font-size:2.2em; padding:0; line-height:1;" onclick="event.stopPropagation(); playFrench('${frenchEsc}')">🔊</button>
+
+        <div class="hidden-info" style="display:none; text-align:center; margin-top:30px;">
+          <div class="translation-text" style="margin:15px 0; font-size:1.3em; font-weight:bold;">${randomWord.english || ''}</div>
+          
+          <div style="display:flex; align-items:center; justify-content:center; gap:15px; margin-top:20px; flex-wrap:wrap;">
+            <button style="background:none; border:none; cursor:pointer; font-size:1.8em; padding:0;" onclick="event.stopPropagation(); playChinese('${hanziEsc}')">🇨🇳</button>
+            <span style="font-size:0.95em;">${randomWord.hanzi || ''}</span>
+            
+            <button style="background:none; border:none; cursor:pointer; font-size:1.8em; padding:0;" onclick="event.stopPropagation(); playFrench('${frenchEsc}')">🇫🇷</button>
+            <span style="font-size:0.95em;">${randomWord.french || ''}</span>
+          </div>
+        </div>
+      `;
+
+      // Auto-play the French word
+      playFrench(randomWord.french || '');
+    }
+
+    quizCard.onclick = (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      const hidden = quizCard.querySelector('.hidden-info');
+      hidden.style.display = hidden.style.display === 'none' ? 'block' : 'none';
+    };
+  }
+
+  function updateModalFooter() {
+    const deleteBtn = document.getElementById('deleteModalBtn');
+    const wordId = document.getElementById('mw_id').value;
+    deleteBtn.style.display = wordId ? 'block' : 'none';
+  }
+
+  function openEditModal(row) {
+    document.getElementById('modalTitle').innerText = row ? "Edit Word" : "Add Word";
+    document.getElementById('mw_id').value = row ? row.id : "";
+    const hanzi = row ? (row.hanzi || "").trim() : "";
+
+    document.getElementById('mw_hanzi').value = hanzi;
+    document.getElementById('mw_sent_hanzi').value = row ? row.sent_hanzi : "";
+    document.getElementById('mw_pinyin').value = row ? row.pinyin : "";
+    document.getElementById('mw_sent_pinyin').value = row ? row.sent_pinyin : "";
+    document.getElementById('mw_english').value = row ? row.english : "";
+    document.getElementById('mw_sent_english').value = row ? row.sent_english : "";
+    document.getElementById('mw_french').value = row ? row.french : "";
+    document.getElementById('mw_sent_french').value = row ? row.sent_french : "";
+    
+    // Populate category suggestions (datalist) and set value
+    const sectionInput = document.getElementById('mw_section');
+    const rowSection = row ? row.section : "";
+
+    fetch('/sections')
+      .then(r => r.json())
+      .then(secs => {
+        const dl = document.getElementById('mw_sections_list');
+        dl.innerHTML = '';
+        secs.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          dl.appendChild(opt);
+        });
+
+        // Set the input value to the row's section if present
+        sectionInput.value = rowSection || '';
+      })
+      .catch(() => { sectionInput.value = rowSection || ''; });
+
+    // Reset practice buttons
+    document.getElementById('startPracticeBtn').style.display = 'inline-block';
+    document.getElementById('restartPracticeBtn').style.display = 'none';
+
+    // Stroke animation setup (unchanged)
+    const container = document.getElementById('strokeAnimContainer');
+    container.innerHTML = '';
+    currentHanziWriters = [];
+
+    if (hanzi.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">No Hanzi to practice</p>';
+    } else if (hanzi.length > 10) {
+      container.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">Too many characters (max 10)</p>';
+    } else {
+      const scrollWrapper = document.createElement('div');
+      scrollWrapper.style.display = 'flex';
+      scrollWrapper.style.alignItems = 'center';
+      scrollWrapper.style.gap = '0px';
+      scrollWrapper.style.padding = '0 10px';
+      scrollWrapper.style.height = '100%';
+      container.appendChild(scrollWrapper);
+
+      const charSize = 140;
+
+      for (let i = 0; i < hanzi.length; i++) {
+        const char = hanzi[i];
+        const charContainer = document.createElement('div');
+        charContainer.style.width = `${charSize}px`;
+        charContainer.style.height = `${charSize}px`;
+        charContainer.style.flexShrink = '0';
+        if (i < hanzi.length - 1) {
+          charContainer.style.marginRight = '-25px';
+        }
+        scrollWrapper.appendChild(charContainer);
+
+        const writer = HanziWriter.create(charContainer, char, {
+          width: charSize,
+          height: charSize,
+          padding: 10,
+          showOutline: true,
+          showCharacter: true,
+          strokeColor: '#168',
+          radicalColor: '#168',
+          delayBetweenStrokes: 700,
+          delayBetweenLoops: 3000
+        });
+
+        writer.loopCharacterAnimation();
+        currentHanziWriters.push(writer);
+      }
+    }
+
+    modal.style.display = 'flex';
+    updateModalFooter();
+  }
+
+  function closeModal() {
+    modal.style.display = 'none';
+    const container = document.getElementById('strokeAnimContainer');
+    container.innerHTML = '';
+    currentHanziWriters = [];
+  }
+
+  // Drawing practice (unchanged)
+  document.getElementById('startPracticeBtn').addEventListener('click', () => {
+    if (currentHanziWriters.length === 0) return;
+
+    currentHanziWriters.forEach(w => w.hideCharacter());
+
+    let index = 0;
+    function quizNext() {
+      if (index >= currentHanziWriters.length) {
+        alert('Great job! You completed all characters.');
+        document.getElementById('restartPracticeBtn').style.display = 'inline-block';
+        return;
+      }
+      currentHanziWriters[index].quiz({
+        showHintAfterMisses: 2,
+        onComplete: () => {
+          index++;
+          quizNext();
+        }
+      });
+    }
+    quizNext();
+
+    document.getElementById('startPracticeBtn').style.display = 'none';
+  });
+
+  document.getElementById('restartPracticeBtn').addEventListener('click', () => {
+    if (currentHanziWriters.length === 0) return;
+
+    currentHanziWriters.forEach(w => w.hideCharacter());
+
+    let index = 0;
+    function quizNext() {
+      if (index >= currentHanziWriters.length) return;
+      currentHanziWriters[index].quiz({
+        onComplete: () => {
+          index++;
+          quizNext();
+        }
+      });
+    }
+    quizNext();
+  });
+
+  document.getElementById('saveModal').onclick = () => {
+    // Get section from the editable input (datalist) - user can type or pick
+    const finalSection = document.getElementById('mw_section').value.trim();
+    
+    const payload = {
+      hanzi: document.getElementById('mw_hanzi').value.trim(),
+      pinyin: document.getElementById('mw_pinyin').value.trim(),
+      english: document.getElementById('mw_english').value.trim(),
+      french: document.getElementById('mw_french').value.trim(),
+      section: finalSection,
+      sent_hanzi: document.getElementById('mw_sent_hanzi').value.trim(),
+      sent_pinyin: document.getElementById('mw_sent_pinyin').value.trim(),
+      sent_english: document.getElementById('mw_sent_english').value.trim(),
+      sent_french: document.getElementById('mw_sent_french').value.trim()
+    };
+    
+    if (!payload.section) {
+      alert("Category / Section is required!");
+      return;
+    }
+    if (!payload.hanzi && !payload.pinyin && !payload.english && !payload.french) {
+      alert("At least one of Hanzi, Pinyin, English or French is required!");
+      return;
+    }
+
+    const wordId = document.getElementById('mw_id').value;
+    const url = wordId ? '/update' : '/add_word';
+    const method = 'POST';
+
+    let body;
+    let headers = {};
+    if (wordId) {
+      payload.id = wordId;
+      body = JSON.stringify(payload);
+      headers['Content-Type'] = 'application/json';
+    } else {
+      const formData = new FormData();
+      for (const key in payload) {
+        formData.append(key, payload[key]);
+      }
+      body = formData;
+    }
+
+    fetch(url, {
+      method,
+      headers,
+      body
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok === false || data.error) {
+        alert("Error: " + (data.error || "Save failed"));
+        return;
+      }
+      closeModal();
+      performSearch();
+      loadSections();
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Network error while saving");
+    });
+  };
+
+  document.getElementById('deleteModalBtn').addEventListener('click', () => {
+    const wordId = document.getElementById('mw_id').value;
+    const hanzi = document.getElementById('mw_hanzi').value.trim() || "this word";
+
+    if (!confirm(`Are you sure you want to permanently delete "${hanzi}"?`)) return;
+
+    fetch('/delete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: wordId})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        closeModal();
+        performSearch();
+        loadSections();
+      } else {
+        alert("Error deleting: " + (data.error || "Unknown error"));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Network error while deleting");
+    });
+  });
+
+  function loadSections() {
+    fetch('/sections').then(r => r.json()).then(secs => {
+      const ss = document.getElementById('sectionSelect');
+      ss.innerHTML = '<option value="all">All Categories</option>';
+      secs.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s; ss.appendChild(opt);
+      });
+    });
+  }
+
+  loadSections();
+  performSearch();
+
+  // Event Listeners
+  searchInput.addEventListener('input', performSearch);
+  document.getElementById('clearSearch').onclick = () => { searchInput.value = ''; performSearch(); };
+  sectionSelect.addEventListener('change', performSearch);
+
+  startChineseQuizBtn.addEventListener('click', () => startQuiz('chinese'));
+  startFrenchQuizBtn.addEventListener('click', () => startQuiz('french'));
+  exitQuizBtn.addEventListener('click', exitQuiz);
+  nextQuizBtn.addEventListener('click', showRandomCard);
+</script>
+</body>
+</html>

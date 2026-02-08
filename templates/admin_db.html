@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin DB Browser</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; background: #f5f6fa; color: #2c3e50; }
+        .header { background: #2c3e50; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 1.3rem; }
+        .header a { color: white; text-decoration: none; font-weight: 600; padding: 0.4rem 0.75rem; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; }
+        .layout { display: grid; grid-template-columns: 260px 1fr; height: calc(100vh - 70px); }
+        .sidebar { background: white; border-right: 1px solid #e1e4e8; overflow-y: auto; }
+        .sidebar h2 { margin: 1rem; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7b8c; }
+        .table-list { list-style: none; padding: 0 0 1rem 0; margin: 0; }
+        .table-list li { padding: 0.65rem 1rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .table-list li.active { background: #e8f4ff; color: #0d6efd; font-weight: 600; }
+        .badge { background: #ecf0f1; padding: 0.15rem 0.45rem; border-radius: 999px; font-size: 0.75rem; color: #7f8c8d; }
+        .content { padding: 1.25rem; overflow: auto; }
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap; }
+        .toolbar .meta { color: #6b7b8c; font-size: 0.9rem; }
+        table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e1e4e8; table-layout: fixed; }
+        th, td { padding: 0.55rem 0.65rem; border: 1px solid #e1e4e8; text-align: left; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        th { background: #f7f9fb; font-weight: 700; }
+        tr:nth-child(even) td { background: #fbfdff; }
+        /* Allow long text columns to wrap */
+        .col-ocr_text, .col-entries_json, .col-image_path { white-space: normal; word-break: break-word; }
+        /* Give generous width to content-heavy columns */
+        .col-ocr_text { width: 26%; }
+        .col-entries_json { width: 28%; }
+        .col-image_path { width: 18%; }
+        /* Narrow technical columns */
+        .col-id { width: 50px; }
+        .col-status { width: 90px; }
+        .col-section { width: 110px; }
+        .col-detected_language { width: 120px; }
+        .col-timestamp { width: 150px; }
+        .col-user_ip { width: 120px; }
+        .pagination { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; }
+        .pagination a, .pagination span { padding: 0.35rem 0.75rem; border: 1px solid #d5d9dd; border-radius: 4px; text-decoration: none; color: #2c3e50; background: white; }
+        .pagination .active { background: #3498db; color: white; border-color: #3498db; }
+        .empty { padding: 2rem; text-align: center; color: #7f8c8d; background: white; border: 1px solid #e1e4e8; }
+        .notice { background: #fffbe6; border: 1px solid #ffe58f; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; color: #8c6d1f; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Admin Database Browser</h1>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="/admin" title="Back to admin">← Admin Logs</a>
+            <a href="/" title="Go to site">🏠 Site</a>
+        </div>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Tables</h2>
+            <ul class="table-list">
+                {% for t in tables %}
+                <li class="{% if t == selected_table %}active{% endif %}">
+                    <a href="/admin/db?table={{ t }}" style="flex:1; text-decoration:none; color:inherit;">{{ t }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </aside>
+
+        <main class="content">
+            {% if not selected_table %}
+                <div class="empty">No tables found.</div>
+            {% else %}
+                <div class="toolbar">
+                    <div class="meta">
+                        <strong>{{ selected_table }}</strong> — {{ total_rows }} rows — page {{ page }} / {{ page_count }} — showing up to {{ page_size }} per page
+                    </div>
+                    <div class="meta">Read-only viewer (SQLite)</div>
+                </div>
+
+                {% if rows|length == 0 %}
+                    <div class="empty">No rows to display.</div>
+                {% else %}
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    {% for col in columns %}
+                                        <th class="col-{{ col }}" data-col="{{ col }}" title="{{ col }}">{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows %}
+                                    <tr>
+                                        {% for col in columns %}
+                                            <td class="col-{{ col }}" data-col="{{ col }}" title="{{ row[col] }}">{{ row[col] }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pagination">
+                        {% set prev_page = page - 1 %}
+                        {% set next_page = page + 1 %}
+                        {% if page > 1 %}
+                            <a href="/admin/db?table={{ selected_table }}&page={{ prev_page }}">Prev</a>
+                        {% else %}
+                            <span>Prev</span>
+                        {% endif %}
+
+                        <span class="active">{{ page }}</span>
+
+                        {% if page < page_count %}
+                            <a href="/admin/db?table={{ selected_table }}&page={{ next_page }}">Next</a>
+                        {% else %}
+                            <span>Next</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endif %}
+        </main>
+    </div>
+</body>
+</html>
