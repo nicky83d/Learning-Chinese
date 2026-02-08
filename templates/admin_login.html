@@ -147,21 +147,7 @@
         
         <div id="errorMessage" class="error-message"></div>
         
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autocomplete="username">
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
-            </div>
-            
-            <button type="submit" id="loginBtn">
-                <span id="btnText">Sign In</span>
-            </button>
-        </form>
+        <a href="/auth/google" style="display:block; text-align:center; padding:14px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border-radius:8px; font-size:16px; font-weight:600; text-decoration:none;">Sign in with Google</a>
         
         <div class="back-link">
             <a href="/">← Back to Vocab Lab</a>
@@ -180,39 +166,3 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            // Disable button
-            loginBtn.disabled = true;
-            btnText.textContent = 'Signing in...';
-            errorMessage.classList.remove('show');
-            
-            try {
-                const response = await fetch('/admin/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    // Success - redirect to admin panel
-                    window.location.href = '/admin';
-                } else {
-                    // Show error
-                    errorMessage.textContent = data.error || 'Login failed';
-                    errorMessage.classList.add('show');
-                    loginBtn.disabled = false;
-                    btnText.textContent = 'Sign In';
-                }
-            } catch (error) {
-                errorMessage.textContent = 'Network error - please try again';
-                errorMessage.classList.add('show');
-                loginBtn.disabled = false;
-                btnText.textContent = 'Sign In';
-            }
-        });
-    </script>
-</body>
-</html>

@@ -21,6 +21,9 @@ from io import BytesIO
 from PIL import Image, ImageOps
 from functools import wraps
 from dotenv import load_dotenv
+from urllib.parse import urlencode
+import requests
+import secrets
 import bcrypt
 
 # Load environment variables
@@ -89,9 +92,19 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('admin_logged_in'):
+            if request.method == 'GET' and request.accept_mimetypes.accept_html:
+                return redirect(url_for('admin_login'))
             return jsonify({"error": "Authentication required"}), 401
         return f(*args, **kwargs)
     return decorated_function
+
+def _get_google_redirect_uri() -> str:
+    configured = app.config.get('GOOGLE_REDIRECT_URI')
+    if configured:
+        return configured
+    scheme = request.headers.get('X-Forwarded-Proto', request.scheme)
+    host = request.headers.get('X-Forwarded-Host', request.host)
+    return f"{scheme}://{host}/auth/google/callback"
 
 def fold_pinyin(text: str, umlaut_to: str = 'u') -> str:
     if not text:
@@ -957,43 +970,96 @@ def admin_login():
     """Admin login endpoint"""
     if request.method == 'GET':
         return render_template('admin_login.html')
+
+    return jsonify({"error": "Use Google login"}), 400
     
-    data = request.get_json(silent=True) or request.form
-    username = data.get('username', '').strip()
-    password = data.get('password', '')
-    
-    if not username or not password:
-        return jsonify({"error": "Username and password required"}), 400
-    
-    # Check credentials
-    if username == app.config['ADMIN_USERNAME']:
-        stored_password = app.config['ADMIN_PASSWORD']
-        if stored_password:
-            # Check if stored password is bcrypt hashed
-            if stored_password.startswith('$2b$') or stored_password.startswith('$2a$'):
-                try:
-                    if bcrypt.checkpw(password.encode('utf-8'), stored_password.encode('utf-8')):
-                        session['admin_logged_in'] = True
-                        session.permanent = True
-                        return jsonify({"success": True, "message": "Login successful"})
-                except:
-                    pass
-            else:
-                # Plain text password (development only)
-                if password == stored_password:
-                    session['admin_logged_in'] = True
-                    session.permanent = True
-                    logger.warning("Using plain-text password - use bcrypt in production!")
-                    return jsonify({"success": True, "message": "Login successful"})
-    
-    time.sleep(1)  # Prevent brute force
-    return jsonify({"error": "Invalid credentials"}), 401
+@app.route('/auth/google')
+def google_auth_start():
+    client_id = app.config.get('GOOGLE_CLIENT_ID')
+    client_secret = app.config.get('GOOGLE_CLIENT_SECRET')
+    if not client_id or not client_secret:
+        return jsonify({"error": "Google OAuth not configured"}), 500
+
+    state = secrets.token_urlsafe(16)
+    session['oauth_state'] = state
+    session.permanent = True
+
+    params = {
+        "client_id": client_id,
+        "redirect_uri": _get_google_redirect_uri(),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account"
+    }
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    return redirect(f"{auth_url}?{urlencode(params)}")
+
+
+@app.route('/auth/google/callback')
+def google_auth_callback():
+    error = request.args.get('error')
+    if error:
+        return jsonify({"error": error}), 400
+
+    state = request.args.get('state')
+    if not state or state != session.get('oauth_state'):
+        return jsonify({"error": "Invalid OAuth state"}), 400
+
+    code = request.args.get('code')
+    if not code:
+        return jsonify({"error": "Missing authorization code"}), 400
+
+    client_id = app.config.get('GOOGLE_CLIENT_ID')
+    client_secret = app.config.get('GOOGLE_CLIENT_SECRET')
+    token_url = "https://oauth2.googleapis.com/token"
+    token_resp = requests.post(token_url, data={
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": _get_google_redirect_uri(),
+        "grant_type": "authorization_code"
+    }, timeout=15)
+
+    if token_resp.status_code != 200:
+        logger.error(f"Google token error: {token_resp.text}")
+        return jsonify({"error": "Failed to exchange code"}), 400
+
+    token_data = token_resp.json()
+    access_token = token_data.get('access_token')
+    if not access_token:
+        return jsonify({"error": "Missing access token"}), 400
+
+    userinfo_resp = requests.get(
+        "https://openidconnect.googleapis.com/v1/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=15
+    )
+
+    if userinfo_resp.status_code != 200:
+        logger.error(f"Google userinfo error: {userinfo_resp.text}")
+        return jsonify({"error": "Failed to fetch user info"}), 400
+
+    userinfo = userinfo_resp.json()
+    email = userinfo.get('email')
+    email_verified = userinfo.get('email_verified', True)
+
+    if not email or not email_verified:
+        return jsonify({"error": "Google account not verified"}), 403
+
+    session['admin_logged_in'] = True
+    session['admin_email'] = email
+    session.pop('oauth_state', None)
+    return redirect(url_for('admin_page'))
 
 
 @app.route('/admin/logout', methods=['POST'])
 def admin_logout():
     """Admin logout endpoint"""
     session.pop('admin_logged_in', None)
+    session.pop('admin_email', None)
+    session.pop('oauth_state', None)
     return jsonify({"success": True, "message": "Logged out"})
 
 

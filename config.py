@@ -25,6 +25,11 @@ class Config:
     # API Keys (MUST be set via environment variables in production)
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     GOOGLE_APPLICATION_CREDENTIALS = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+
+    # Google OAuth (admin login)
+    GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+    GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI')
     
     # Admin authentication
     ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
@@ -65,7 +70,7 @@ class ProductionConfig(Config):
     @classmethod
     def validate(cls):
         """Validate production configuration"""
-        required = ['SECRET_KEY', 'ADMIN_PASSWORD', 'OPENAI_API_KEY']
+        required = ['SECRET_KEY', 'OPENAI_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']
         has_explicit_gcp_creds = bool(os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'))
         # Cloud Run and other GCP runtimes provide default credentials without a key file.
         is_gcp_runtime = bool(os.environ.get('K_SERVICE') or os.environ.get('GOOGLE_CLOUD_PROJECT'))
