@@ -24,7 +24,8 @@ from dotenv import load_dotenv
 import bcrypt
 
 # Load environment variables
-load_dotenv()
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path, override=True)
 
 # Get configuration
 config_class = get_config()
