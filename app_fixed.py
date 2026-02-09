@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file, session, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
-from models import db, Vocabulary, PhotoLog
+from models import db, Vocabulary, PhotoLog, User, UserVocabulary
 from extract_data import extract_all_rows
 from config import get_config
 import unicodedata
@@ -1044,20 +1044,51 @@ def google_auth_callback():
     userinfo = userinfo_resp.json()
     email = userinfo.get('email')
     email_verified = userinfo.get('email_verified', True)
+    given_name = userinfo.get('given_name', '')
+    family_name = userinfo.get('family_name', '')
+    full_name = userinfo.get('name', '')
 
     if not email or not email_verified:
         return jsonify({"error": "Google account not verified"}), 403
 
-    # Check if email is in allowed list
+    # Check if email is in allowed list for admin
     allowed_emails = app.config.get('ADMIN_ALLOWED_EMAILS', [])
-    if allowed_emails and email.lower() not in allowed_emails:
-        logger.warning(f"Unauthorized admin login attempt: {email}")
-        return jsonify({"error": "Access denied. Your email is not authorized."}), 403
+    is_admin = allowed_emails and email.lower() in allowed_emails
+    
+    # Create or update user
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(
+            email=email,
+            name=full_name,
+            first_name=given_name,
+            is_admin=is_admin,
+            is_onboarded=False
+        )
+        db.session.add(user)
+    else:
+        user.last_login = datetime.utcnow()
+        user.is_admin = is_admin  # Update admin status in case allowlist changed
+        user.name = full_name or user.name
+        user.first_name = given_name or user.first_name
+    
+    db.session.commit()
 
-    session['admin_logged_in'] = True
-    session['admin_email'] = email
+    # Set session
+    session['user_id'] = user.id
+    session['user_email'] = email
+    session['user_first_name'] = user.first_name or given_name or 'User'
+    session['is_admin'] = user.is_admin
+    session['admin_logged_in'] = user.is_admin  # Keep for backward compatibility
     session.pop('oauth_state', None)
-    return redirect(url_for('admin_page'))
+    
+    # Redirect to onboarding if first time, otherwise to admin if admin or home
+    if not user.is_onboarded:
+        return redirect(url_for('index', onboarding='true'))
+    elif user.is_admin:
+        return redirect(url_for('admin_page'))
+    else:
+        return redirect(url_for('index'))
 
 
 @app.route('/admin/logout', methods=['POST'])
@@ -1067,6 +1098,13 @@ def admin_logout():
     session.pop('admin_email', None)
     session.pop('oauth_state', None)
     return jsonify({"success": True, "message": "Logged out"})
+
+
+@app.route('/logout')
+def logout():
+    """User logout"""
+    session.clear()
+    return redirect(url_for('index'))
 
 
 @app.route('/admin/check-auth')
@@ -1708,6 +1746,112 @@ def _get_edit_distance(s1: str, s2: str) -> int:
             costs[len(s2)] = last_value
     
     return costs[len(s2)]
+
+
+# ====================== USER API ENDPOINTS ======================
+
+@app.route('/api/user/check')
+def check_user_auth():
+    """Check if user is logged in and return user info"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"authenticated": False})
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"authenticated": False})
+    
+    return jsonify({
+        "authenticated": True,
+        "user_id": user.id,
+        "email": user.email,
+        "first_name": user.first_name or "User",
+        "is_admin": user.is_admin,
+        "is_onboarded": user.is_onboarded
+    })
+
+
+@app.route('/api/user/sections')
+def get_available_sections():
+    """Get all available sections for onboarding"""
+    sections = db.session.query(Vocabulary.section).filter_by(is_approved=True).distinct().all()
+    return jsonify([{"name": s[0], "count": Vocabulary.query.filter_by(section=s[0], is_approved=True).count()} for s in sections if s[0]])
+
+
+@app.route('/api/user/onboard', methods=['POST'])
+def user_onboard():
+    """Complete user onboarding and import selected categories"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    data = request.get_json() or {}
+    selected_sections = data.get('sections', [])  # List of section names
+    
+    # Import vocabulary from selected sections
+    imported_count = 0
+    if selected_sections:
+        vocab_items = Vocabulary.query.filter(
+            Vocabulary.section.in_(selected_sections),
+            Vocabulary.is_approved == True
+        ).all()
+        
+        for vocab in vocab_items:
+            # Check if already added
+            existing = UserVocabulary.query.filter_by(
+                user_id=user.id,
+                vocabulary_id=vocab.id
+            ).first()
+            if not existing:
+                user_vocab = UserVocabulary(user_id=user.id, vocabulary_id=vocab.id)
+                db.session.add(user_vocab)
+                imported_count += 1
+    
+    # Mark user as onboarded
+    user.is_onboarded = True
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "imported_count": imported_count,
+        "message": f"Successfully imported {imported_count} words!"
+    })
+
+
+@app.route('/api/user/vocabulary')
+def get_user_vocabulary():
+    """Get vocabulary for the logged-in user"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify([])  # Return empty for non-authenticated users
+    
+    # Get user's vocabulary IDs
+    user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
+    vocab_ids = [uv.vocabulary_id for uv in user_vocab]
+    
+    if not vocab_ids:
+        return jsonify([])
+    
+    # Get the actual vocabulary items
+    vocab_items = Vocabulary.query.filter(Vocabulary.id.in_(vocab_ids)).all()
+    
+    return jsonify([{
+        "id": v.id,
+        "section": v.section,
+        "hanzi": v.hanzi,
+        "pinyin": v.pinyin,
+        "english": v.english,
+        "french": v.french,
+        "sent_hanzi": v.sent_hanzi,
+        "sent_pinyin": v.sent_pinyin,
+        "sent_english": v.sent_english,
+        "sent_french": v.sent_french
+    } for v in vocab_items])
+
 
 if __name__ == '__main__':
     create_tables_and_populate()

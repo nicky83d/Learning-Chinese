@@ -229,11 +229,45 @@
     <button class="toast-close" onclick="document.getElementById('uploadToast').classList.remove('show')">×</button>
   </div>
 
+  <!-- Onboarding Modal -->
+  <div id="onboardingModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: var(--card-bg); border-radius: 16px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 32px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+      <h2 style="margin-bottom: 16px; color: var(--primary);">🎉 Welcome to Vocab Lab!</h2>
+      <p style="margin-bottom: 24px; color: var(--text-main); line-height: 1.6;">
+        Start your Chinese learning journey! You can either:<br>
+        <strong>1.</strong> Start fresh with no words (add your own as you learn)<br>
+        <strong>2.</strong> Import existing vocabulary from our database
+      </p>
+      
+      <div style="margin-bottom: 24px;">
+        <button id="startFreshBtn" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">
+          ✨ Start Fresh (No Words)
+        </button>
+        <button id="showImportBtn" style="width: 100%; padding: 16px; background: var(--secondary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+          📚 Import Existing Words
+        </button>
+      </div>
+      
+      <div id="importSection" style="display: none;">
+        <h3 style="margin-bottom: 16px; color: var(--text-main);">Select Categories to Import:</h3>
+        <div id="categoryList" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--bg);">
+          <p style="text-align: center; color: var(--text-muted);">Loading categories...</p>
+        </div>
+        <button id="importSelectedBtn" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px;">
+          ✅ Import Selected Categories
+        </button>
+      </div>
+    </div>
+  </div>
+
   <header class="topbar">
     <h1>我在学中文</h1>
     <div class="menu-container top-menu">
       <button id="hamburgerBtn">☰</button>
       <div id="hamburgerMenu">
+        <div id="userGreeting" style="display: none; padding: 12px; background: rgba(0,0,0,0.1); border-radius: 6px; margin-bottom: 8px; font-weight: 600;">
+          👋 Hi, <span id="userFirstName">User</span>
+        </div>
         <div class="menu-has-sub">
           <button id="menuPractice">◂  🎯 Practice</button>
           <div id="practiceSubmenu">
@@ -252,8 +286,9 @@
         </div>
         <button id="themeBtn">🌓 Dark Mode</button>
         <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.2);"></div>
-        <a href="/admin/login" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔑 Login</a>
-        <a href="/admin" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔐 Admin</a>
+        <a href="/admin/login" id="loginLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔑 Login</a>
+        <a href="/logout" id="logoutLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🚪 Logout</a>
+        <a href="/admin" id="adminLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔐 Admin</a>
       </div>
     </div>
   </header>
@@ -1930,6 +1965,135 @@
   document.getElementById('talkingRecordBtn').addEventListener('click', startRecording);
   document.getElementById('talkingSkipBtn').addEventListener('click', skipCurrentWord);
   document.getElementById('talkingExitBtn').addEventListener('click', closePracticeTalkingModal);
+
+  // ==================== USER AUTHENTICATION & ONBOARDING ====================
+
+  // Check user authentication on page load
+  let currentUser = null;
+
+  async function checkUserAuth() {
+    try {
+      const response = await fetch('/api/user/check');
+      const data = await response.json();
+      
+      if (data.authenticated) {
+        currentUser = data;
+        // Update UI
+        document.getElementById('userGreeting').style.display = 'block';
+        document.getElementById('userFirstName').textContent = data.first_name;
+        document.getElementById('loginLink').style.display = 'none';
+        document.getElementById('logoutLink').style.display = 'inline-block';
+        
+        if (data.is_admin) {
+          document.getElementById('adminLink').style.display = 'inline-block';
+        }
+        
+        // Show onboarding modal if not onboarded
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('onboarding') === 'true' && !data.is_onboarded) {
+          showOnboardingModal();
+        }
+      } else {
+        // User not logged in - show login button
+        document.getElementById('loginLink').style.display = 'inline-block';
+        document.getElementById('logoutLink').style.display = 'none';
+        document.getElementById('adminLink').style.display = 'none';
+        document.getElementById('userGreeting').style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error checking auth:', error);
+    }
+  }
+
+  async function showOnboardingModal() {
+    const modal = document.getElementById('onboardingModal');
+    modal.style.display = 'flex';
+    
+    // Load available categories
+    try {
+      const response = await fetch('/api/user/sections');
+      const sections = await response.json();
+      
+      const categoryList = document.getElementById('categoryList');
+      if (sections.length === 0) {
+        categoryList.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No categories available yet.</p>';
+      } else {
+        categoryList.innerHTML = sections.map(s => `
+          <label style="display: flex; align-items: center; padding: 12px; border-radius: 6px; cursor: pointer; margin-bottom: 8px; background: var(--card-bg);" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='var(--card-bg)'">
+            <input type="checkbox" value="${s.name}" style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+            <span style="flex: 1; color: var(--text-main);">${s.name}</span>
+            <span style="color: var(--text-muted); font-size: 0.9em;">${s.count} words</span>
+          </label>
+        `).join('');
+      }
+    } catch (error) {
+      console.error('Error loading sections:', error);
+      document.getElementById('categoryList').innerHTML = '<p style="color: #ff6b6b;">Error loading categories.</p>';
+    }
+  }
+
+  // Start fresh - complete onboarding with no imports
+  document.getElementById('startFreshBtn').addEventListener('click', async () => {
+    try {
+      const response = await fetch('/api/user/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections: [] })
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        document.getElementById('onboardingModal').style.display = 'none';
+        showToast('🎉 Welcome! Start adding your first words!', 'success');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Error completing setup', 'error');
+    }
+  });
+
+  // Show import section
+  document.getElementById('showImportBtn').addEventListener('click', () => {
+    document.getElementById('importSection').style.display = 'block';
+    document.getElementById('showImportBtn').style.display = 'none';
+  });
+
+  // Import selected categories
+  document.getElementById('importSelectedBtn').addEventListener('click', async () => {
+    const checkboxes = document.querySelectorAll('#categoryList input[type="checkbox"]:checked');
+    const selectedSections = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedSections.length === 0) {
+      showToast('Please select at least one category', 'error');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/user/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections: selectedSections })
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        document.getElementById('onboardingModal').style.display = 'none';
+        showToast(data.message, 'success');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Error importing words', 'error');
+    }
+  });
+
+  // Check auth on page load
+  checkUserAuth();
 
 </script>
 </body>

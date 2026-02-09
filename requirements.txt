@@ -6,6 +6,7 @@ Flask-CORS==4.0.0
 
 # Database
 SQLAlchemy==2.0.23
+pg8000==1.30.3
 
 # Google Cloud APIs
 google-cloud-vision==3.7.0

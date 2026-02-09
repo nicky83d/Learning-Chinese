@@ -54,3 +54,30 @@ class PhotoLog(db.Model):
     
     # Error tracking
     error_message = db.Column(db.Text, nullable=True)
+
+
+class User(db.Model):
+    """User accounts with Google OAuth"""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=True)
+    first_name = db.Column(db.String(100), nullable=True)
+    is_admin = db.Column(db.Boolean, default=False)
+    is_onboarded = db.Column(db.Boolean, default=False)  # Track if user completed initial setup
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class UserVocabulary(db.Model):
+    """Track which vocabulary words each user has imported/learned"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vocabulary_id = db.Column(db.Integer, db.ForeignKey('vocabulary.id'), nullable=False)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='user_vocabulary')
+    vocabulary = db.relationship('Vocabulary', backref='user_vocabulary')
+    
+    # Ensure unique constraint
+    __table_args__ = (db.UniqueConstraint('user_id', 'vocabulary_id', name='unique_user_vocab'),)
