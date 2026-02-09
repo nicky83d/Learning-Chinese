@@ -91,11 +91,21 @@ def has_chinese(s: str) -> bool:
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
-            if request.method == 'GET' and request.accept_mimetypes.accept_html:
-                return redirect(url_for('admin_login'))
-            return jsonify({"error": "Authentication required"}), 401
-        return f(*args, **kwargs)
+        # Check old-style admin session
+        if session.get('admin_logged_in'):
+            return f(*args, **kwargs)
+        
+        # Check Google OAuth user admin status
+        user_id = session.get('user_id')
+        if user_id:
+            user = db.session.get(User, user_id)
+            if user and user.is_admin:
+                return f(*args, **kwargs)
+        
+        # Not authenticated as admin
+        if request.method == 'GET' and request.accept_mimetypes.accept_html:
+            return redirect(url_for('admin_login'))
+        return jsonify({"error": "Admin authentication required"}), 401
     return decorated_function
 
 def _get_google_redirect_uri() -> str:

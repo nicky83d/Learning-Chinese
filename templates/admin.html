@@ -45,11 +45,13 @@
             display: flex;
             flex-direction: column;
             min-height: 80vh;
+            position: relative;
         }
 
         .sidebar-header {
             padding: 1rem;
             border-bottom: 1px solid #eee;
+            flex-shrink: 0;
         }
 
         .filter-tabs {
@@ -78,6 +80,11 @@
             margin: 0;
             overflow-y: auto;
             flex: 1;
+            min-height: 0;
+        }
+
+        .log-list[style*="display: none"] {
+            display: none !important;
         }
 
         .log-item {
@@ -474,6 +481,10 @@
         let selectedLogId = null;
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Ensure correct initial panel state
+            document.getElementById('logList').style.display = 'flex';
+            document.getElementById('userList').style.display = 'none';
+            
             loadLogs();
             setupFilterTabs();
             setupMobileDrawer();
@@ -1011,13 +1022,17 @@
         async function loadUsers() {
             try {
                 const response = await fetch('/api/admin/users');
-                if (!response.ok) throw new Error('Failed to load users');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Failed to load users:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
                 const data = await response.json();
                 allUsers = data;
                 renderUserList();
             } catch (error) {
                 console.error('Error loading users:', error);
-                document.getElementById('userList').innerHTML = '<li class="error-message">Failed to load users</li>';
+                document.getElementById('userList').innerHTML = '<li class="error-message">Failed to load users: ' + error.message + '</li>';
             }
         }
 
