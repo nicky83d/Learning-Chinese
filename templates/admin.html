@@ -81,6 +81,8 @@
             overflow-y: auto;
             flex: 1;
             min-height: 0;
+            display: block;
+            flex-direction: column;
         }
 
         .log-list[style*="display: none"] {
@@ -482,7 +484,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             // Ensure correct initial panel state
-            document.getElementById('logList').style.display = 'flex';
+            document.getElementById('logList').style.display = 'block';
             document.getElementById('userList').style.display = 'none';
             
             loadLogs();
@@ -494,6 +496,11 @@
         async function loadLogs() {
             try {
                 const response = await fetch('/admin/logs');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Failed to load logs:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const data = await response.json();
                 allLogs = data;
                 renderLogList();
@@ -998,8 +1005,8 @@
             });
 
             // Update lists visibility
-            document.getElementById('logList').style.display = panel === 'logs' ? 'flex' : 'none';
-            document.getElementById('userList').style.display = panel === 'users' ? 'flex' : 'none';
+            document.getElementById('logList').style.display = panel === 'logs' ? 'block' : 'none';
+            document.getElementById('userList').style.display = panel === 'users' ? 'block' : 'none';
 
             // Update filter tabs visibility
             document.getElementById('logsFilters').style.display = panel === 'logs' ? 'flex' : 'none';

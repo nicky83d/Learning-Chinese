@@ -166,6 +166,39 @@ def create_tables_and_populate():
         return
     with app.app_context():
         db.create_all()
+        
+        # Run migrations for new columns (safe to run multiple times)
+        try:
+            from sqlalchemy import text
+            # Add user_id column to photo_log if it doesn't exist
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE photo_log 
+                    ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL
+                """))
+                db.session.commit()
+                logger.info("PhotoLog: user_id column ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower():
+                    logger.warning(f"Could not add user_id column: {e}")
+            
+            # Add image_data column to photo_log if it doesn't exist
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE photo_log 
+                    ADD COLUMN IF NOT EXISTS image_data BYTEA
+                """))
+                db.session.commit()
+                logger.info("PhotoLog: image_data column ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower():
+                    logger.warning(f"Could not add image_data column: {e}")
+        except Exception as e:
+            logger.warning(f"Migration check failed: {e}")
+            db.session.rollback()
+        
         if Vocabulary.query.count() == 0:
             logger.info("Importing vocabulary data into database...")
             rows = extract_all_rows()
