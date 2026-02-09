@@ -31,9 +31,11 @@ class PhotoLog(db.Model):
     """Logs all photo upload attempts for admin review."""
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Track which user uploaded
     user_ip = db.Column(db.String(50), nullable=True)
     filename = db.Column(db.String(255), nullable=True)
-    image_path = db.Column(db.String(500), nullable=True)
+    image_path = db.Column(db.String(500), nullable=True)  # Legacy: kept for compatibility
+    image_data = db.Column(db.LargeBinary, nullable=True)  # Store actual image bytes in database
     image_width = db.Column(db.Integer, nullable=True)  # Actual image width
     image_height = db.Column(db.Integer, nullable=True)  # Actual image height
     section = db.Column(db.String(100), nullable=True)
@@ -81,3 +83,18 @@ class UserVocabulary(db.Model):
     
     # Ensure unique constraint
     __table_args__ = (db.UniqueConstraint('user_id', 'vocabulary_id', name='unique_user_vocab'),)
+
+
+class UserDeletedWord(db.Model):
+    """Track words that users have hidden/deleted from their view (admin can see in deleted category)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vocabulary_id = db.Column(db.Integer, db.ForeignKey('vocabulary.id'), nullable=False)
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='deleted_words')
+    vocabulary = db.relationship('Vocabulary', backref='deleted_by_users')
+    
+    # Ensure unique constraint
+    __table_args__ = (db.UniqueConstraint('user_id', 'vocabulary_id', name='unique_user_deleted'),)

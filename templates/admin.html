@@ -432,16 +432,23 @@
     <div class="container">
         <div class="sidebar">
             <div class="sidebar-header">
-                <h2>Upload Logs</h2>
-                <div class="filter-tabs">
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <button class="panel-tab active" data-panel="logs" style="flex: 1; padding: 0.5rem; border: 1px solid #1f6feb; background: #1f6feb; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">📋 Logs</button>
+                    <button class="panel-tab" data-panel="users" style="flex: 1; padding: 0.5rem; border: 1px solid #d0d7de; background: #f8fafc; border-radius: 6px; cursor: pointer; font-weight: 600;">👥 Users</button>
+                </div>
+                <div class="filter-tabs" id="logsFilters">
                     <button class="filter-tab active" data-filter="all">All</button>
                     <button class="filter-tab" data-filter="pending">Pending</button>
                     <button class="filter-tab" data-filter="validated">Validated</button>
                     <button class="filter-tab" data-filter="rejected">Rejected</button>
                 </div>
+                <h2 id="panelTitle">Upload Logs</h2>
             </div>
             <ul class="log-list" id="logList">
                 <li class="loading">Loading logs...</li>
+            </ul>
+            <ul class="log-list" id="userList" style="display: none;">
+                <li class="loading">Loading users...</li>
             </ul>
         </div>
 
@@ -470,6 +477,7 @@
             loadLogs();
             setupFilterTabs();
             setupMobileDrawer();
+            setupPanelTabs();
         });
 
         async function loadLogs() {
@@ -946,6 +954,188 @@
             if (backdrop) backdrop.classList.remove('active');
         }
 
+        // ===== PANEL SWITCHING =====
+        let allUsers = [];
+        let currentPanel = 'logs';
+        let selectedUserId = null;
+
+        function setupPanelTabs() {
+            document.querySelectorAll('.panel-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const panel = tab.dataset.panel;
+                    switchPanel(panel);
+                });
+            });
+        }
+
+        function switchPanel(panel) {
+            currentPanel = panel;
+            
+            // Update tab buttons
+            document.querySelectorAll('.panel-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.panel === panel) {
+                    tab.classList.add('active');
+                    tab.style.background = '#1f6feb';
+                    tab.style.color = 'white';
+                    tab.style.borderColor = '#1f6feb';
+                } else {
+                    tab.style.background = '#f8fafc';
+                    tab.style.color = '#2c3e50';
+                    tab.style.borderColor = '#d0d7de';
+                }
+            });
+
+            // Update lists visibility
+            document.getElementById('logList').style.display = panel === 'logs' ? 'flex' : 'none';
+            document.getElementById('userList').style.display = panel === 'users' ? 'flex' : 'none';
+
+            // Update filter tabs visibility
+            document.getElementById('logsFilters').style.display = panel === 'logs' ? 'flex' : 'none';
+
+            // Update title
+            document.getElementById('panelTitle').textContent = panel === 'logs' ? 'Upload Logs' : 'Users';
+
+            // Load data if needed
+            if (panel === 'users' && allUsers.length === 0) {
+                loadUsers();
+            }
+
+            // Clear detail panel
+            selectedLogId = null;
+            selectedUserId = null;
+            document.getElementById('detailPanel').innerHTML = '<p>← Select a ' + (panel === 'logs' ? 'log' : 'user') + ' to view details</p>';
+            document.getElementById('detailPanel').classList.add('empty');
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                if (!response.ok) throw new Error('Failed to load users');
+                const data = await response.json();
+                allUsers = data;
+                renderUserList();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('userList').innerHTML = '<li class="error-message">Failed to load users</li>';
+            }
+        }
+
+        function renderUserList() {
+            const userList = document.getElementById('userList');
+            if (allUsers.length === 0) {
+                userList.innerHTML = '<li class="loading">No users found</li>';
+                return;
+            }
+
+            userList.innerHTML = allUsers.map(user => `
+                <li class="log-item ${user.id === selectedUserId ? 'active' : ''}" onclick="selectUser(${user.id})">
+                    <div class="log-header">
+                        <div class="log-header-top">
+                            <span class="log-filename" title="${escapeHtml(user.email)}">${escapeHtml(user.email)}</span>
+                            <span style="font-size: 0.85em; color: #6c7a89;">${user.name || 'Unknown'}</span>
+                        </div>
+                        <span style="font-size: 0.8em; color: #95a5a6;">Joined: ${formatDate(user.created_at)}</span>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        async function selectUser(userId) {
+            selectedUserId = userId;
+            renderUserList();
+
+            try {
+                const response = await fetch(`/api/admin/user/${userId}/stats`);
+                if (!response.ok) throw new Error('Failed to load user');
+                const user = await response.json();
+
+                const panel = document.getElementById('detailPanel');
+                panel.classList.remove('empty');
+                panel.innerHTML = `
+                    <div class="detail-header">
+                        <div class="detail-title">
+                            <h2>👤 ${escapeHtml(user.email)}</h2>
+                            <p class="detail-meta">Joined ${formatDate(user.created_at)}</p>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-delete" onclick="banUser(${userId})">🚫 Ban User</button>
+                            <button class="btn" onclick="resetUserAccount(${userId})" style="background: #95a5a6; color: white;">🔄 Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3 style="margin-top: 0;">📊 User Information</h3>
+                        <div class="info-grid">
+                            <div class="info-label">Email:</div>
+                            <div>${escapeHtml(user.email)}</div>
+                            <div class="info-label">Name:</div>
+                            <div>${escapeHtml(user.name || 'N/A')}</div>
+                            <div class="info-label">Status:</div>
+                            <div>${user.is_admin ? '✅ Admin' : '👤 User'}</div>
+                            <div class="info-label">Onboarded:</div>
+                            <div>${user.is_onboarded ? '✅ Yes' : '⏳ No'}</div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3 style="margin-top: 0;">📚 Vocabulary Stats</h3>
+                        <div class="info-grid">
+                            <div class="info-label">Imported Words:</div>
+                            <div>${user.vocabulary_count || 0}</div>
+                            <div class="info-label">Deleted Words:</div>
+                            <div>${user.deleted_count || 0}</div>
+                            <div class="info-label">Active Words:</div>
+                            <div>${(user.vocabulary_count || 0) - (user.deleted_count || 0)}</div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3 style="margin-top: 0;">📸 Upload Stats</h3>
+                        <div class="info-grid">
+                            <div class="info-label">Total Uploads:</div>
+                            <div>${user.upload_count || 0}</div>
+                            <div class="info-label">Successful:</div>
+                            <div>${user.successful_uploads || 0}</div>
+                            <div class="info-label">Pending Review:</div>
+                            <div>${user.pending_uploads || 0}</div>
+                            <div class="info-label">Rejected:</div>
+                            <div>${user.rejected_uploads || 0}</div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3 style="margin-top: 0;">🎯 Practice Stats</h3>
+                        <div class="info-grid">
+                            <div class="info-label">Status:</div>
+                            <div>Coming soon...</div>
+                        </div>
+                    </div>
+                `;
+
+                // Close mobile drawer after selection
+                closeMobileDrawer();
+            } catch (error) {
+                console.error('Error loading user stats:', error);
+                document.getElementById('detailPanel').innerHTML = '<p style="color: #c0392b;">Error loading user details</p>';
+            }
+        }
+
+        function banUser(userId) {
+            if (confirm('Are you sure you want to ban this user?')) {
+                console.log('Banning user:', userId);
+                alert('Ban functionality will be implemented');
+            }
+        }
+
+        function resetUserAccount(userId) {
+            if (confirm('This will reset all user data. Are you sure?')) {
+                console.log('Resetting user account:', userId);
+                alert('Reset functionality will be implemented');
+            }
+        }
+
+        // ===== WORD BOXES =====
         function drawWordBoxes(logId, wordBoxes, imageWidth, imageHeight) {
             const img = document.getElementById(`logImage_${logId}`);
             const canvas = document.getElementById(`logCanvas_${logId}`);

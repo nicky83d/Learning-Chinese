@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file, session, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
-from models import db, Vocabulary, PhotoLog, User, UserVocabulary
+from models import db, Vocabulary, PhotoLog, User, UserVocabulary, UserDeletedWord
 from extract_data import extract_all_rows
 from config import get_config
 import unicodedata
@@ -843,11 +843,13 @@ def process_photo():
     logger.info("=== PHOTO PROCESSING STARTED ===")
     create_tables_and_populate()
 
-    # Get user IP
+    # Get user IP and user ID
     user_ip = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+    user_id = session.get('user_id')
     
     # Create a PhotoLog entry
     photo_log = PhotoLog(
+        user_id=user_id,
         user_ip=user_ip,
         timestamp=datetime.utcnow()
     )
@@ -896,7 +898,9 @@ def process_photo():
         except Exception as e:
             logger.warning(f"Could not apply EXIF orientation: {e}")
 
-        # Save uploaded (normalized) photo for inspection
+        # Store uploaded (normalized) photo in database for persistence on Cloud Run
+        # Also keep path for legacy support
+        photo_log.image_data = content
         uploads_dir = os.path.join(os.getcwd(), 'uploads')
         os.makedirs(uploads_dir, exist_ok=True)
         safe_name = file.filename or f"upload_{int(time.time())}.jpg"
@@ -907,7 +911,7 @@ def process_photo():
             photo_log.image_path = save_path
             logger.info(f"Saved uploaded photo to: {save_path}")
         except Exception as e:
-            logger.warning(f"Could not save uploaded photo: {e}")
+            logger.warning(f"Could not save uploaded photo to filesystem: {e}")
 
         image = vision.Image(content=content)
         client = vision.ImageAnnotatorClient()
@@ -1518,13 +1522,23 @@ def get_log_image(log_id):
     """Serve the uploaded image for a specific log entry."""
     try:
         log = db.session.get(PhotoLog, log_id)
-        if not log or not log.image_path:
-            return jsonify({"error": "Image not found"}), 404
+        if not log:
+            return jsonify({"error": "Log entry not found"}), 404
         
-        if not os.path.exists(log.image_path):
-            return jsonify({"error": "Image file not found on server"}), 404
+        # First priority: serve from database (persistent on Cloud Run)
+        if log.image_data:
+            return send_file(
+                BytesIO(log.image_data),
+                mimetype='image/jpeg',
+                as_attachment=False,
+                download_name=f"log_{log_id}.jpg"
+            )
         
-        return send_file(log.image_path, mimetype='image/jpeg')
+        # Fallback: serve from filesystem if available
+        if log.image_path and os.path.exists(log.image_path):
+            return send_file(log.image_path, mimetype='image/jpeg')
+        
+        return jsonify({"error": "Image not found"}), 404
     except Exception as e:
         logger.error(f"Error serving image: {e}")
         return jsonify({"error": str(e)}), 500
@@ -2056,6 +2070,153 @@ def get_user_imported_sections():
     ).distinct().all()
     
     return jsonify([s[0] for s in sections if s[0]])
+
+
+@app.route('/api/user/deletable-words')
+def get_deletable_words():
+    """Get words that user can delete, organized by category"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    # Get user's vocabulary (excluding already deleted)
+    user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
+    vocab_ids = [uv.vocabulary_id for uv in user_vocab]
+    
+    if not vocab_ids:
+        return jsonify({"categories": {}, "total": 0})
+    
+    # Get vocabulary items organized by section
+    vocab_items = Vocabulary.query.filter(Vocabulary.id.in_(vocab_ids)).all()
+    
+    # Organize by category
+    by_category = {}
+    for vocab in vocab_items:
+        cat = vocab.section or "Uncategorized"
+        if cat not in by_category:
+            by_category[cat] = []
+        by_category[cat].append({
+            "id": vocab.id,
+            "hanzi": vocab.hanzi,
+            "english": vocab.english,
+            "pinyin": vocab.pinyin
+        })
+    
+    return jsonify({"categories": by_category, "total": len(vocab_items)})
+
+
+@app.route('/api/user/word/<int:vocab_id>/delete', methods=['POST'])
+def delete_user_word(vocab_id):
+    """Hide/delete a word from user's vocabulary"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    # Remove from UserVocabulary
+    user_vocab = UserVocabulary.query.filter_by(
+        user_id=user_id,
+        vocabulary_id=vocab_id
+    ).first()
+    
+    if user_vocab:
+        db.session.delete(user_vocab)
+    
+    # Add to UserDeletedWord to track deletion
+    deleted = UserDeletedWord.query.filter_by(
+        user_id=user_id,
+        vocabulary_id=vocab_id
+    ).first()
+    
+    if not deleted:
+        deleted = UserDeletedWord(user_id=user_id, vocabulary_id=vocab_id)
+        db.session.add(deleted)
+    
+    db.session.commit()
+    return jsonify({"success": True, "message": "Word deleted"})
+
+
+@app.route('/api/admin/users')
+@admin_required
+def get_admin_users():
+    """Get all users for admin panel"""
+    try:
+        users = User.query.order_by(User.last_login.desc()).all()
+        
+        user_list = []
+        for user in users:
+            # Vocabulary stats
+            vocab_count = UserVocabulary.query.filter_by(user_id=user.id).count()
+            deleted_count = UserDeletedWord.query.filter_by(user_id=user.id).count()
+            
+            # Upload stats - now properly tracked with user_id
+            upload_logs = PhotoLog.query.filter_by(user_id=user.id).all()
+            successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
+            pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
+            
+            user_list.append({
+                "id": user.id,
+                "email": user.email,
+                "name": user.name or user.first_name,
+                "is_admin": user.is_admin,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "last_login": user.last_login.isoformat() if user.last_login else None,
+                "vocabulary_count": vocab_count,
+                "deleted_count": deleted_count,
+                "upload_count": len(upload_logs),
+                "successful_uploads": successful_uploads,
+                "pending_uploads": pending_uploads,
+                "is_banned": False  # Placeholder for future banning feature
+            })
+        
+        return jsonify(user_list)
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/admin/user/<int:user_id>/stats')
+@admin_required
+def get_user_stats(user_id):
+    """Get detailed stats for a specific user"""
+    try:
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        
+        # Get vocabulary stats
+        vocab_count = UserVocabulary.query.filter_by(user_id=user_id).count()
+        deleted_count = UserDeletedWord.query.filter_by(user_id=user_id).count()
+        
+        # Get upload stats from PhotoLog with user_id
+        upload_logs = PhotoLog.query.filter_by(user_id=user_id).all()
+        total_uploads = len(upload_logs)
+        successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
+        pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
+        rejected_uploads = len([log for log in upload_logs if log.status == 'rejected'])
+        
+        return jsonify({
+            "id": user.id,
+            "email": user.email,
+            "name": user.name or user.first_name,
+            "first_name": user.first_name,
+            "is_admin": user.is_admin,
+            "is_onboarded": user.is_onboarded,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "last_login": user.last_login.isoformat() if user.last_login else None,
+            "vocabulary_count": vocab_count,
+            "deleted_count": deleted_count,
+            "upload_count": total_uploads,
+            "successful_uploads": successful_uploads,
+            "pending_uploads": pending_uploads,
+            "rejected_uploads": rejected_uploads
+        })
+    except Exception as e:
+        logger.error(f"Error fetching user stats: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':

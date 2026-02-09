@@ -241,6 +241,31 @@
         <button class="btn btn-outline" onclick="window.location.href='/'">Cancel</button>
       </div>
     </div>
+
+    <div class="section-group">
+      <h2>🗑️ Delete Words</h2>
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Remove words from your vocabulary. They won't be deleted from the database, but will be hidden from your learning.
+      </p>
+      <button class="btn btn-danger" id="deleteWordsBtn" onclick="showDeleteWordsModal()">
+        🗑️ Delete Words (<span id="deletableCount">0</span>)
+      </button>
+    </div>
+  </div>
+
+  <!-- Delete Words Modal -->
+  <div id="deleteWordsModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: var(--card-bg); border-radius: 16px; max-width: 800px; width: 95%; max-height: 85vh; overflow-y: auto; padding: 32px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+      <h2 style="margin-bottom: 24px; color: var(--primary);">🗑️ Delete Words</h2>
+      
+      <div id="deleteWordsContent">
+        <p style="text-align: center; color: var(--text-muted);">Loading...</p>
+      </div>
+
+      <div class="action-buttons" style="margin-top: 24px;">
+        <button class="btn btn-outline" onclick="closeDeleteWordsModal()">Close</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -375,6 +400,86 @@
 
     // Load categories on page load
     loadCategories();
+
+    // Load deletable words count
+    async function loadDeletableCount() {
+      try {
+        const response = await fetch('/api/user/deletable-words');
+        const data = await response.json();
+        document.getElementById('deletableCount').textContent = data.total || 0;
+      } catch (error) {
+        console.error('Error loading deletable count:', error);
+      }
+    }
+    loadDeletableCount();
+
+    async function showDeleteWordsModal() {
+      const modal = document.getElementById('deleteWordsModal');
+      const content = document.getElementById('deleteWordsContent');
+      
+      try {
+        const response = await fetch('/api/user/deletable-words');
+        const data = await response.json();
+        
+        if (data.total === 0) {
+          content.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No words to delete.</p>';
+        } else {
+          let html = '';
+          for (const [category, words] of Object.entries(data.categories)) {
+            html += `
+              <div style="margin-bottom: 24px;">
+                <h3 style="color: var(--primary); margin-bottom: 12px; font-size: 1.1em;">${category} (${words.length})</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">
+            `;
+            for (const word of words) {
+              html += `
+                <div style="padding: 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong>${word.hanzi || word.english}</strong>
+                    <div style="font-size: 0.9em; color: var(--text-muted);">${word.pinyin || ''}</div>
+                  </div>
+                  <button onclick="deleteWord(${word.id})" style="background: #ff6b6b; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 0.9em;">Delete</button>
+                </div>
+              `;
+            }
+            html += '</div></div>';
+          }
+          content.innerHTML = html;
+        }
+        
+        modal.style.display = 'flex';
+      } catch (error) {
+        console.error('Error loading deletable words:', error);
+        content.innerHTML = '<p style="color: #ff6b6b;">Error loading words.</p>';
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeDeleteWordsModal() {
+      document.getElementById('deleteWordsModal').style.display = 'none';
+    }
+
+    async function deleteWord(vocabId) {
+      try {
+        const response = await fetch(`/api/user/word/${vocabId}/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          showToast('Word deleted', 'success');
+          // Reload the modal with updated list
+          await new Promise(r => setTimeout(r, 500));
+          closeDeleteWordsModal();
+          loadDeletableCount();
+          showDeleteWordsModal();
+        }
+      } catch (error) {
+        console.error('Error deleting word:', error);
+        showToast('Error deleting word', 'error');
+      }
+    }
 
     // Listen for theme changes from other pages (when user toggles theme on main page)
     window.addEventListener('storage', (e) => {
