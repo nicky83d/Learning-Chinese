@@ -1309,21 +1309,30 @@ def admin_practice_page():
 def get_admin_logs():
     """Get all photo upload logs for admin review."""
     try:
-        logs = PhotoLog.query.order_by(PhotoLog.timestamp.desc()).all()
+        # Use raw SQL to avoid column mismatch issues during migration
+        from sqlalchemy import text
+        result = db.session.execute(text("""
+            SELECT id, timestamp, user_ip, filename, section, detected_language, 
+                   status, created_count, updated_count, error_message
+            FROM photo_log 
+            ORDER BY timestamp DESC
+        """))
+        logs = result.fetchall()
         return jsonify([{
-            "id": log.id,
-            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-            "user_ip": log.user_ip,
-            "filename": log.filename,
-            "section": log.section,
-            "detected_language": log.detected_language,
-            "status": log.status,
-            "created_count": log.created_count,
-            "updated_count": log.updated_count,
-            "error_message": log.error_message
+            "id": log[0],
+            "timestamp": log[1].isoformat() if log[1] else None,
+            "user_ip": log[2],
+            "filename": log[3],
+            "section": log[4],
+            "detected_language": log[5],
+            "status": log[6],
+            "created_count": log[7],
+            "updated_count": log[8],
+            "error_message": log[9]
         } for log in logs])
     except Exception as e:
         logger.error(f"Error fetching admin logs: {e}")
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 
@@ -1398,6 +1407,7 @@ def get_log_details(log_id):
         })
     except Exception as e:
         logger.error(f"Error fetching log details: {e}")
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 

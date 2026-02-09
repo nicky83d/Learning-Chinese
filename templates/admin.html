@@ -1069,7 +1069,11 @@
 
             try {
                 const response = await fetch(`/api/admin/user/${userId}/stats`);
-                if (!response.ok) throw new Error('Failed to load user');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('User stats error:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
                 const user = await response.json();
 
                 const panel = document.getElementById('detailPanel');
