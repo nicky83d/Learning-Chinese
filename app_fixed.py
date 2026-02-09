@@ -1048,6 +1048,12 @@ def google_auth_callback():
     if not email or not email_verified:
         return jsonify({"error": "Google account not verified"}), 403
 
+    # Check if email is in allowed list
+    allowed_emails = app.config.get('ADMIN_ALLOWED_EMAILS', [])
+    if allowed_emails and email.lower() not in allowed_emails:
+        logger.warning(f"Unauthorized admin login attempt: {email}")
+        return jsonify({"error": "Access denied. Your email is not authorized."}), 403
+
     session['admin_logged_in'] = True
     session['admin_email'] = email
     session.pop('oauth_state', None)
