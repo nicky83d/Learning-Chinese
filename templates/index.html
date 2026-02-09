@@ -821,6 +821,15 @@
   document.documentElement.setAttribute('data-theme', savedTheme);
   updateThemeButton(savedTheme);
 
+  // Listen for theme changes from other pages/tabs
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'theme') {
+      const newTheme = e.newValue || 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      updateThemeButton(newTheme);
+    }
+  });
+
   // Quiz wins tracking
   function loadQuizWins() {
     quizWins = parseInt(localStorage.getItem('quizWins') || '0');

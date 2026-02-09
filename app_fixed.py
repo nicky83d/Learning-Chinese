@@ -220,8 +220,23 @@ def search():
     query = request.args.get('q', '').strip()
     field = request.args.get('field', 'all')
     
-    # Get all approved vocabulary entries
-    all_entries = Vocabulary.query.filter_by(is_approved=True).all()
+    # Check if user is logged in
+    user_id = session.get('user_id')
+    
+    if user_id:
+        # User is logged in - only show their vocabulary
+        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
+        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
+        
+        if not vocab_ids:
+            all_entries = []
+        else:
+            all_entries = Vocabulary.query.filter(
+                Vocabulary.id.in_(vocab_ids)
+            ).all()
+    else:
+        # User not logged in - show all approved vocabulary
+        all_entries = Vocabulary.query.filter_by(is_approved=True).all()
     
     # Filter in Python with accent-insensitive comparison
     results = []
@@ -270,7 +285,24 @@ def search():
 @app.route('/sections')
 def get_sections():
     """Returns a list of unique categories for the dropdown filter."""
-    sections = db.session.query(Vocabulary.section).distinct().all()
+    # Check if user is logged in
+    user_id = session.get('user_id')
+    
+    if user_id:
+        # User is logged in - only show sections from their vocabulary
+        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
+        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
+        
+        if not vocab_ids:
+            return jsonify([])
+        
+        sections = db.session.query(Vocabulary.section).filter(
+            Vocabulary.id.in_(vocab_ids)
+        ).distinct().all()
+    else:
+        # User not logged in - show all sections
+        sections = db.session.query(Vocabulary.section).distinct().all()
+    
     # Flatten the list of tuples and remove None/Empty values
     return jsonify(sorted([s[0] for s in sections if s[0]]))
 
@@ -279,7 +311,24 @@ def random_word():
     """Returns a random vocabulary word for practice."""
     # Get a random word from the database
     from sqlalchemy import func
-    word = db.session.query(Vocabulary).filter_by(is_approved=True).order_by(func.random()).first()
+    
+    # Check if user is logged in
+    user_id = session.get('user_id')
+    
+    if user_id:
+        # User is logged in - only get from their vocabulary
+        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
+        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
+        
+        if not vocab_ids:
+            return jsonify({"error": "No words in your vocabulary"}), 404
+        
+        word = db.session.query(Vocabulary).filter(
+            Vocabulary.id.in_(vocab_ids)
+        ).order_by(func.random()).first()
+    else:
+        # User not logged in - get from all approved vocabulary
+        word = db.session.query(Vocabulary).filter_by(is_approved=True).order_by(func.random()).first()
     
     if not word:
         return jsonify({"error": "No words found"}), 404
@@ -305,8 +354,23 @@ def random_words():
     section = request.args.get('section', 'all')
     limit = int(request.args.get('limit', 10))
     
-    # Start with approved words query
-    query = db.session.query(Vocabulary).filter_by(is_approved=True)
+    # Check if user is logged in
+    user_id = session.get('user_id')
+    
+    if user_id:
+        # User is logged in - only get from their vocabulary
+        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
+        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
+        
+        if not vocab_ids:
+            return jsonify({"error": "No words in your vocabulary"}), 404
+        
+        query = db.session.query(Vocabulary).filter(
+            Vocabulary.id.in_(vocab_ids)
+        )
+    else:
+        # User not logged in - start with approved words query
+        query = db.session.query(Vocabulary).filter_by(is_approved=True)
     
     # Filter by section if not 'all'
     if section and section != 'all':
