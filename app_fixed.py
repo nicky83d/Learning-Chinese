@@ -2162,10 +2162,19 @@ def get_admin_users():
             vocab_count = UserVocabulary.query.filter_by(user_id=user.id).count()
             deleted_count = UserDeletedWord.query.filter_by(user_id=user.id).count()
             
-            # Upload stats - now properly tracked with user_id
-            upload_logs = PhotoLog.query.filter_by(user_id=user.id).all()
-            successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
-            pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
+            # Upload stats - check if user_id column exists in PhotoLog
+            try:
+                upload_logs = PhotoLog.query.filter_by(user_id=user.id).all()
+                successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
+                pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
+                upload_count = len(upload_logs)
+            except Exception as e:
+                # Column doesn't exist yet in production
+                logger.warning(f"PhotoLog user_id column not available: {e}")
+                upload_logs = []
+                successful_uploads = 0
+                pending_uploads = 0
+                upload_count = 0
             
             user_list.append({
                 "id": user.id,
@@ -2176,7 +2185,7 @@ def get_admin_users():
                 "last_login": user.last_login.isoformat() if user.last_login else None,
                 "vocabulary_count": vocab_count,
                 "deleted_count": deleted_count,
-                "upload_count": len(upload_logs),
+                "upload_count": upload_count,
                 "successful_uploads": successful_uploads,
                 "pending_uploads": pending_uploads,
                 "is_banned": False  # Placeholder for future banning feature
@@ -2201,12 +2210,20 @@ def get_user_stats(user_id):
         vocab_count = UserVocabulary.query.filter_by(user_id=user_id).count()
         deleted_count = UserDeletedWord.query.filter_by(user_id=user_id).count()
         
-        # Get upload stats from PhotoLog with user_id
-        upload_logs = PhotoLog.query.filter_by(user_id=user_id).all()
-        total_uploads = len(upload_logs)
-        successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
-        pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
-        rejected_uploads = len([log for log in upload_logs if log.status == 'rejected'])
+        # Get upload stats from PhotoLog with user_id (gracefully handle missing column)
+        try:
+            upload_logs = PhotoLog.query.filter_by(user_id=user_id).all()
+            total_uploads = len(upload_logs)
+            successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
+            pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
+            rejected_uploads = len([log for log in upload_logs if log.status == 'rejected'])
+        except Exception as e:
+            # Column doesn't exist yet in production
+            logger.warning(f"PhotoLog user_id column not available: {e}")
+            total_uploads = 0
+            successful_uploads = 0
+            pending_uploads = 0
+            rejected_uploads = 0
         
         return jsonify({
             "id": user.id,
