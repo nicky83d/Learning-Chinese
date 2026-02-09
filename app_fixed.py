@@ -469,6 +469,49 @@ def _extract_first_json_array(text: str):
     return None
 
 
+def _get_best_category_for_word(hanzi: str, english: str, french: str) -> str:
+    """Use LLM to determine the most appropriate category for a word."""
+    try:
+        # Get existing categories
+        sections = db.session.query(Vocabulary.section).filter_by(is_approved=True).distinct().all()
+        category_list = [s[0] for s in sections if s[0]]
+        
+        if not category_list:
+            return "Photo Imports"
+        
+        prompt = f"""Given this Chinese vocabulary word, select the MOST appropriate category from the list below.
+Return ONLY the category name, nothing else.
+
+Word:
+- Chinese: {hanzi}
+- English: {english}
+- French: {french}
+
+Available categories:
+{", ".join(category_list)}
+
+If none fit well, return: Photo Imports
+
+Your answer (category name only):"""
+        
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=50
+        )
+        
+        category = response.choices[0].message.content.strip().strip('"\'')
+        
+        # Validate it's in our list
+        if category in category_list:
+            return category
+        return "Photo Imports"
+    except Exception as e:
+        logger.warning(f"Could not determine category: {e}")
+        return "Photo Imports"
+
+
 def _llm_merge_lines_to_entries(lines: list[str], input_lang: str = 'chinese') -> list[dict]:
     """Use LLM to merge OCR lines into clean vocabulary entries with all fields."""
     api_key = os.getenv("OPENAI_API_KEY") or getattr(openai, "api_key", None)
@@ -839,7 +882,19 @@ def process_photo():
         for e in entries:
             # Check if word exists before upserting
             existing = _find_existing_vocab(e)
-            created, vid = _upsert_full_entry(section, e)
+            
+            # Determine best category for new words
+            if not existing:
+                best_category = _get_best_category_for_word(
+                    e.get('hanzi', ''),
+                    e.get('english', ''),
+                    e.get('french', '')
+                )
+                word_section = best_category
+            else:
+                word_section = section
+            
+            created, vid = _upsert_full_entry(word_section, e)
             e['is_new'] = created  # Mark each entry
             
             # Clear sentence fields for existing words (save AI costs)
@@ -1105,6 +1160,15 @@ def logout():
     """User logout"""
     session.clear()
     return redirect(url_for('index'))
+
+
+@app.route('/preferences')
+def preferences_page():
+    """Render user preferences page"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('admin_login'))
+    return render_template('preferences.html')
 
 
 @app.route('/admin/check-auth')
@@ -1851,6 +1915,83 @@ def get_user_vocabulary():
         "sent_english": v.sent_english,
         "sent_french": v.sent_french
     } for v in vocab_items])
+
+
+@app.route('/api/user/preferences', methods=['POST'])
+def update_user_preferences():
+    """Update user vocabulary preferences (add/remove categories)"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    data = request.get_json() or {}
+    action = data.get('action')  # 'add' or 'remove'
+    sections = data.get('sections', [])
+    
+    if action == 'add':
+        # Add vocabulary from selected sections
+        vocab_items = Vocabulary.query.filter(
+            Vocabulary.section.in_(sections),
+            Vocabulary.is_approved == True
+        ).all()
+        
+        added_count = 0
+        for vocab in vocab_items:
+            existing = UserVocabulary.query.filter_by(
+                user_id=user.id,
+                vocabulary_id=vocab.id
+            ).first()
+            if not existing:
+                user_vocab = UserVocabulary(user_id=user.id, vocabulary_id=vocab.id)
+                db.session.add(user_vocab)
+                added_count += 1
+        
+        db.session.commit()
+        return jsonify({"success": True, "added": added_count, "message": f"Added {added_count} words"})
+    
+    elif action == 'remove':
+        # Remove vocabulary from selected sections
+        vocab_items = Vocabulary.query.filter(
+            Vocabulary.section.in_(sections),
+            Vocabulary.is_approved == True
+        ).all()
+        vocab_ids = [v.id for v in vocab_items]
+        
+        removed_count = UserVocabulary.query.filter(
+            UserVocabulary.user_id == user.id,
+            UserVocabulary.vocabulary_id.in_(vocab_ids)
+        ).delete(synchronize_session=False)
+        
+        db.session.commit()
+        return jsonify({"success": True, "removed": removed_count, "message": f"Removed {removed_count} words"})
+    
+    return jsonify({"error": "Invalid action"}), 400
+
+
+@app.route('/api/user/imported-sections')
+def get_user_imported_sections():
+    """Get list of sections the user has imported"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify([])
+    
+    # Get all vocabulary IDs the user has
+    user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
+    vocab_ids = [uv.vocabulary_id for uv in user_vocab]
+    
+    if not vocab_ids:
+        return jsonify([])
+    
+    # Get unique sections
+    sections = db.session.query(Vocabulary.section).filter(
+        Vocabulary.id.in_(vocab_ids)
+    ).distinct().all()
+    
+    return jsonify([s[0] for s in sections if s[0]])
 
 
 if __name__ == '__main__':

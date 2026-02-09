@@ -250,6 +250,10 @@
       
       <div id="importSection" style="display: none;">
         <h3 style="margin-bottom: 16px; color: var(--text-main);">Select Categories to Import:</h3>
+        <div style="margin-bottom: 12px;">
+          <button id="selectAllBtn" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 8px;">✅ Select All</button>
+          <button id="deselectAllBtn" style="padding: 8px 16px; background: var(--text-muted); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">❌ Deselect All</button>
+        </div>
         <div id="categoryList" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--bg);">
           <p style="text-align: center; color: var(--text-muted);">Loading categories...</p>
         </div>
@@ -287,8 +291,9 @@
         <button id="themeBtn">🌓 Dark Mode</button>
         <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.2);"></div>
         <a href="/admin/login" id="loginLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔑 Login</a>
-        <a href="/logout" id="logoutLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🚪 Logout</a>
         <a href="/admin" id="adminLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔐 Admin</a>
+        <a href="/preferences" id="preferencesLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">⚙️ Preferences</a>
+        <a href="/logout" id="logoutLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🚪 Logout</a>
       </div>
     </div>
   </header>
@@ -1983,6 +1988,7 @@
         document.getElementById('userFirstName').textContent = data.first_name;
         document.getElementById('loginLink').style.display = 'none';
         document.getElementById('logoutLink').style.display = 'inline-block';
+        document.getElementById('preferencesLink').style.display = 'inline-block';
         
         if (data.is_admin) {
           document.getElementById('adminLink').style.display = 'inline-block';
@@ -1998,6 +2004,7 @@
         document.getElementById('loginLink').style.display = 'inline-block';
         document.getElementById('logoutLink').style.display = 'none';
         document.getElementById('adminLink').style.display = 'none';
+        document.getElementById('preferencesLink').style.display = 'none';
         document.getElementById('userGreeting').style.display = 'none';
       }
     } catch (error) {
@@ -2059,6 +2066,16 @@
   document.getElementById('showImportBtn').addEventListener('click', () => {
     document.getElementById('importSection').style.display = 'block';
     document.getElementById('showImportBtn').style.display = 'none';
+  });
+
+  // Select all categories
+  document.getElementById('selectAllBtn').addEventListener('click', () => {
+    document.querySelectorAll('#categoryList input[type="checkbox"]').forEach(cb => cb.checked = true);
+  });
+
+  // Deselect all categories
+  document.getElementById('deselectAllBtn').addEventListener('click', () => {
+    document.querySelectorAll('#categoryList input[type="checkbox"]').forEach(cb => cb.checked = false);
   });
 
   // Import selected categories
