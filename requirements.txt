@@ -13,7 +13,7 @@ google-cloud-speech==2.24.0
 
 # OpenAI
 openai==1.6.1
-httpx>=0.25.2
+httpx==0.25.2
 
 # Image Processing
 Pillow==10.1.0
