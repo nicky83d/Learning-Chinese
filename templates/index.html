@@ -12,7 +12,8 @@
       position: fixed;
       top: 20px;
       right: 20px;
-      background: var(--card-bg);
+      background: var(--card-bg, #2a2f3a);
+      opacity: 1;
       border: 2px solid var(--primary);
       border-radius: 8px;
       padding: 16px 20px;
@@ -28,14 +29,15 @@
       align-items: flex-start;
       gap: 12px;
     }
-    #uploadToast.error {
+     #uploadToast.error {
       border-color: #ff6b6b;
-      background: rgba(255, 107, 107, 0.1);
+      background: #ffe0e0; /* fully opaque light red */
+      color: #333;
     }
     #uploadToast.success {
       border-color: #51cf66;
       background: #dffbe6; /* fully opaque light green */
-      color: var(--text-main);
+      color: #333;
     }
     #uploadToast .toast-content {
       flex: 1;
