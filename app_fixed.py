@@ -2163,18 +2163,10 @@ def get_admin_users():
             deleted_count = UserDeletedWord.query.filter_by(user_id=user.id).count()
             
             # Upload stats - check if user_id column exists in PhotoLog
-            try:
-                upload_logs = PhotoLog.query.filter_by(user_id=user.id).all()
-                successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
-                pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
-                upload_count = len(upload_logs)
-            except Exception as e:
-                # Column doesn't exist yet in production
-                logger.warning(f"PhotoLog user_id column not available: {e}")
-                upload_logs = []
-                successful_uploads = 0
-                pending_uploads = 0
-                upload_count = 0
+            # Skip this query entirely to avoid transaction issues
+            upload_count = 0
+            successful_uploads = 0
+            pending_uploads = 0
             
             user_list.append({
                 "id": user.id,
@@ -2194,6 +2186,7 @@ def get_admin_users():
         return jsonify(user_list)
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 
@@ -2210,20 +2203,11 @@ def get_user_stats(user_id):
         vocab_count = UserVocabulary.query.filter_by(user_id=user_id).count()
         deleted_count = UserDeletedWord.query.filter_by(user_id=user_id).count()
         
-        # Get upload stats from PhotoLog with user_id (gracefully handle missing column)
-        try:
-            upload_logs = PhotoLog.query.filter_by(user_id=user_id).all()
-            total_uploads = len(upload_logs)
-            successful_uploads = len([log for log in upload_logs if log.status == 'validated'])
-            pending_uploads = len([log for log in upload_logs if log.status == 'pending'])
-            rejected_uploads = len([log for log in upload_logs if log.status == 'rejected'])
-        except Exception as e:
-            # Column doesn't exist yet in production
-            logger.warning(f"PhotoLog user_id column not available: {e}")
-            total_uploads = 0
-            successful_uploads = 0
-            pending_uploads = 0
-            rejected_uploads = 0
+        # Skip PhotoLog user_id queries until migration is run on production
+        total_uploads = 0
+        successful_uploads = 0
+        pending_uploads = 0
+        rejected_uploads = 0
         
         return jsonify({
             "id": user.id,
@@ -2243,6 +2227,7 @@ def get_user_stats(user_id):
         })
     except Exception as e:
         logger.error(f"Error fetching user stats: {e}")
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 
