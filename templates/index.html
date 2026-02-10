@@ -952,8 +952,10 @@
   }
   function addQuizAttempt() {
     sessionTotal++;
+    console.log('addQuizAttempt:', { sessionTotal, sessionScore, currentGameType });
   }
   function startPracticeSession(gameType) {
+    console.log('startPracticeSession:', gameType);
     sessionScore = 0;
     sessionTotal = 0;
     sessionStartTime = Date.now();
@@ -978,24 +980,35 @@
   }
   
   async function savePracticeScore() {
-    if (!currentGameType || sessionTotal === 0) return;
+    console.log('savePracticeScore called:', { currentGameType, sessionScore, sessionTotal, resultsCount: sessionResults.length });
+    if (!currentGameType || sessionTotal === 0) {
+      console.log('Skipping save - no game type or zero total');
+      return null;
+    }
     const duration = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
     try {
+      const payload = {
+        game_type: currentGameType,
+        score: sessionScore,
+        total_questions: sessionTotal,
+        duration: duration,
+        results: sessionResults
+      };
+      console.log('Saving practice score:', payload);
       const response = await fetch('/api/user/practice/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          game_type: currentGameType,
-          score: sessionScore,
-          total_questions: sessionTotal,
-          duration: duration,
-          results: sessionResults // Include detailed results
-        })
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
-      return data.id; // Return the practice score ID
+      if (data.error) {
+        console.error('Server error saving score:', data.error);
+        return null;
+      }
+      console.log('Practice score saved successfully, id:', data.id);
+      return data.id;
     } catch (e) {
-      console.warn('Could not save practice score:', e);
+      console.error('Could not save practice score:', e);
       return null;
     }
   }
@@ -1700,7 +1713,12 @@
 
   if (startChineseQuizBtn) startChineseQuizBtn.addEventListener('click', () => startQuiz('chinese'));
   if (startFrenchQuizBtn) startFrenchQuizBtn.addEventListener('click', () => startQuiz('french'));
-  document.getElementById('exitQuiz').addEventListener('click', exitQuiz);
+  
+  // Exit Quiz - single listener that handles both trophy hiding and exit
+  document.getElementById('exitQuiz').addEventListener('click', () => {
+    document.getElementById('trophyDisplay').style.display = 'none';
+    exitQuiz();
+  });
   
   // Quiz-specific event listeners
   document.getElementById('quizValidateBtn').addEventListener('click', validateQuizAnswer);
@@ -1715,11 +1733,6 @@
     showRandomCard();
   });
   
-  // Hide trophy when exiting quiz
-  document.getElementById('exitQuiz').addEventListener('click', () => {
-    document.getElementById('trophyDisplay').style.display = 'none';
-    exitQuiz();
-  });
   // Practice Modal Functions
   function closePracticeModal() {
     document.getElementById('practiceModal').style.display = 'none';

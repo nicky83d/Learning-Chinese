@@ -2364,38 +2364,50 @@ def save_practice_score():
     
     percentage = round((score / total) * 100, 1) if total > 0 else 0
     
-    practice_score = PracticeScore(
-        user_id=user_id,
-        game_type=game_type,
-        score=score,
-        total_questions=total,
-        percentage=percentage,
-        session_duration=duration
-    )
-    db.session.add(practice_score)
-    db.session.flush()  # Get the ID before committing
-    
-    # Save detailed results if provided
-    for i, result in enumerate(results):
-        practice_result = PracticeResult(
-            practice_score_id=practice_score.id,
-            question_number=i + 1,
-            vocabulary_id=result.get('vocabulary_id'),
-            word_hanzi=result.get('word_hanzi', '')[:100] if result.get('word_hanzi') else None,
-            word_pinyin=result.get('word_pinyin', '')[:200] if result.get('word_pinyin') else None,
-            word_english=result.get('word_english', '')[:300] if result.get('word_english') else None,
-            word_french=result.get('word_french', '')[:300] if result.get('word_french') else None,
-            question_type=result.get('question_type'),
-            question_text=result.get('question_text'),
-            user_answer=result.get('user_answer'),
-            correct_answer=result.get('correct_answer'),
-            is_correct=result.get('is_correct', False)
+    try:
+        practice_score = PracticeScore(
+            user_id=user_id,
+            game_type=game_type,
+            score=score,
+            total_questions=total,
+            percentage=percentage,
+            session_duration=duration
         )
-        db.session.add(practice_result)
-    
-    db.session.commit()
-    
-    return jsonify({"success": True, "id": practice_score.id})
+        db.session.add(practice_score)
+        db.session.flush()  # Get the ID before committing
+        
+        # Save detailed results if provided (optional - don't fail if this doesn't work)
+        results_saved = 0
+        try:
+            for i, result in enumerate(results):
+                practice_result = PracticeResult(
+                    practice_score_id=practice_score.id,
+                    question_number=i + 1,
+                    vocabulary_id=result.get('vocabulary_id'),
+                    word_hanzi=result.get('word_hanzi', '')[:100] if result.get('word_hanzi') else None,
+                    word_pinyin=result.get('word_pinyin', '')[:200] if result.get('word_pinyin') else None,
+                    word_english=result.get('word_english', '')[:300] if result.get('word_english') else None,
+                    word_french=result.get('word_french', '')[:300] if result.get('word_french') else None,
+                    question_type=result.get('question_type'),
+                    question_text=result.get('question_text'),
+                    user_answer=result.get('user_answer'),
+                    correct_answer=result.get('correct_answer'),
+                    is_correct=result.get('is_correct', False)
+                )
+                db.session.add(practice_result)
+                results_saved += 1
+        except Exception as e:
+            logger.warning(f"Could not save detailed results: {e}")
+            # Continue anyway - the main score will still be saved
+        
+        db.session.commit()
+        logger.info(f"Saved practice score id={practice_score.id}, game={game_type}, score={score}/{total}, results={results_saved}")
+        
+        return jsonify({"success": True, "id": practice_score.id})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving practice score: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/user/practice/<int:score_id>/details')
