@@ -2299,7 +2299,7 @@ def save_practice_score():
     total = data.get('total_questions', 0)
     duration = data.get('duration')
     
-    if not game_type or game_type not in ['listening', 'words', 'speaking']:
+    if not game_type or game_type not in ['listening', 'words', 'speaking', 'drawing']:
         return jsonify({"error": "Invalid game type"}), 400
     
     percentage = round((score / total) * 100, 1) if total > 0 else 0
@@ -2353,7 +2353,7 @@ def get_practice_stats():
         return jsonify({"error": "Not authenticated"}), 401
     
     stats = {}
-    for game_type in ['listening', 'words', 'speaking']:
+    for game_type in ['listening', 'words', 'speaking', 'drawing']:
         scores = PracticeScore.query.filter_by(user_id=user_id, game_type=game_type).all()
         if scores:
             total_games = len(scores)
@@ -2471,7 +2471,7 @@ def get_user_stats(user_id):
         # Get practice stats
         practice_stats = {}
         try:
-            for game_type in ['listening', 'words', 'speaking']:
+            for game_type in ['listening', 'words', 'speaking', 'drawing']:
                 scores = PracticeScore.query.filter_by(user_id=user_id, game_type=game_type).all()
                 if scores:
                     total_games = len(scores)
@@ -2492,7 +2492,7 @@ def get_user_stats(user_id):
         except Exception as e:
             logger.warning(f"Could not get practice stats: {e}")
             db.session.rollback()
-            practice_stats = {"listening": {}, "words": {}, "speaking": {}}
+            practice_stats = {"listening": {}, "words": {}, "speaking": {}, "drawing": {}}
         
         return jsonify({
             "id": user.id,

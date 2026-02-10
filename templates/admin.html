@@ -1161,6 +1161,12 @@
                                     <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.speaking?.average_percentage || 0}%</td>
                                     <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.speaking?.best_score || 0}%</td>
                                 </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">✍️ Drawing</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.drawing?.total_games || 0}</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.drawing?.average_percentage || 0}%</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.drawing?.best_score || 0}%</td>
+                                </tr>
                             </tbody>
                         </table>
                         ` : `

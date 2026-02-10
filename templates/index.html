@@ -405,8 +405,9 @@
           </div>
         </div>
 
-        <!-- Chinese line -->
+        <!-- Chinese line (indented to align with flag buttons below) -->
         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <span style="width:1.5em; text-align:center;"></span>
           <input type="text" id="mw_hanzi" placeholder="Hanzi (e.g. 你好)" style="flex:1;">
           <input type="text" id="mw_sent_hanzi" placeholder="Chinese sentence" style="flex:2;">
         </div>
@@ -866,7 +867,7 @@
   let sessionScore = 0;
   let sessionTotal = 0;
   let sessionStartTime = null;
-  let currentGameType = null; // 'listening', 'words', 'speaking'
+  let currentGameType = null; // 'listening', 'words', 'speaking', 'drawing'
 
   // Theme Logic
   const themeBtn = document.getElementById('themeBtn');
@@ -1365,22 +1366,41 @@
     currentHanziWriters = [];
   }
 
-  // Drawing practice (unchanged)
+  // Drawing practice with score tracking
+  let drawingMistakes = 0;
   document.getElementById('startPracticeBtn').addEventListener('click', () => {
     if (currentHanziWriters.length === 0) return;
+
+    // Start a drawing practice session
+    startPracticeSession('drawing');
+    drawingMistakes = 0;
 
     currentHanziWriters.forEach(w => w.hideCharacter());
 
     let index = 0;
+    let charMistakes = 0;
     function quizNext() {
       if (index >= currentHanziWriters.length) {
-        alert('Great job! You completed all characters.');
+        // Save the score when done
+        savePracticeScore();
+        const pct = sessionTotal > 0 ? Math.round((sessionScore / sessionTotal) * 100) : 0;
+        alert(`Great job! You completed all ${sessionTotal} characters.\nScore: ${sessionScore}/${sessionTotal} (${pct}%)`);
         document.getElementById('restartPracticeBtn').style.display = 'inline-block';
         return;
       }
+      charMistakes = 0;
+      addQuizAttempt(); // Each character is one attempt
       currentHanziWriters[index].quiz({
         showHintAfterMisses: 2,
+        onMistake: () => {
+          charMistakes++;
+          drawingMistakes++;
+        },
         onComplete: () => {
+          // Character is "correct" if drawn with 0-1 mistakes
+          if (charMistakes <= 1) {
+            addQuizWin();
+          }
           index++;
           quizNext();
         }
@@ -1394,13 +1414,34 @@
   document.getElementById('restartPracticeBtn').addEventListener('click', () => {
     if (currentHanziWriters.length === 0) return;
 
+    // Restart a drawing practice session
+    startPracticeSession('drawing');
+    drawingMistakes = 0;
+
     currentHanziWriters.forEach(w => w.hideCharacter());
 
     let index = 0;
+    let charMistakes = 0;
     function quizNext() {
-      if (index >= currentHanziWriters.length) return;
+      if (index >= currentHanziWriters.length) {
+        // Save the score when done
+        savePracticeScore();
+        const pct = sessionTotal > 0 ? Math.round((sessionScore / sessionTotal) * 100) : 0;
+        alert(`Great job! You completed all ${sessionTotal} characters.\nScore: ${sessionScore}/${sessionTotal} (${pct}%)`);
+        return;
+      }
+      charMistakes = 0;
+      addQuizAttempt();
       currentHanziWriters[index].quiz({
+        showHintAfterMisses: 2,
+        onMistake: () => {
+          charMistakes++;
+          drawingMistakes++;
+        },
         onComplete: () => {
+          if (charMistakes <= 1) {
+            addQuizWin();
+          }
           index++;
           quizNext();
         }
@@ -2148,7 +2189,8 @@
       // Check if there are any games played
       const totalGames = (stats.listening?.total_games || 0) + 
                          (stats.words?.total_games || 0) + 
-                         (stats.speaking?.total_games || 0);
+                         (stats.speaking?.total_games || 0) +
+                         (stats.drawing?.total_games || 0);
       
       if (totalGames === 0) {
         loading.style.display = 'none';
@@ -2177,6 +2219,12 @@
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.average_percentage || 0}%</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.best_score || 0}%</td>
         </tr>
+        <tr>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">✍️ Drawing</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.drawing?.total_games || 0}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.drawing?.average_percentage || 0}%</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.drawing?.best_score || 0}%</td>
+        </tr>
       `;
       
       // Populate recent games
@@ -2186,7 +2234,8 @@
       } else {
         recentList.innerHTML = history.map(game => {
           const gameIcon = game.game_type === 'words' ? '📝' : 
-                          game.game_type === 'speaking' ? '🎤' : '👂';
+                          game.game_type === 'speaking' ? '🎤' : 
+                          game.game_type === 'drawing' ? '✍️' : '👂';
           const gameLabel = game.game_type.charAt(0).toUpperCase() + game.game_type.slice(1);
           const date = game.played_at ? new Date(game.played_at).toLocaleDateString() : 'Unknown';
           const time = game.played_at ? new Date(game.played_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
