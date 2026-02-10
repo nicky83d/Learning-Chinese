@@ -178,45 +178,15 @@
       position: relative;
     }
 
-    /* Disabled menu button styles */
-    .menu-disabled {
-      opacity: 0.5 !important;
-      cursor: not-allowed !important;
-      pointer-events: none !important;
-    }
-
-    .menu-disabled-wrapper {
-      position: relative;
-    }
-
+    /* Disabled menu button styles - clickable to redirect to login */
     .menu-disabled-wrapper.disabled {
-      cursor: not-allowed;
+      cursor: pointer;
     }
 
     .menu-disabled-wrapper.disabled > button,
     .menu-disabled-wrapper.disabled > div {
       opacity: 0.5;
       pointer-events: none;
-    }
-
-    .login-required-tooltip {
-      display: none;
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--text-main);
-      color: var(--body-bg);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.85em;
-      white-space: nowrap;
-      z-index: 2000;
-      margin-bottom: 8px;
-    }
-
-    .menu-disabled-wrapper.disabled:hover .login-required-tooltip {
-      display: block;
     }
 
     #practiceSubmenu {
@@ -318,14 +288,12 @@
           <div id="practiceSubmenu">
             <button id="menuPracticeListening">👂 Listening</button>
             <button id="menuPracticeWords">📝 Words</button>
-            <div class="menu-disabled-wrapper" id="speakingWrapper">
-              <span class="login-required-tooltip">Login required</span>
+            <div class="menu-disabled-wrapper" id="speakingWrapper" onclick="handleDisabledClick(event, this)">
               <button id="menuPracticeTalking">🎤 Speaking</button>
             </div>
           </div>
         </div>
-        <div class="menu-has-sub menu-disabled-wrapper" id="addWordsWrapper">
-          <span class="login-required-tooltip">Login required</span>
+        <div class="menu-has-sub menu-disabled-wrapper" id="addWordsWrapper" onclick="handleDisabledClick(event, this)">
           <button id="menuAddWords">◂  ➕ Add Words</button>
           <div id="addWordsSubmenu">
             <button id="menuAddWord">✏️ Manually</button>
@@ -2026,6 +1994,16 @@
   document.getElementById('talkingExitBtn').addEventListener('click', closePracticeTalkingModal);
 
   // ==================== USER AUTHENTICATION & ONBOARDING ====================
+
+  // Handle clicks on disabled (login-required) buttons
+  function handleDisabledClick(event, wrapper) {
+    if (wrapper.classList.contains('disabled')) {
+      event.preventDefault();
+      event.stopPropagation();
+      // Redirect to login, then return to this page
+      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+    }
+  }
 
   // Check user authentication on page load
   let currentUser = null;
