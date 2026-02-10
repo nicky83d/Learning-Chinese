@@ -589,7 +589,6 @@
           <!-- Empty state for old games without detailed results -->
           <div id="gameDetailsEmpty" style="display: none; text-align: center; padding: 30px; color: var(--text-muted);">
             <p>Detailed results not available for this game.</p>
-            <p style="font-size: 0.9em; margin-top: 10px;">Results are recorded for games played after this feature was added.</p>
           </div>
         </div>
       </div>
@@ -1438,12 +1437,24 @@
 
   // Drawing practice with score tracking
   let drawingMistakes = 0;
+  let currentDrawingWord = null; // Store word info when drawing starts
+  
   document.getElementById('startPracticeBtn').addEventListener('click', () => {
     if (currentHanziWriters.length === 0) return;
 
     // Start a drawing practice session
     startPracticeSession('drawing');
     drawingMistakes = 0;
+    
+    // Store word info for result tracking
+    currentDrawingWord = {
+      id: document.getElementById('mw_id').value || null,
+      hanzi: document.getElementById('mw_hanzi').value || '',
+      pinyin: document.getElementById('mw_pinyin').value || '',
+      english: document.getElementById('mw_english').value || '',
+      french: document.getElementById('mw_french').value || ''
+    };
+    const characters = currentDrawingWord.hanzi.split('');
 
     currentHanziWriters.forEach(w => w.hideCharacter());
 
@@ -1460,6 +1471,7 @@
       }
       charMistakes = 0;
       addQuizAttempt(); // Each character is one attempt
+      const currentChar = characters[index] || '';
       currentHanziWriters[index].quiz({
         showHintAfterMisses: 2,
         onMistake: () => {
@@ -1468,9 +1480,23 @@
         },
         onComplete: () => {
           // Character is "correct" if drawn with 0-1 mistakes
-          if (charMistakes <= 1) {
+          const isCorrect = charMistakes <= 1;
+          if (isCorrect) {
             addQuizWin();
           }
+          // Track detailed result
+          addSessionResult({
+            vocabulary_id: currentDrawingWord.id,
+            word_hanzi: currentChar,
+            word_pinyin: currentDrawingWord.pinyin,
+            word_english: currentDrawingWord.english,
+            word_french: currentDrawingWord.french,
+            question_type: 'drawing',
+            question_text: `Draw: ${currentChar}`,
+            user_answer: isCorrect ? 'Correct drawing' : `${charMistakes} mistakes`,
+            correct_answer: currentChar,
+            is_correct: isCorrect
+          });
           index++;
           quizNext();
         }
@@ -1487,6 +1513,16 @@
     // Restart a drawing practice session
     startPracticeSession('drawing');
     drawingMistakes = 0;
+    
+    // Refresh word info
+    currentDrawingWord = {
+      id: document.getElementById('mw_id').value || null,
+      hanzi: document.getElementById('mw_hanzi').value || '',
+      pinyin: document.getElementById('mw_pinyin').value || '',
+      english: document.getElementById('mw_english').value || '',
+      french: document.getElementById('mw_french').value || ''
+    };
+    const characters = currentDrawingWord.hanzi.split('');
 
     currentHanziWriters.forEach(w => w.hideCharacter());
 
@@ -1502,6 +1538,7 @@
       }
       charMistakes = 0;
       addQuizAttempt();
+      const currentChar = characters[index] || '';
       currentHanziWriters[index].quiz({
         showHintAfterMisses: 2,
         onMistake: () => {
@@ -1509,9 +1546,22 @@
           drawingMistakes++;
         },
         onComplete: () => {
-          if (charMistakes <= 1) {
+          const isCorrect = charMistakes <= 1;
+          if (isCorrect) {
             addQuizWin();
           }
+          addSessionResult({
+            vocabulary_id: currentDrawingWord.id,
+            word_hanzi: currentChar,
+            word_pinyin: currentDrawingWord.pinyin,
+            word_english: currentDrawingWord.english,
+            word_french: currentDrawingWord.french,
+            question_type: 'drawing',
+            question_text: `Draw: ${currentChar}`,
+            user_answer: isCorrect ? 'Correct drawing' : `${charMistakes} mistakes`,
+            correct_answer: currentChar,
+            is_correct: isCorrect
+          });
           index++;
           quizNext();
         }
@@ -1906,6 +1956,9 @@
     const mode = (document.querySelector('input[name="pt_mode"]:checked') || {}).value || 'words';
     const section = document.getElementById('pt_section').value || 'all';
 
+    // Start unified practice session tracking
+    startPracticeSession('speaking');
+
     // Fetch words from backend
     try {
       const response = await fetch(`/random_words?section=${encodeURIComponent(section)}&limit=10`);
@@ -2107,6 +2160,17 @@
     const feedback = document.getElementById('talkingFeedback');
     const feedbackText = document.getElementById('talkingFeedbackText');
     const recognizedText = document.getElementById('talkingRecognizedText');
+    
+    // Get current word for result tracking
+    const currentWord = practiceTalkingState.words[practiceTalkingState.currentIndex];
+    const lang = practiceTalkingState.language;
+    const mode = practiceTalkingState.mode;
+    let expectedText = '';
+    if (mode === 'words') {
+      expectedText = lang === 'chinese' ? currentWord.hanzi : currentWord.french;
+    } else {
+      expectedText = lang === 'chinese' ? currentWord.sent_hanzi : currentWord.sent_french;
+    }
 
     feedback.style.display = 'block';
     
@@ -2117,6 +2181,20 @@
       feedbackText.style.color = '#ffc107';
       recognizedText.textContent = recognized ? `You said: "${recognized}"` : '';
       practiceTalkingState.total++;
+      addQuizAttempt();
+      // Track as incorrect for custom messages (warnings)
+      addSessionResult({
+        vocabulary_id: currentWord?.id,
+        word_hanzi: currentWord?.hanzi || '',
+        word_pinyin: currentWord?.pinyin || '',
+        word_english: currentWord?.english || '',
+        word_french: currentWord?.french || '',
+        question_type: 'speaking_' + mode,
+        question_text: expectedText,
+        user_answer: recognized || 'No response',
+        correct_answer: expectedText,
+        is_correct: false
+      });
     } else if (isCorrect) {
       feedback.style.background = 'rgba(40, 167, 69, 0.1)';
       feedback.style.border = '2px solid #28a745';
@@ -2125,6 +2203,20 @@
       
       practiceTalkingState.score++;
       practiceTalkingState.total++;
+      addQuizAttempt();
+      addQuizWin();
+      addSessionResult({
+        vocabulary_id: currentWord?.id,
+        word_hanzi: currentWord?.hanzi || '',
+        word_pinyin: currentWord?.pinyin || '',
+        word_english: currentWord?.english || '',
+        word_french: currentWord?.french || '',
+        question_type: 'speaking_' + mode,
+        question_text: expectedText,
+        user_answer: recognized || '',
+        correct_answer: expectedText,
+        is_correct: true
+      });
       
       // Auto-advance after 1.5 seconds
       setTimeout(() => {
@@ -2138,6 +2230,19 @@
       feedbackText.style.color = '#dc3545';
       
       practiceTalkingState.total++;
+      addQuizAttempt();
+      addSessionResult({
+        vocabulary_id: currentWord?.id,
+        word_hanzi: currentWord?.hanzi || '',
+        word_pinyin: currentWord?.pinyin || '',
+        word_english: currentWord?.english || '',
+        word_french: currentWord?.french || '',
+        question_type: 'speaking_' + mode,
+        question_text: expectedText,
+        user_answer: recognized || '',
+        correct_answer: expectedText,
+        is_correct: false
+      });
     }
 
     if (!customMessage) {
@@ -2151,7 +2256,32 @@
   }
 
   function skipCurrentWord() {
+    // Get current word for result tracking
+    const currentWord = practiceTalkingState.words[practiceTalkingState.currentIndex];
+    const lang = practiceTalkingState.language;
+    const mode = practiceTalkingState.mode;
+    let expectedText = '';
+    if (mode === 'words') {
+      expectedText = lang === 'chinese' ? currentWord.hanzi : currentWord.french;
+    } else {
+      expectedText = lang === 'chinese' ? currentWord.sent_hanzi : currentWord.sent_french;
+    }
+    
     practiceTalkingState.total++;
+    addQuizAttempt();
+    addSessionResult({
+      vocabulary_id: currentWord?.id,
+      word_hanzi: currentWord?.hanzi || '',
+      word_pinyin: currentWord?.pinyin || '',
+      word_english: currentWord?.english || '',
+      word_french: currentWord?.french || '',
+      question_type: 'speaking_' + mode,
+      question_text: expectedText,
+      user_answer: '(skipped)',
+      correct_answer: expectedText,
+      is_correct: false
+    });
+    
     practiceTalkingState.currentIndex++;
     showNextWord();
   }
@@ -2161,8 +2291,8 @@
     const total = practiceTalkingState.total;
     const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
     
-    // Save speaking practice score
-    saveSpeakingScore(score, total);
+    // Save speaking practice score using unified system
+    savePracticeScore();
 
     const targetText = document.getElementById('talkingTargetText');
     const pinyinText = document.getElementById('talkingPinyinText');
@@ -2194,23 +2324,7 @@
     document.getElementById('talkingPlayBtn').style.display = 'none';
   }
   
-  async function saveSpeakingScore(score, total) {
-    if (total === 0) return;
-    try {
-      await fetch('/api/user/practice/save', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          game_type: 'speaking',
-          score: score,
-          total_questions: total,
-          duration: 0  // We're not tracking duration for speaking yet
-        })
-      });
-    } catch (e) {
-      console.warn('Could not save speaking score:', e);
-    }
-  }
+  // saveSpeakingScore removed - now uses unified savePracticeScore()
 
   // Event listeners for Practice Talking
   document.getElementById('startPracticeTalking').addEventListener('click', startPracticeTalkingSession);
