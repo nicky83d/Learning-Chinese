@@ -291,6 +291,7 @@
             <div class="menu-disabled-wrapper" id="speakingWrapper" onclick="handleDisabledClick(event, this)">
               <button id="menuPracticeTalking">🎤 Speaking</button>
             </div>
+            <button id="menuPracticeDrawing">✍️ Drawing</button>
           </div>
         </div>
         <div class="menu-has-sub menu-disabled-wrapper" id="addWordsWrapper" onclick="handleDisabledClick(event, this)">
@@ -394,14 +395,13 @@
       <div class="modal-body">
         <input type="hidden" id="mw_id">
         
-        <!-- Stroke animation / practice area -->
+        <!-- Stroke animation area -->
         <div style="text-align:center; margin:15px 0;">
           <div id="strokeAnimContainer" style="width:320px; height:180px; margin:0 auto; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; overflow-x:auto; overflow-y:hidden; display:flex; align-items:center;">
             <!-- Horizontal scrollable wrapper will be injected here -->
           </div>
           <div style="margin-top:12px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-            <button id="startPracticeBtn" class="primary">✍️ Start Drawing Practice</button>
-            <button id="restartPracticeBtn" class="secondary" style="display:none;">🔄 Restart</button>
+            <button id="animateStrokesBtn" class="secondary">🖌️ Animate Strokes</button>
           </div>
         </div>
 
@@ -455,24 +455,55 @@
   </div>
 
   <!-- Practice Modal -->
+  <!-- Practice Modal (Listening Quiz) -->
   <div id="practiceModal" class="modal">
     <div class="modal-backdrop" onclick="closePracticeModal()"></div>
     <div class="modal-card" style="max-width: 500px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2>🎯 Practice Listening</h2>
+        <h2>👂 Practice Listening</h2>
         <button onclick="closePracticeModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
-      <div class="modal-body" style="text-align: center;">
-        <p style="margin-bottom: 20px; color: var(--text-muted);">Choose which language you want to practice:</p>
-        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-          <button id="practiceChinese" class="primary" style="font-size: 1.1em; padding: 15px 30px;">🇨🇳 Chinese</button>
-          <button id="practiceFrench" class="primary" style="font-size: 1.1em; padding: 15px 30px;">🇫🇷 French</button>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Config section (shown initially) -->
+        <div id="listeningConfigSection">
+          <div>
+            <label for="pl_section" style="display:block; margin-bottom:6px; color:var(--text-muted);">Choose category</label>
+            <select id="pl_section" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+          <div>
+            <p style="margin:12px 0 8px; color:var(--text-muted);">Language to listen to</p>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+                <input type="radio" name="pl_lang" value="chinese" checked>
+                🇨🇳 Chinese
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+                <input type="radio" name="pl_lang" value="french">
+                🇫🇷 French
+              </label>
+            </div>
+          </div>
+          <div style="text-align:right; margin-top:16px;">
+            <button id="startPracticeListening" class="primary" style="padding:12px 18px; font-size:1.05em;">Start Listening Practice</button>
+          </div>
         </div>
-        <div id="practiceStatus" style="margin-top: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; min-height: 60px; display: none;">
-          <p id="practiceText" style="font-size: 1.05em; line-height: 1.6;"></p>
-          <div id="practiceButtonsContainer" style="margin-top: 15px; display: none; text-align: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
-            <button id="repeatPracticeBtn" class="secondary" style="padding: 10px 20px; font-size: 0.95em;">🔊 Repeat</button>
-            <button id="continuePracticeBtn" class="primary" style="padding: 10px 20px; font-size: 0.95em;">Continue →</button>
+        
+        <!-- Practice section (shown during quiz) -->
+        <div id="listeningPracticeSection" style="display:none;">
+          <div style="text-align:center; padding:20px; background:var(--card-bg); border-radius:8px; border:1px solid var(--border-color);">
+            <p style="margin-bottom:15px; color:var(--text-muted);">Listen and choose the correct English meaning:</p>
+            <button id="listeningPlayBtn" class="primary" style="padding:15px 30px; font-size:1.2em;">🔊 Play Sound</button>
+            <div id="listeningOptions" style="display:flex; flex-direction:column; gap:10px; margin-top:20px;"></div>
+            <div id="listeningFeedback" style="margin-top:15px; padding:12px; border-radius:8px; display:none;"></div>
+          </div>
+          <div style="display:flex; gap:12px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+            <button id="listeningNextBtn" class="primary" style="padding:12px 24px; display:none;">Next →</button>
+            <button id="listeningExitBtn" class="danger" style="padding:12px 24px;">❌ Exit</button>
+          </div>
+          <div id="listeningProgress" style="margin-top:12px; text-align:center; color:var(--text-muted); font-size:0.9em;">
+            Progress: <span id="listeningCurrent">1</span> / <span id="listeningTotal">10</span> | Score: <span id="listeningScore">0</span>
           </div>
         </div>
       </div>
@@ -530,9 +561,10 @@
           <div style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
             <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">Start a Practice Game:</p>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button onclick="closeScoresModal(); document.getElementById('practiceModal').style.display='flex';" class="secondary" style="padding: 10px 16px;">👂 Listening</button>
+              <button onclick="closeScoresModal(); openPracticeListeningModal();" class="secondary" style="padding: 10px 16px;">👂 Listening</button>
               <button onclick="closeScoresModal(); openPracticeWordsModal();" class="secondary" style="padding: 10px 16px;">📝 Words</button>
               <button onclick="closeScoresModal(); openPracticeTalkingModal();" class="secondary" style="padding: 10px 16px;">🎤 Speaking</button>
+              <button onclick="closeScoresModal(); openPracticeDrawingModal();" class="secondary" style="padding: 10px 16px;">✍️ Drawing</button>
             </div>
           </div>
           
@@ -668,6 +700,58 @@
     </div>
   </div>
 
+  <!-- Practice Drawing Modal -->
+  <div id="practiceDrawingModal" class="modal">
+    <div class="modal-backdrop" onclick="closePracticeDrawingModal()"></div>
+    <div class="modal-card" style="max-width: 550px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2>✍️ Practice Drawing</h2>
+        <button onclick="closePracticeDrawingModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Config section (shown initially) -->
+        <div id="drawingConfigSection">
+          <div>
+            <label for="pd_section" style="display:block; margin-bottom:6px; color:var(--text-muted);">Choose category</label>
+            <select id="pd_section" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+          <div>
+            <label for="pd_count" style="display:block; margin-bottom:6px; margin-top:12px; color:var(--text-muted);">Number of words</label>
+            <select id="pd_count" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+              <option value="5">5 words</option>
+              <option value="10" selected>10 words</option>
+              <option value="15">15 words</option>
+              <option value="20">20 words</option>
+            </select>
+          </div>
+          <div style="text-align:right; margin-top:16px;">
+            <button id="startPracticeDrawing" class="primary" style="padding:12px 18px; font-size:1.05em;">Start Drawing Practice</button>
+          </div>
+        </div>
+        
+        <!-- Practice section (shown during practice) -->
+        <div id="drawingPracticeSection" style="display:none;">
+          <div style="text-align:center; margin-bottom:12px;">
+            <div id="drawingEnglish" style="font-size:1.2em; font-weight:bold; color:var(--primary); margin-bottom:5px;"></div>
+            <div id="drawingPinyin" style="font-size:1em; color:var(--text-muted);"></div>
+          </div>
+          <div id="drawingCanvasContainer" style="min-height:180px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; overflow-x:auto; overflow-y:hidden; display:flex; align-items:center; justify-content:center; padding:10px;">
+            <!-- HanziWriter canvases will be injected here -->
+          </div>
+          <div style="display:flex; gap:12px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+            <button id="drawingSkipBtn" class="secondary" style="padding:12px 24px;">⏭️ Skip</button>
+            <button id="drawingExitBtn" class="danger" style="padding:12px 24px;">❌ Exit</button>
+          </div>
+          <div id="drawingProgress" style="margin-top:12px; text-align:center; color:var(--text-muted); font-size:0.9em;">
+            Progress: <span id="drawingCurrent">1</span> / <span id="drawingTotal">10</span> | Score: <span id="drawingScore">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
   // Hamburger menu functionality
   const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -680,6 +764,7 @@
   const menuPracticeListening = document.getElementById('menuPracticeListening');
   const menuPracticeWords = document.getElementById('menuPracticeWords');
   const menuPracticeTalking = document.getElementById('menuPracticeTalking');
+  const menuPracticeDrawing = document.getElementById('menuPracticeDrawing');
   const menuAddWords = document.getElementById('menuAddWords');
   const addWordsSubmenu = document.getElementById('addWordsSubmenu');
 
@@ -716,8 +801,7 @@
     hamburgerMenu.classList.remove('show');
     practiceSubmenu.classList.remove('show');
     addWordsSubmenu.classList.remove('show');
-    document.getElementById('practiceModal').style.display = 'flex';
-    document.getElementById('practiceStatus').style.display = 'none';
+    openPracticeListeningModal();
   });
 
   menuPracticeWords.addEventListener('click', () => {
@@ -732,6 +816,13 @@
     practiceSubmenu.classList.remove('show');
     addWordsSubmenu.classList.remove('show');
     openPracticeTalkingModal();
+  });
+
+  menuPracticeDrawing.addEventListener('click', () => {
+    hamburgerMenu.classList.remove('show');
+    practiceSubmenu.classList.remove('show');
+    addWordsSubmenu.classList.remove('show');
+    openPracticeDrawingModal();
   });
 
   const photoInputCamera = document.getElementById('photoUploadCamera');
@@ -1385,11 +1476,7 @@
       })
       .catch(() => { sectionInput.value = rowSection || ''; });
 
-    // Reset practice buttons
-    document.getElementById('startPracticeBtn').style.display = 'inline-block';
-    document.getElementById('restartPracticeBtn').style.display = 'none';
-
-    // Stroke animation setup (unchanged)
+    // Stroke animation setup
     const container = document.getElementById('strokeAnimContainer');
     container.innerHTML = '';
     currentHanziWriters = [];
@@ -1448,139 +1535,21 @@
     currentHanziWriters = [];
   }
 
-  // Drawing practice with score tracking
-  let drawingMistakes = 0;
-  let currentDrawingWord = null; // Store word info when drawing starts
-  
-  document.getElementById('startPracticeBtn').addEventListener('click', () => {
+  // Animate strokes button for edit word modal
+  document.getElementById('animateStrokesBtn').addEventListener('click', () => {
     if (currentHanziWriters.length === 0) return;
-
-    // Start a drawing practice session
-    startPracticeSession('drawing');
-    drawingMistakes = 0;
-    
-    // Store word info for result tracking
-    currentDrawingWord = {
-      id: document.getElementById('mw_id').value || null,
-      hanzi: document.getElementById('mw_hanzi').value || '',
-      pinyin: document.getElementById('mw_pinyin').value || '',
-      english: document.getElementById('mw_english').value || '',
-      french: document.getElementById('mw_french').value || ''
-    };
-    const characters = currentDrawingWord.hanzi.split('');
-
-    currentHanziWriters.forEach(w => w.hideCharacter());
-
+    // Animate each character in sequence
     let index = 0;
-    let charMistakes = 0;
-    function quizNext() {
-      if (index >= currentHanziWriters.length) {
-        // Save the score when done
-        savePracticeScore();
-        const pct = sessionTotal > 0 ? Math.round((sessionScore / sessionTotal) * 100) : 0;
-        alert(`Great job! You completed all ${sessionTotal} characters.\nScore: ${sessionScore}/${sessionTotal} (${pct}%)`);
-        document.getElementById('restartPracticeBtn').style.display = 'inline-block';
-        return;
-      }
-      charMistakes = 0;
-      addQuizAttempt(); // Each character is one attempt
-      const currentChar = characters[index] || '';
-      currentHanziWriters[index].quiz({
-        showHintAfterMisses: 2,
-        onMistake: () => {
-          charMistakes++;
-          drawingMistakes++;
-        },
+    function animateNext() {
+      if (index >= currentHanziWriters.length) return;
+      currentHanziWriters[index].animateCharacter({
         onComplete: () => {
-          // Character is "correct" if drawn with 0-1 mistakes
-          const isCorrect = charMistakes <= 1;
-          if (isCorrect) {
-            addQuizWin();
-          }
-          // Track detailed result
-          addSessionResult({
-            vocabulary_id: currentDrawingWord.id,
-            word_hanzi: currentChar,
-            word_pinyin: currentDrawingWord.pinyin,
-            word_english: currentDrawingWord.english,
-            word_french: currentDrawingWord.french,
-            question_type: 'drawing',
-            question_text: `Draw: ${currentChar}`,
-            user_answer: isCorrect ? 'Correct drawing' : `${charMistakes} mistakes`,
-            correct_answer: currentChar,
-            is_correct: isCorrect
-          });
           index++;
-          quizNext();
+          animateNext();
         }
       });
     }
-    quizNext();
-
-    document.getElementById('startPracticeBtn').style.display = 'none';
-  });
-
-  document.getElementById('restartPracticeBtn').addEventListener('click', () => {
-    if (currentHanziWriters.length === 0) return;
-
-    // Restart a drawing practice session
-    startPracticeSession('drawing');
-    drawingMistakes = 0;
-    
-    // Refresh word info
-    currentDrawingWord = {
-      id: document.getElementById('mw_id').value || null,
-      hanzi: document.getElementById('mw_hanzi').value || '',
-      pinyin: document.getElementById('mw_pinyin').value || '',
-      english: document.getElementById('mw_english').value || '',
-      french: document.getElementById('mw_french').value || ''
-    };
-    const characters = currentDrawingWord.hanzi.split('');
-
-    currentHanziWriters.forEach(w => w.hideCharacter());
-
-    let index = 0;
-    let charMistakes = 0;
-    function quizNext() {
-      if (index >= currentHanziWriters.length) {
-        // Save the score when done
-        savePracticeScore();
-        const pct = sessionTotal > 0 ? Math.round((sessionScore / sessionTotal) * 100) : 0;
-        alert(`Great job! You completed all ${sessionTotal} characters.\nScore: ${sessionScore}/${sessionTotal} (${pct}%)`);
-        return;
-      }
-      charMistakes = 0;
-      addQuizAttempt();
-      const currentChar = characters[index] || '';
-      currentHanziWriters[index].quiz({
-        showHintAfterMisses: 2,
-        onMistake: () => {
-          charMistakes++;
-          drawingMistakes++;
-        },
-        onComplete: () => {
-          const isCorrect = charMistakes <= 1;
-          if (isCorrect) {
-            addQuizWin();
-          }
-          addSessionResult({
-            vocabulary_id: currentDrawingWord.id,
-            word_hanzi: currentChar,
-            word_pinyin: currentDrawingWord.pinyin,
-            word_english: currentDrawingWord.english,
-            word_french: currentDrawingWord.french,
-            question_type: 'drawing',
-            question_text: `Draw: ${currentChar}`,
-            user_answer: isCorrect ? 'Correct drawing' : `${charMistakes} mistakes`,
-            correct_answer: currentChar,
-            is_correct: isCorrect
-          });
-          index++;
-          quizNext();
-        }
-      });
-    }
-    quizNext();
+    animateNext();
   });
 
   document.getElementById('saveModal').onclick = () => {
@@ -1735,85 +1704,227 @@
   
   // Practice Modal Functions
   function closePracticeModal() {
+    // Save score if there are any attempts before closing
+    if (listeningState.total > 0) {
+      sessionScore = listeningState.score;
+      sessionTotal = listeningState.total;
+      savePracticeScore();
+    }
     document.getElementById('practiceModal').style.display = 'none';
     window.speechSynthesis.cancel();
+    resetListeningPractice();
   }
 
-  async function startPractice(language) {
-    const practiceStatus = document.getElementById('practiceStatus');
-    const practiceText = document.getElementById('practiceText');
-    practiceStatus.style.display = 'block';
-    practiceText.textContent = 'Loading random word...';
+  // Listening Quiz State
+  const listeningState = {
+    words: [],
+    currentIndex: 0,
+    score: 0,
+    total: 0,
+    language: 'chinese',
+    currentWord: null,
+    answered: false
+  };
+
+  function resetListeningPractice() {
+    listeningState.words = [];
+    listeningState.currentIndex = 0;
+    listeningState.score = 0;
+    listeningState.total = 0;
+    listeningState.currentWord = null;
+    listeningState.answered = false;
+    document.getElementById('listeningConfigSection').style.display = 'block';
+    document.getElementById('listeningPracticeSection').style.display = 'none';
+  }
+
+  function openPracticeListeningModal() {
+    resetListeningPractice();
+    // Populate categories
+    const sections = [...new Set(allVocab.map(v => v.section).filter(Boolean))];
+    const select = document.getElementById('pl_section');
+    select.innerHTML = '<option value="all">All Categories</option>' + 
+      sections.map(s => `<option value="${s}">${s}</option>`).join('');
+    document.getElementById('practiceModal').style.display = 'flex';
+  }
+
+  async function startListeningPractice() {
+    const lang = (document.querySelector('input[name="pl_lang"]:checked') || {}).value || 'chinese';
+    const section = document.getElementById('pl_section').value || 'all';
+
+    // Start unified practice session tracking
+    startPracticeSession('listening');
+    listeningState.language = lang;
+    listeningState.score = 0;
+    listeningState.total = 0;
 
     try {
-      const response = await fetch('/random_word');
-      if (!response.ok) throw new Error('Failed to fetch word');
-      const word = await response.json();
+      const response = await fetch(`/random_words?section=${encodeURIComponent(section)}&limit=10`);
+      if (!response.ok) throw new Error('Failed to fetch words');
+      const words = await response.json();
 
-      if (!word.english) {
-        practiceText.textContent = 'No vocabulary words found!';
+      if (!words || words.length === 0) {
+        showToast('No words found for this category', 'error');
         return;
       }
 
-      const targetLang = language === 'chinese' ? 'Chinese' : 'French';
-      const targetWord = language === 'chinese' ? word.hanzi : word.french;
-      const targetSentenceEn = word.sent_english || 'No example available';
-      const targetSentence = language === 'chinese' ? word.sent_hanzi : word.sent_french;
+      listeningState.words = words;
+      listeningState.currentIndex = 0;
 
-      // Step 1: Introduction
-      const wordWithPinyin = language === 'chinese' && word.pinyin 
-        ? `${targetWord} (${word.pinyin})` 
-        : targetWord;
-      practiceText.innerHTML = `<strong>${word.english}</strong> in ${targetLang} is <strong>${wordWithPinyin}</strong>`;
-      await speakText(`Let's practice the word`, 'en-US');
-      await sleep(25);
-      await speakText(`${word.english}`, 'en-US');
-      await sleep(500);
-
-      // Step 2: Translation
-      await speakText(`${word.english} in ${targetLang} is`, 'en-US');
-      await sleep(10);
-      const langCode = language === 'chinese' ? 'zh-CN' : 'fr-FR';
-      await speakText(targetWord, langCode);
-      await sleep(500);
-
-      // Step 3: Context example
-      if (targetSentence && targetSentence.trim()) {
-        let contextLine = `<br><br>In context you can say: "<em>${targetSentenceEn}</em>"<br>In ${targetLang} just say: "<strong>${targetSentence}</strong>"`;
-        if (language === 'chinese' && word.sent_pinyin) {
-          contextLine += `<br>(${word.sent_pinyin})`;
-        }
-        practiceText.innerHTML += contextLine;
-        await speakText(`In context you can say ${targetSentenceEn}`, 'en-US');
-        await sleep(250);
-        await speakText(`In ${targetLang} just say`, 'en-US');
-        await sleep(10);
-        await speakText(targetSentence, langCode);
-      }
-
-      await sleep(1000);
-      practiceText.innerHTML += '<br><br><span style="color: var(--primary);">✓ Practice complete!</span>';
+      document.getElementById('listeningConfigSection').style.display = 'none';
+      document.getElementById('listeningPracticeSection').style.display = 'block';
       
-      // Show repeat and continue buttons
-      const buttonsContainer = document.getElementById('practiceButtonsContainer');
-      buttonsContainer.style.display = 'flex';
-      
-      // Store current data for repeat button
-      window.currentPracticeData = {
-        word,
-        targetWord,
-        targetSentence,
-        targetSentenceEn,
-        language,
-        langCode,
-        targetLang
-      };
-
-    } catch (error) {
-      console.error('Practice error:', error);
-      practiceText.textContent = 'Error loading word. Please try again.';
+      showNextListeningWord();
+    } catch (err) {
+      console.error('Error starting listening practice:', err);
+      showToast('Error loading words. Please try again.', 'error');
     }
   }
+
+  function showNextListeningWord() {
+    if (listeningState.currentIndex >= listeningState.words.length) {
+      showListeningCompletion();
+      return;
+    }
+
+    listeningState.answered = false;
+    const word = listeningState.words[listeningState.currentIndex];
+    listeningState.currentWord = word;
+
+    // Generate 3 random wrong options
+    const wrongOptions = allVocab
+      .filter(v => v.english && v.english !== word.english)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3)
+      .map(v => v.english);
+
+    // Add correct answer and shuffle
+    const options = [...wrongOptions, word.english].sort(() => Math.random() - 0.5);
+
+    // Update UI
+    document.getElementById('listeningCurrent').textContent = listeningState.currentIndex + 1;
+    document.getElementById('listeningTotal').textContent = listeningState.words.length;
+    document.getElementById('listeningScore').textContent = listeningState.score;
+    document.getElementById('listeningFeedback').style.display = 'none';
+    document.getElementById('listeningNextBtn').style.display = 'none';
+
+    // Create option buttons
+    const optionsContainer = document.getElementById('listeningOptions');
+    optionsContainer.innerHTML = options.map((opt, i) => `
+      <button class="listening-option secondary" onclick="selectListeningOption(this, '${opt.replace(/'/g, "\\'")}')" style="padding:12px; text-align:left; font-size:1em;">
+        ${String.fromCharCode(65 + i)}. ${opt}
+      </button>
+    `).join('');
+  }
+
+  function playListeningAudio() {
+    const word = listeningState.currentWord;
+    if (!word) return;
+
+    const lang = listeningState.language;
+    const targetWord = lang === 'chinese' ? word.hanzi : word.french;
+    const langCode = lang === 'chinese' ? 'zh-CN' : 'fr-FR';
+    
+    speakText(targetWord, langCode);
+  }
+
+  function selectListeningOption(btn, selected) {
+    if (listeningState.answered) return;
+    listeningState.answered = true;
+
+    const word = listeningState.currentWord;
+    const correct = word.english;
+    const isCorrect = selected === correct;
+
+    listeningState.total++;
+    if (isCorrect) listeningState.score++;
+
+    // Update session tracking
+    sessionTotal = listeningState.total;
+    sessionScore = listeningState.score;
+
+    // Track detailed result
+    const lang = listeningState.language;
+    const targetWord = lang === 'chinese' ? word.hanzi : word.french;
+    addSessionResult({
+      vocabulary_id: word.id,
+      word_hanzi: word.hanzi || '',
+      word_pinyin: word.pinyin || '',
+      word_english: word.english || '',
+      word_french: word.french || '',
+      question_type: 'listening',
+      question_text: `Identify: "${targetWord}"`,
+      user_answer: selected,
+      correct_answer: correct,
+      is_correct: isCorrect
+    });
+
+    // Mark all buttons
+    const buttons = document.querySelectorAll('.listening-option');
+    buttons.forEach(b => {
+      const optText = b.textContent.substring(3).trim(); // Remove "A. " prefix
+      if (optText === correct) {
+        b.style.background = 'var(--success)';
+        b.style.color = 'white';
+      } else if (b === btn && !isCorrect) {
+        b.style.background = 'var(--danger)';
+        b.style.color = 'white';
+      }
+      b.disabled = true;
+    });
+
+    // Show feedback
+    const feedback = document.getElementById('listeningFeedback');
+    const lang2 = listeningState.language;
+    const display = lang2 === 'chinese' ? `${word.hanzi} (${word.pinyin || ''})` : word.french;
+    if (isCorrect) {
+      feedback.innerHTML = `✅ Correct! <strong>${display}</strong> = ${correct}`;
+      feedback.style.background = 'rgba(76, 175, 80, 0.2)';
+    } else {
+      feedback.innerHTML = `❌ Wrong! <strong>${display}</strong> = ${correct}`;
+      feedback.style.background = 'rgba(244, 67, 54, 0.2)';
+    }
+    feedback.style.display = 'block';
+
+    // Update score display
+    document.getElementById('listeningScore').textContent = listeningState.score;
+
+    // Show next button
+    document.getElementById('listeningNextBtn').style.display = 'inline-block';
+  }
+
+  function nextListeningWord() {
+    listeningState.currentIndex++;
+    showNextListeningWord();
+  }
+
+  function showListeningCompletion() {
+    const score = listeningState.score;
+    const total = listeningState.total;
+    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    
+    // Save score
+    sessionScore = score;
+    sessionTotal = total;
+    savePracticeScore();
+
+    const optionsContainer = document.getElementById('listeningOptions');
+    optionsContainer.innerHTML = `
+      <div style="text-align:center; padding:20px;">
+        <h3 style="color:var(--primary); margin-bottom:10px;">🎉 Practice Complete!</h3>
+        <p style="font-size:1.2em;">Score: <strong>${score}/${total}</strong> (${pct}%)</p>
+        <button class="primary" onclick="resetListeningPractice()" style="margin-top:15px; padding:12px 24px;">Play Again</button>
+      </div>
+    `;
+    document.getElementById('listeningFeedback').style.display = 'none';
+    document.getElementById('listeningNextBtn').style.display = 'none';
+    document.getElementById('listeningPlayBtn').style.display = 'none';
+  }
+
+  // Event listeners for Listening practice
+  document.getElementById('startPracticeListening').addEventListener('click', startListeningPractice);
+  document.getElementById('listeningPlayBtn').addEventListener('click', playListeningAudio);
+  document.getElementById('listeningNextBtn').addEventListener('click', nextListeningWord);
+  document.getElementById('listeningExitBtn').addEventListener('click', closePracticeModal);
 
   function speakText(text, lang) {
     return new Promise((resolve, reject) => {
@@ -1840,35 +1951,6 @@
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-
-  document.getElementById('practiceChinese').addEventListener('click', () => {
-    startPractice('chinese');
-  });
-
-  document.getElementById('practiceFrench').addEventListener('click', () => {
-    startPractice('french');
-  });
-
-  document.getElementById('repeatPracticeBtn').addEventListener('click', async () => {
-    const data = window.currentPracticeData;
-    if (!data) return;
-
-    const { targetSentence, targetSentenceEn, language, langCode, targetLang } = data;
-    const targetLangName = language === 'chinese' ? 'Chinese' : 'French';
-
-    // Only replay the example sentence
-    if (targetSentence && targetSentence.trim()) {
-      // await speakText(`In context you can say ${targetSentenceEn}`, 'en-US');
-      // await sleep(250);
-      // await speakText(`In ${targetLangName} just say`, 'en-US');
-      // await sleep(10);
-      await speakText(targetSentence, langCode);
-    }
-  });
-
-  document.getElementById('continuePracticeBtn').addEventListener('click', () => {
-    closePracticeModal();
-  });
 
   document.getElementById('startPracticeWords').addEventListener('click', async () => {
     const lang = (document.querySelector('input[name="pw_lang"]:checked') || {}).value || 'chinese';
@@ -1929,6 +2011,14 @@
   }
 
   function closePracticeTalkingModal() {
+    // Save score if there are any attempts before closing
+    if (practiceTalkingState.total > 0) {
+      // Sync session tracking with practiceTalkingState for saving
+      sessionScore = practiceTalkingState.score;
+      sessionTotal = practiceTalkingState.total;
+      savePracticeScore();
+    }
+    
     document.getElementById('practiceTalkingModal').style.display = 'none';
     stopRecognition();
     window.speechSynthesis.cancel();
@@ -2304,6 +2394,10 @@
     const total = practiceTalkingState.total;
     const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
     
+    // Sync with session tracking before saving
+    sessionScore = score;
+    sessionTotal = total;
+    
     // Save speaking practice score using unified system
     savePracticeScore();
 
@@ -2345,6 +2439,232 @@
   document.getElementById('talkingRecordBtn').addEventListener('click', startRecording);
   document.getElementById('talkingSkipBtn').addEventListener('click', skipCurrentWord);
   document.getElementById('talkingExitBtn').addEventListener('click', closePracticeTalkingModal);
+
+  // ==================== DRAWING PRACTICE MODAL ====================
+  
+  const drawingPracticeState = {
+    words: [],
+    currentIndex: 0,
+    score: 0,
+    total: 0,
+    writers: [],
+    currentCharIndex: 0,
+    charMistakes: 0
+  };
+
+  function openPracticeDrawingModal() {
+    resetDrawingPractice();
+    // Populate categories
+    const sections = [...new Set(allVocab.map(v => v.section).filter(Boolean))];
+    const select = document.getElementById('pd_section');
+    select.innerHTML = '<option value="all">All Categories</option>' + 
+      sections.map(s => `<option value="${s}">${s}</option>`).join('');
+    document.getElementById('practiceDrawingModal').style.display = 'flex';
+  }
+
+  function closePracticeDrawingModal() {
+    // Save score if there are any attempts before closing
+    if (drawingPracticeState.total > 0) {
+      sessionScore = drawingPracticeState.score;
+      sessionTotal = drawingPracticeState.total;
+      savePracticeScore();
+    }
+    document.getElementById('practiceDrawingModal').style.display = 'none';
+    resetDrawingPractice();
+  }
+
+  function resetDrawingPractice() {
+    drawingPracticeState.words = [];
+    drawingPracticeState.currentIndex = 0;
+    drawingPracticeState.score = 0;
+    drawingPracticeState.total = 0;
+    drawingPracticeState.writers = [];
+    drawingPracticeState.currentCharIndex = 0;
+    drawingPracticeState.charMistakes = 0;
+    document.getElementById('drawingConfigSection').style.display = 'block';
+    document.getElementById('drawingPracticeSection').style.display = 'none';
+    document.getElementById('drawingCanvasContainer').innerHTML = '';
+  }
+
+  async function startDrawingPractice() {
+    const section = document.getElementById('pd_section').value || 'all';
+    const count = parseInt(document.getElementById('pd_count').value) || 10;
+
+    // Start unified practice session tracking
+    startPracticeSession('drawing');
+    drawingPracticeState.score = 0;
+    drawingPracticeState.total = 0;
+
+    try {
+      const response = await fetch(`/random_words?section=${encodeURIComponent(section)}&limit=${count}`);
+      if (!response.ok) throw new Error('Failed to fetch words');
+      const words = await response.json();
+
+      // Filter to only words with hanzi characters
+      const validWords = words.filter(w => w.hanzi && w.hanzi.trim().length > 0);
+
+      if (!validWords || validWords.length === 0) {
+        showToast('No Chinese words found for this category', 'error');
+        return;
+      }
+
+      drawingPracticeState.words = validWords;
+      drawingPracticeState.currentIndex = 0;
+
+      document.getElementById('drawingConfigSection').style.display = 'none';
+      document.getElementById('drawingPracticeSection').style.display = 'block';
+      
+      showNextDrawingWord();
+    } catch (err) {
+      console.error('Error starting drawing practice:', err);
+      showToast('Error loading words. Please try again.', 'error');
+    }
+  }
+
+  function showNextDrawingWord() {
+    if (drawingPracticeState.currentIndex >= drawingPracticeState.words.length) {
+      showDrawingCompletion();
+      return;
+    }
+
+    const word = drawingPracticeState.words[drawingPracticeState.currentIndex];
+    
+    // Update UI
+    document.getElementById('drawingEnglish').textContent = word.english || '';
+    document.getElementById('drawingPinyin').textContent = word.pinyin || '';
+    document.getElementById('drawingCurrent').textContent = drawingPracticeState.currentIndex + 1;
+    document.getElementById('drawingTotal').textContent = drawingPracticeState.words.length;
+    document.getElementById('drawingScore').textContent = drawingPracticeState.score;
+    
+    // Create HanziWriter instances for each character
+    const container = document.getElementById('drawingCanvasContainer');
+    container.innerHTML = '';
+    drawingPracticeState.writers = [];
+    drawingPracticeState.currentCharIndex = 0;
+
+    const characters = word.hanzi.split('');
+    
+    characters.forEach((char, i) => {
+      const charDiv = document.createElement('div');
+      charDiv.style.cssText = 'width:100px; height:100px; display:inline-block; margin:5px; border:1px solid var(--border-color); border-radius:8px; background:white;';
+      charDiv.id = `drawChar_${i}`;
+      container.appendChild(charDiv);
+
+      const writer = HanziWriter.create(charDiv, char, {
+        width: 100,
+        height: 100,
+        padding: 5,
+        showOutline: true,
+        strokeAnimationSpeed: 1,
+        delayBetweenStrokes: 100,
+        showCharacter: false,
+        showHintAfterMisses: 3
+      });
+      drawingPracticeState.writers.push(writer);
+    });
+
+    // Start quizzing on first character
+    quizDrawingCharacter(0, word, characters);
+  }
+
+  function quizDrawingCharacter(index, word, characters) {
+    if (index >= drawingPracticeState.writers.length) {
+      // Word complete, move to next word
+      drawingPracticeState.currentIndex++;
+      setTimeout(() => showNextDrawingWord(), 500);
+      return;
+    }
+
+    drawingPracticeState.currentCharIndex = index;
+    drawingPracticeState.charMistakes = 0;
+    drawingPracticeState.total++;
+    sessionTotal = drawingPracticeState.total;
+
+    drawingPracticeState.writers[index].quiz({
+      showHintAfterMisses: 3,
+      onMistake: () => {
+        drawingPracticeState.charMistakes++;
+      },
+      onComplete: () => {
+        const isCorrect = drawingPracticeState.charMistakes <= 1;
+        if (isCorrect) {
+          drawingPracticeState.score++;
+          sessionScore = drawingPracticeState.score;
+        }
+        
+        // Track detailed result
+        addSessionResult({
+          vocabulary_id: word.id,
+          word_hanzi: characters[index],
+          word_pinyin: word.pinyin || '',
+          word_english: word.english || '',
+          word_french: word.french || '',
+          question_type: 'drawing',
+          question_text: `Draw: ${characters[index]}`,
+          user_answer: isCorrect ? 'Correct drawing' : `${drawingPracticeState.charMistakes} mistakes`,
+          correct_answer: characters[index],
+          is_correct: isCorrect
+        });
+
+        document.getElementById('drawingScore').textContent = drawingPracticeState.score;
+        
+        // Move to next character
+        quizDrawingCharacter(index + 1, word, characters);
+      }
+    });
+  }
+
+  function skipDrawingWord() {
+    // Mark remaining characters as skipped
+    const word = drawingPracticeState.words[drawingPracticeState.currentIndex];
+    if (word) {
+      const characters = word.hanzi.split('');
+      for (let i = drawingPracticeState.currentCharIndex; i < characters.length; i++) {
+        drawingPracticeState.total++;
+        addSessionResult({
+          vocabulary_id: word.id,
+          word_hanzi: characters[i],
+          word_pinyin: word.pinyin || '',
+          word_english: word.english || '',
+          word_french: word.french || '',
+          question_type: 'drawing',
+          question_text: `Draw: ${characters[i]}`,
+          user_answer: 'Skipped',
+          correct_answer: characters[i],
+          is_correct: false
+        });
+      }
+      sessionTotal = drawingPracticeState.total;
+    }
+    
+    drawingPracticeState.currentIndex++;
+    showNextDrawingWord();
+  }
+
+  function showDrawingCompletion() {
+    const score = drawingPracticeState.score;
+    const total = drawingPracticeState.total;
+    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    
+    // Save score
+    sessionScore = score;
+    sessionTotal = total;
+    savePracticeScore();
+
+    const container = document.getElementById('drawingCanvasContainer');
+    container.innerHTML = `
+      <div style="text-align:center; padding:30px; width:100%;">
+        <h3 style="color:var(--primary); margin-bottom:10px;">🎉 Practice Complete!</h3>
+        <p style="font-size:1.2em;">Score: <strong>${score}/${total}</strong> (${pct}%)</p>
+        <button class="primary" onclick="resetDrawingPractice()" style="margin-top:15px; padding:12px 24px;">Play Again</button>
+      </div>
+    `;
+  }
+
+  // Event listeners for Drawing practice
+  document.getElementById('startPracticeDrawing').addEventListener('click', startDrawingPractice);
+  document.getElementById('drawingSkipBtn').addEventListener('click', skipDrawingWord);
+  document.getElementById('drawingExitBtn').addEventListener('click', closePracticeDrawingModal);
 
   // ==================== MY SCORES MODAL ====================
   
@@ -2400,9 +2720,9 @@
       statsBody.innerHTML = `
         <tr>
           <td style="padding: 10px; border: 1px solid var(--border-color);">👂 Listening</td>
-          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">-</td>
-          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">-</td>
-          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">-</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.listening?.total_games || 0}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.listening?.average_percentage || 0}%</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.listening?.best_score || 0}%</td>
         </tr>
         <tr>
           <td style="padding: 10px; border: 1px solid var(--border-color);">📝 Words</td>
