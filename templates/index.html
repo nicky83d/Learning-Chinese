@@ -797,33 +797,8 @@
     practiceSubmenu.classList.remove('show');
   });
 
-  menuPracticeListening.addEventListener('click', () => {
-    hamburgerMenu.classList.remove('show');
-    practiceSubmenu.classList.remove('show');
-    addWordsSubmenu.classList.remove('show');
-    openPracticeListeningModal();
-  });
-
-  menuPracticeWords.addEventListener('click', () => {
-    hamburgerMenu.classList.remove('show');
-    practiceSubmenu.classList.remove('show');
-    addWordsSubmenu.classList.remove('show');
-    openPracticeWordsModal();
-  });
-
-  menuPracticeTalking.addEventListener('click', () => {
-    hamburgerMenu.classList.remove('show');
-    practiceSubmenu.classList.remove('show');
-    addWordsSubmenu.classList.remove('show');
-    openPracticeTalkingModal();
-  });
-
-  menuPracticeDrawing.addEventListener('click', () => {
-    hamburgerMenu.classList.remove('show');
-    practiceSubmenu.classList.remove('show');
-    addWordsSubmenu.classList.remove('show');
-    openPracticeDrawingModal();
-  });
+  // Note: Listening, Words, Talking, Drawing menu handlers are registered later
+  // in the second script block after their modal functions are defined
 
   const photoInputCamera = document.getElementById('photoUploadCamera');
   const photoInputLibrary = document.getElementById('photoUploadLibrary');
@@ -3117,6 +3092,35 @@
 
   // Check auth on page load
   checkUserAuth();
+
+  // Register menu event listeners (after all functions are defined)
+  document.getElementById('menuPracticeListening').addEventListener('click', () => {
+    document.getElementById('hamburgerMenu').classList.remove('show');
+    document.getElementById('practiceSubmenu').classList.remove('show');
+    document.getElementById('addWordsSubmenu').classList.remove('show');
+    openPracticeListeningModal();
+  });
+
+  document.getElementById('menuPracticeWords').addEventListener('click', () => {
+    document.getElementById('hamburgerMenu').classList.remove('show');
+    document.getElementById('practiceSubmenu').classList.remove('show');
+    document.getElementById('addWordsSubmenu').classList.remove('show');
+    openPracticeWordsModal();
+  });
+
+  document.getElementById('menuPracticeTalking').addEventListener('click', () => {
+    document.getElementById('hamburgerMenu').classList.remove('show');
+    document.getElementById('practiceSubmenu').classList.remove('show');
+    document.getElementById('addWordsSubmenu').classList.remove('show');
+    openPracticeTalkingModal();
+  });
+
+  document.getElementById('menuPracticeDrawing').addEventListener('click', () => {
+    document.getElementById('hamburgerMenu').classList.remove('show');
+    document.getElementById('practiceSubmenu').classList.remove('show');
+    document.getElementById('addWordsSubmenu').classList.remove('show');
+    openPracticeDrawingModal();
+  });
 
 </script>
 </body>
