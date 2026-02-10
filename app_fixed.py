@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file, session, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
-from models import db, Vocabulary, PhotoLog, User, UserVocabulary, UserDeletedWord
+from models import db, Vocabulary, PhotoLog, User, UserVocabulary, UserDeletedWord, PracticeScore
 from extract_data import extract_all_rows
 from config import get_config
 import unicodedata
@@ -109,11 +109,21 @@ def admin_required(f):
     return decorated_function
 
 def _get_google_redirect_uri() -> str:
+    # Always detect based on the actual request host - this handles local vs production
+    host = request.headers.get('X-Forwarded-Host', request.host)
+    
+    # If running locally, always use localhost redirect
+    if 'localhost' in host or '127.0.0.1' in host:
+        # Use http for localhost
+        port = host.split(':')[1] if ':' in host else '5000'
+        return f"http://localhost:{port}/auth/google/callback"
+    
+    # For production, use configured value or detect from request
     configured = app.config.get('GOOGLE_REDIRECT_URI')
     if configured:
         return configured
+    
     scheme = request.headers.get('X-Forwarded-Proto', request.scheme)
-    host = request.headers.get('X-Forwarded-Host', request.host)
     return f"{scheme}://{host}/auth/google/callback"
 
 def fold_pinyin(text: str, umlaut_to: str = 'u') -> str:
@@ -188,6 +198,27 @@ def create_tables_and_populate():
                 db.session.rollback()
                 if "already exists" not in str(e).lower():
                     logger.warning(f"Could not create user_deleted_word table: {e}")
+            
+            # Create PracticeScore table if it doesn't exist
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS practice_score (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                        game_type VARCHAR(50) NOT NULL,
+                        score INTEGER NOT NULL DEFAULT 0,
+                        total_questions INTEGER NOT NULL DEFAULT 0,
+                        percentage FLOAT,
+                        session_duration INTEGER,
+                        played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                db.session.commit()
+                logger.info("PracticeScore table ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower():
+                    logger.warning(f"Could not create practice_score table: {e}")
             
             # Add user_id column to photo_log if it doesn't exist
             try:
@@ -699,7 +730,7 @@ OCR lines:
 Return ONLY the JSON array starting with [."""
         raise ValueError("Unsupported input_lang")
 
-    def call_llm(prompt: str, temp: float = 0.2, max_tokens: int = 1500):
+    def call_llm(prompt: str, temp: float = 0.2, max_tokens: int = 4000):
         try:
             completion = openai.chat.completions.create(
                 model="gpt-4o-mini",
@@ -721,13 +752,13 @@ Return ONLY the JSON array starting with [."""
                 raise RuntimeError(f"OpenAI API error: {error_msg[:100]}")
 
     prompt = make_prompt(input_lang)
-    text = call_llm(prompt)
+    text = call_llm(prompt, max_tokens=4000)
     entries = _extract_first_json_array(text)
 
     if entries is None:
         # Retry once with a stricter reminder
         retry_prompt = prompt + "\n\nYour previous attempt was invalid. Respond with ONLY a JSON array. No text outside the brackets."
-        text = call_llm(retry_prompt, temp=0.1, max_tokens=1800)
+        text = call_llm(retry_prompt, temp=0.1, max_tokens=4500)
         entries = _extract_first_json_array(text)
 
     if entries is None:
@@ -2252,6 +2283,107 @@ def delete_user_word(vocab_id):
     return jsonify({"success": True, "message": "Word deleted"})
 
 
+@app.route('/api/user/practice/save', methods=['POST'])
+def save_practice_score():
+    """Save a practice game score"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    game_type = data.get('game_type')
+    score = data.get('score', 0)
+    total = data.get('total_questions', 0)
+    duration = data.get('duration')
+    
+    if not game_type or game_type not in ['listening', 'words', 'speaking']:
+        return jsonify({"error": "Invalid game type"}), 400
+    
+    percentage = round((score / total) * 100, 1) if total > 0 else 0
+    
+    practice_score = PracticeScore(
+        user_id=user_id,
+        game_type=game_type,
+        score=score,
+        total_questions=total,
+        percentage=percentage,
+        session_duration=duration
+    )
+    db.session.add(practice_score)
+    db.session.commit()
+    
+    return jsonify({"success": True, "id": practice_score.id})
+
+
+@app.route('/api/user/practice/history')
+def get_practice_history():
+    """Get user's practice score history"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    game_type = request.args.get('game_type')
+    limit = request.args.get('limit', 20, type=int)
+    
+    query = PracticeScore.query.filter_by(user_id=user_id)
+    if game_type:
+        query = query.filter_by(game_type=game_type)
+    
+    scores = query.order_by(PracticeScore.played_at.desc()).limit(limit).all()
+    
+    return jsonify([{
+        "id": s.id,
+        "game_type": s.game_type,
+        "score": s.score,
+        "total_questions": s.total_questions,
+        "percentage": s.percentage,
+        "duration": s.session_duration,
+        "played_at": s.played_at.isoformat() if s.played_at else None
+    } for s in scores])
+
+
+@app.route('/api/user/practice/stats')
+def get_practice_stats():
+    """Get user's practice statistics summary"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    stats = {}
+    for game_type in ['listening', 'words', 'speaking']:
+        scores = PracticeScore.query.filter_by(user_id=user_id, game_type=game_type).all()
+        if scores:
+            total_games = len(scores)
+            total_correct = sum(s.score for s in scores)
+            total_questions = sum(s.total_questions for s in scores)
+            avg_percentage = round(sum(s.percentage or 0 for s in scores) / total_games, 1)
+            best_score = max(s.percentage or 0 for s in scores)
+            last_played = max(s.played_at for s in scores if s.played_at)
+            
+            stats[game_type] = {
+                "total_games": total_games,
+                "total_correct": total_correct,
+                "total_questions": total_questions,
+                "average_percentage": avg_percentage,
+                "best_score": best_score,
+                "last_played": last_played.isoformat() if last_played else None
+            }
+        else:
+            stats[game_type] = {
+                "total_games": 0,
+                "total_correct": 0,
+                "total_questions": 0,
+                "average_percentage": 0,
+                "best_score": 0,
+                "last_played": None
+            }
+    
+    return jsonify(stats)
+
+
 @app.route('/api/admin/users')
 @admin_required
 def get_admin_users():
@@ -2265,11 +2397,16 @@ def get_admin_users():
             vocab_count = UserVocabulary.query.filter_by(user_id=user.id).count()
             deleted_count = UserDeletedWord.query.filter_by(user_id=user.id).count()
             
-            # Upload stats - check if user_id column exists in PhotoLog
-            # Skip this query entirely to avoid transaction issues
-            upload_count = 0
-            successful_uploads = 0
-            pending_uploads = 0
+            # Upload stats from PhotoLog
+            try:
+                upload_count = PhotoLog.query.filter_by(user_id=user.id).count()
+                successful_uploads = PhotoLog.query.filter_by(user_id=user.id, status='validated').count()
+                pending_uploads = PhotoLog.query.filter_by(user_id=user.id, status='pending').count()
+            except Exception as e:
+                logger.warning(f"Could not query PhotoLog for user {user.id}: {e}")
+                upload_count = 0
+                successful_uploads = 0
+                pending_uploads = 0
             
             user_list.append({
                 "id": user.id,
@@ -2317,11 +2454,45 @@ def get_user_stats(user_id):
             db.session.rollback()
             deleted_count = 0
         
-        # Skip PhotoLog user_id queries until migration is run on production
-        total_uploads = 0
-        successful_uploads = 0
-        pending_uploads = 0
-        rejected_uploads = 0
+        # Get upload stats from PhotoLog
+        try:
+            total_uploads = PhotoLog.query.filter_by(user_id=user_id).count()
+            successful_uploads = PhotoLog.query.filter_by(user_id=user_id, status='validated').count()
+            pending_uploads = PhotoLog.query.filter_by(user_id=user_id, status='pending').count()
+            rejected_uploads = PhotoLog.query.filter_by(user_id=user_id, status='rejected').count()
+        except Exception as e:
+            logger.warning(f"Could not get upload stats: {e}")
+            db.session.rollback()
+            total_uploads = 0
+            successful_uploads = 0
+            pending_uploads = 0
+            rejected_uploads = 0
+        
+        # Get practice stats
+        practice_stats = {}
+        try:
+            for game_type in ['listening', 'words', 'speaking']:
+                scores = PracticeScore.query.filter_by(user_id=user_id, game_type=game_type).all()
+                if scores:
+                    total_games = len(scores)
+                    total_correct = sum(s.score for s in scores)
+                    total_questions = sum(s.total_questions for s in scores)
+                    avg_percentage = round(sum(s.percentage or 0 for s in scores) / total_games, 1)
+                    best_score = max(s.percentage or 0 for s in scores)
+                    
+                    practice_stats[game_type] = {
+                        "total_games": total_games,
+                        "total_correct": total_correct,
+                        "total_questions": total_questions,
+                        "average_percentage": avg_percentage,
+                        "best_score": best_score
+                    }
+                else:
+                    practice_stats[game_type] = {"total_games": 0, "average_percentage": 0, "best_score": 0}
+        except Exception as e:
+            logger.warning(f"Could not get practice stats: {e}")
+            db.session.rollback()
+            practice_stats = {"listening": {}, "words": {}, "speaking": {}}
         
         return jsonify({
             "id": user.id,
@@ -2337,7 +2508,8 @@ def get_user_stats(user_id):
             "upload_count": total_uploads,
             "successful_uploads": successful_uploads,
             "pending_uploads": pending_uploads,
-            "rejected_uploads": rejected_uploads
+            "rejected_uploads": rejected_uploads,
+            "practice_stats": practice_stats
         })
     except Exception as e:
         logger.error(f"Error fetching user stats: {e}")

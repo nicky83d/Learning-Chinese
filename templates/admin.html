@@ -1132,10 +1132,43 @@
 
                     <div class="detail-section">
                         <h3 style="margin-top: 0;">🎯 Practice Stats</h3>
+                        ${user.practice_stats ? `
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Game</th>
+                                    <th style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">Games</th>
+                                    <th style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">Avg %</th>
+                                    <th style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">Best %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">👂 Listening</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.listening?.total_games || 0}</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.listening?.average_percentage || 0}%</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.listening?.best_score || 0}%</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">📝 Words</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.words?.total_games || 0}</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.words?.average_percentage || 0}%</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.words?.best_score || 0}%</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">🎤 Speaking</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.speaking?.total_games || 0}</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.speaking?.average_percentage || 0}%</td>
+                                    <td style="padding: 10px; text-align: center; border: 1px solid #dee2e6;">${user.practice_stats.speaking?.best_score || 0}%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        ` : `
                         <div class="info-grid">
                             <div class="info-label">Status:</div>
-                            <div>Coming soon...</div>
+                            <div>No practice data yet</div>
                         </div>
+                        `}
                     </div>
                 `;
 

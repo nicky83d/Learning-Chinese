@@ -306,6 +306,7 @@
         <a href="/admin/login" id="loginLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔑 Login</a>
         <a href="/admin" id="adminLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔐 Admin</a>
         <a href="/preferences" id="preferencesLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">⚙️ Preferences</a>
+        <a href="#" id="myScoresLink" onclick="openScoresModal(); return false;" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🏆 My Scores</a>
         <a href="/logout" id="logoutLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🚪 Logout</a>
       </div>
     </div>
@@ -510,6 +511,57 @@
           <button id="startPracticeWords" class="primary" style="padding:12px 18px; font-size:1.05em;">Start Practice</button>
         </div>
         <div id="practiceWordsStatus" style="display:none; padding:12px; border-radius:8px; background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-muted);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Scores Modal -->
+  <div id="scoresModal" class="modal">
+    <div class="modal-backdrop" onclick="closeScoresModal()"></div>
+    <div class="modal-card" style="max-width: 550px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2>🏆 My Scores</h2>
+        <button onclick="closeScoresModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="scoresLoading" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading scores...</div>
+        <div id="scoresContent" style="display: none;">
+          <!-- Practice Games Links -->
+          <div style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+            <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">Start a Practice Game:</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button onclick="closeScoresModal(); document.getElementById('practiceModal').style.display='flex';" class="secondary" style="padding: 10px 16px;">👂 Listening</button>
+              <button onclick="closeScoresModal(); openPracticeWordsModal();" class="secondary" style="padding: 10px 16px;">📝 Words</button>
+              <button onclick="closeScoresModal(); openPracticeTalkingModal();" class="secondary" style="padding: 10px 16px;">🎤 Speaking</button>
+            </div>
+          </div>
+          
+          <!-- Summary Stats -->
+          <div style="margin-bottom: 20px;">
+            <h3 style="margin-bottom: 12px; font-size: 1.1em;">📊 Overall Stats</h3>
+            <table id="scoresStatsTable" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: var(--card-bg);">
+                  <th style="padding: 10px; text-align: left; border: 1px solid var(--border-color);">Game</th>
+                  <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">Games</th>
+                  <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">Avg %</th>
+                  <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">Best %</th>
+                </tr>
+              </thead>
+              <tbody id="scoresStatsBody"></tbody>
+            </table>
+          </div>
+          
+          <!-- Recent Scores -->
+          <div>
+            <h3 style="margin-bottom: 12px; font-size: 1.1em;">📅 Recent Games</h3>
+            <div id="scoresRecentList" style="max-height: 250px; overflow-y: auto;"></div>
+          </div>
+        </div>
+        <div id="scoresEmpty" style="display: none; text-align: center; padding: 30px; color: var(--text-muted);">
+          <p style="font-size: 1.1em; margin-bottom: 15px;">No practice scores yet!</p>
+          <p>Play some practice games to track your progress.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -810,6 +862,12 @@
   let currentQuizState = 'showing-options'; // 'showing-options' or 'showing-result'
   let selectedOptionId = null;
   let quizWins = 0;
+  
+  // Session score tracking for practice games
+  let sessionScore = 0;
+  let sessionTotal = 0;
+  let sessionStartTime = null;
+  let currentGameType = null; // 'listening', 'words', 'speaking'
 
   // Theme Logic
   const themeBtn = document.getElementById('themeBtn');
@@ -856,9 +914,37 @@
   }
   function addQuizWin() {
     quizWins++;
+    sessionScore++;
     saveQuizWins();
     if (quizWins % 5 === 0) {
       showTrophy();
+    }
+  }
+  function addQuizAttempt() {
+    sessionTotal++;
+  }
+  function startPracticeSession(gameType) {
+    sessionScore = 0;
+    sessionTotal = 0;
+    sessionStartTime = Date.now();
+    currentGameType = gameType;
+  }
+  async function savePracticeScore() {
+    if (!currentGameType || sessionTotal === 0) return;
+    const duration = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
+    try {
+      await fetch('/api/user/practice/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          game_type: currentGameType,
+          score: sessionScore,
+          total_questions: sessionTotal,
+          duration: duration
+        })
+      });
+    } catch (e) {
+      console.warn('Could not save practice score:', e);
     }
   }
   
@@ -953,6 +1039,9 @@
 
     quizHeader.style.display = 'block';
     quizContainer.style.display = 'block';
+    
+    // Start tracking session for 'words' practice
+    startPracticeSession('words');
 
     const modeText = mode === 'chinese' ? 'Chinese → Translations' : 'Français → Translations';
     quizCounter.textContent = `Words in quiz: ${currentWords.length} (${modeText})`;
@@ -960,6 +1049,9 @@
   }
 
   function exitQuiz() {
+    // Save practice score before exiting
+    savePracticeScore();
+    
     quizContainer.style.display = 'none';
     quizHeader.style.display = 'none';
 
@@ -1116,6 +1208,9 @@
       
       const isCorrect = data.correct;
       const explanation = data.explanation || 'Well done!';
+      
+      // Track session stats
+      addQuizAttempt();
       
       // Show result
       document.getElementById('quizOptionsContainer').style.display = 'none';
@@ -1955,6 +2050,9 @@
     const score = practiceTalkingState.score;
     const total = practiceTalkingState.total;
     const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+    
+    // Save speaking practice score
+    saveSpeakingScore(score, total);
 
     const targetText = document.getElementById('talkingTargetText');
     const pinyinText = document.getElementById('talkingPinyinText');
@@ -1985,6 +2083,24 @@
     document.getElementById('talkingSkipBtn').style.display = 'none';
     document.getElementById('talkingPlayBtn').style.display = 'none';
   }
+  
+  async function saveSpeakingScore(score, total) {
+    if (total === 0) return;
+    try {
+      await fetch('/api/user/practice/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          game_type: 'speaking',
+          score: score,
+          total_questions: total,
+          duration: 0  // We're not tracking duration for speaking yet
+        })
+      });
+    } catch (e) {
+      console.warn('Could not save speaking score:', e);
+    }
+  }
 
   // Event listeners for Practice Talking
   document.getElementById('startPracticeTalking').addEventListener('click', startPracticeTalkingSession);
@@ -1992,6 +2108,117 @@
   document.getElementById('talkingRecordBtn').addEventListener('click', startRecording);
   document.getElementById('talkingSkipBtn').addEventListener('click', skipCurrentWord);
   document.getElementById('talkingExitBtn').addEventListener('click', closePracticeTalkingModal);
+
+  // ==================== MY SCORES MODAL ====================
+  
+  function openScoresModal() {
+    document.getElementById('scoresModal').style.display = 'flex';
+    loadScores();
+  }
+  
+  function closeScoresModal() {
+    document.getElementById('scoresModal').style.display = 'none';
+  }
+  
+  async function loadScores() {
+    const loading = document.getElementById('scoresLoading');
+    const content = document.getElementById('scoresContent');
+    const empty = document.getElementById('scoresEmpty');
+    
+    loading.style.display = 'block';
+    content.style.display = 'none';
+    empty.style.display = 'none';
+    
+    try {
+      // Fetch stats and history in parallel
+      const [statsRes, historyRes] = await Promise.all([
+        fetch('/api/user/practice/stats'),
+        fetch('/api/user/practice/history?limit=10')
+      ]);
+      
+      const stats = await statsRes.json();
+      const history = await historyRes.json();
+      
+      if (statsRes.status === 401 || historyRes.status === 401) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        empty.innerHTML = '<p style="color: var(--text-muted);">Please log in to view your scores.</p>';
+        return;
+      }
+      
+      // Check if there are any games played
+      const totalGames = (stats.listening?.total_games || 0) + 
+                         (stats.words?.total_games || 0) + 
+                         (stats.speaking?.total_games || 0);
+      
+      if (totalGames === 0) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+      
+      // Populate stats table
+      const statsBody = document.getElementById('scoresStatsBody');
+      statsBody.innerHTML = `
+        <tr>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">👂 Listening</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">-</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">-</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">-</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">📝 Words</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.words?.total_games || 0}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.words?.average_percentage || 0}%</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.words?.best_score || 0}%</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">🎤 Speaking</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.total_games || 0}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.average_percentage || 0}%</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.best_score || 0}%</td>
+        </tr>
+      `;
+      
+      // Populate recent games
+      const recentList = document.getElementById('scoresRecentList');
+      if (history.length === 0) {
+        recentList.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No recent games</p>';
+      } else {
+        recentList.innerHTML = history.map(game => {
+          const gameIcon = game.game_type === 'words' ? '📝' : 
+                          game.game_type === 'speaking' ? '🎤' : '👂';
+          const gameLabel = game.game_type.charAt(0).toUpperCase() + game.game_type.slice(1);
+          const date = game.played_at ? new Date(game.played_at).toLocaleDateString() : 'Unknown';
+          const time = game.played_at ? new Date(game.played_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+          const scoreColor = game.percentage >= 80 ? '#51cf66' : 
+                            game.percentage >= 60 ? '#fcc419' : '#ff6b6b';
+          
+          return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
+              <div>
+                <span style="font-size: 1.1em;">${gameIcon} ${gameLabel}</span>
+                <span style="color: var(--text-muted); font-size: 0.85em; margin-left: 10px;">${date} ${time}</span>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-weight: 600; color: ${scoreColor};">${game.percentage || 0}%</span>
+                <span style="color: var(--text-muted); font-size: 0.85em; margin-left: 5px;">(${game.score}/${game.total_questions})</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      
+    } catch (error) {
+      console.error('Error loading scores:', error);
+      loading.style.display = 'none';
+      empty.style.display = 'block';
+      empty.innerHTML = '<p style="color: var(--text-muted);">Error loading scores. Please try again.</p>';
+    }
+  }
 
   // ==================== USER AUTHENTICATION & ONBOARDING ====================
 
@@ -2025,6 +2252,7 @@
         document.getElementById('loginLink').style.display = 'none';
         document.getElementById('logoutLink').style.display = 'inline-block';
         document.getElementById('preferencesLink').style.display = 'inline-block';
+        document.getElementById('myScoresLink').style.display = 'inline-block';
         
         // Enable login-required features
         if (addWordsWrapper) addWordsWrapper.classList.remove('disabled');
@@ -2045,6 +2273,7 @@
         document.getElementById('logoutLink').style.display = 'none';
         document.getElementById('adminLink').style.display = 'none';
         document.getElementById('preferencesLink').style.display = 'none';
+        document.getElementById('myScoresLink').style.display = 'none';
         document.getElementById('userGreeting').style.display = 'none';
         
         // Disable login-required features

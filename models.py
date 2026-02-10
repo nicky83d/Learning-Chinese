@@ -98,3 +98,18 @@ class UserDeletedWord(db.Model):
     
     # Ensure unique constraint
     __table_args__ = (db.UniqueConstraint('user_id', 'vocabulary_id', name='unique_user_deleted'),)
+
+
+class PracticeScore(db.Model):
+    """Track practice game scores for each user"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    game_type = db.Column(db.String(50), nullable=False)  # 'listening', 'words', 'speaking'
+    score = db.Column(db.Integer, nullable=False, default=0)  # Number of correct answers
+    total_questions = db.Column(db.Integer, nullable=False, default=0)  # Total questions in session
+    percentage = db.Column(db.Float, nullable=True)  # Score percentage
+    session_duration = db.Column(db.Integer, nullable=True)  # Duration in seconds
+    played_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='practice_scores')
