@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file, session, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
-from models import db, Vocabulary, PhotoLog, User, UserVocabulary, UserDeletedWord, PracticeScore
+from models import db, Vocabulary, PhotoLog, User, UserVocabulary, UserDeletedWord, PracticeScore, PracticeResult, AIFeedback
 from extract_data import extract_all_rows
 from config import get_config
 import unicodedata
@@ -219,6 +219,65 @@ def create_tables_and_populate():
                 db.session.rollback()
                 if "already exists" not in str(e).lower():
                     logger.warning(f"Could not create practice_score table: {e}")
+            
+            # Create PracticeResult table if it doesn't exist
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS practice_result (
+                        id SERIAL PRIMARY KEY,
+                        practice_score_id INTEGER NOT NULL REFERENCES practice_score(id) ON DELETE CASCADE,
+                        question_number INTEGER NOT NULL,
+                        vocabulary_id INTEGER REFERENCES vocabulary(id) ON DELETE SET NULL,
+                        word_hanzi VARCHAR(100),
+                        word_pinyin VARCHAR(200),
+                        word_english VARCHAR(300),
+                        word_french VARCHAR(300),
+                        question_type VARCHAR(50),
+                        question_text TEXT,
+                        user_answer TEXT,
+                        correct_answer TEXT,
+                        is_correct BOOLEAN NOT NULL DEFAULT FALSE,
+                        feedback TEXT
+                    )
+                """))
+                db.session.commit()
+                logger.info("PracticeResult table ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower():
+                    logger.warning(f"Could not create practice_result table: {e}")
+            
+            # Create AIFeedback cache table if it doesn't exist
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS ai_feedback (
+                        id SERIAL PRIMARY KEY,
+                        game_type VARCHAR(50) NOT NULL,
+                        question_type VARCHAR(50),
+                        correct_answer VARCHAR(500) NOT NULL,
+                        user_answer VARCHAR(500) NOT NULL,
+                        feedback_text TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        usage_count INTEGER DEFAULT 1,
+                        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                db.session.commit()
+                logger.info("AIFeedback table ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower():
+                    logger.warning(f"Could not create ai_feedback table: {e}")
+            
+            # Create index on AIFeedback for fast lookups
+            try:
+                db.session.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_feedback_lookup 
+                    ON ai_feedback (game_type, correct_answer, user_answer)
+                """))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
             
             # Add user_id column to photo_log if it doesn't exist
             try:
@@ -2285,7 +2344,7 @@ def delete_user_word(vocab_id):
 
 @app.route('/api/user/practice/save', methods=['POST'])
 def save_practice_score():
-    """Save a practice game score"""
+    """Save a practice game score with optional detailed results"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2298,6 +2357,7 @@ def save_practice_score():
     score = data.get('score', 0)
     total = data.get('total_questions', 0)
     duration = data.get('duration')
+    results = data.get('results', [])  # Optional detailed results
     
     if not game_type or game_type not in ['listening', 'words', 'speaking', 'drawing']:
         return jsonify({"error": "Invalid game type"}), 400
@@ -2313,9 +2373,189 @@ def save_practice_score():
         session_duration=duration
     )
     db.session.add(practice_score)
+    db.session.flush()  # Get the ID before committing
+    
+    # Save detailed results if provided
+    for i, result in enumerate(results):
+        practice_result = PracticeResult(
+            practice_score_id=practice_score.id,
+            question_number=i + 1,
+            vocabulary_id=result.get('vocabulary_id'),
+            word_hanzi=result.get('word_hanzi', '')[:100] if result.get('word_hanzi') else None,
+            word_pinyin=result.get('word_pinyin', '')[:200] if result.get('word_pinyin') else None,
+            word_english=result.get('word_english', '')[:300] if result.get('word_english') else None,
+            word_french=result.get('word_french', '')[:300] if result.get('word_french') else None,
+            question_type=result.get('question_type'),
+            question_text=result.get('question_text'),
+            user_answer=result.get('user_answer'),
+            correct_answer=result.get('correct_answer'),
+            is_correct=result.get('is_correct', False)
+        )
+        db.session.add(practice_result)
+    
     db.session.commit()
     
     return jsonify({"success": True, "id": practice_score.id})
+
+
+@app.route('/api/user/practice/<int:score_id>/details')
+def get_practice_details(score_id):
+    """Get detailed results for a specific practice session"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    practice_score = PracticeScore.query.filter_by(id=score_id, user_id=user_id).first()
+    if not practice_score:
+        return jsonify({"error": "Practice session not found"}), 404
+    
+    results = PracticeResult.query.filter_by(practice_score_id=score_id).order_by(PracticeResult.question_number).all()
+    
+    return jsonify({
+        "id": practice_score.id,
+        "game_type": practice_score.game_type,
+        "score": practice_score.score,
+        "total_questions": practice_score.total_questions,
+        "percentage": practice_score.percentage,
+        "duration": practice_score.session_duration,
+        "played_at": practice_score.played_at.isoformat() if practice_score.played_at else None,
+        "results": [{
+            "question_number": r.question_number,
+            "vocabulary_id": r.vocabulary_id,
+            "word_hanzi": r.word_hanzi,
+            "word_pinyin": r.word_pinyin,
+            "word_english": r.word_english,
+            "word_french": r.word_french,
+            "question_type": r.question_type,
+            "question_text": r.question_text,
+            "user_answer": r.user_answer,
+            "correct_answer": r.correct_answer,
+            "is_correct": r.is_correct,
+            "feedback": r.feedback
+        } for r in results]
+    })
+
+
+@app.route('/api/user/practice/feedback', methods=['POST'])
+def get_practice_feedback():
+    """Get or generate AI feedback for a mistake"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    game_type = data.get('game_type', '')
+    question_type = data.get('question_type', '')
+    correct_answer = (data.get('correct_answer') or '')[:500]
+    user_answer = (data.get('user_answer') or '')[:500]
+    word_hanzi = data.get('word_hanzi', '')
+    word_pinyin = data.get('word_pinyin', '')
+    word_english = data.get('word_english', '')
+    result_id = data.get('result_id')  # Optional: to save feedback to specific result
+    
+    if not correct_answer or not user_answer:
+        return jsonify({"error": "Missing correct_answer or user_answer"}), 400
+    
+    # Normalize for lookup
+    correct_norm = correct_answer.strip().lower()
+    user_norm = user_answer.strip().lower()
+    
+    # Check cache first
+    cached = AIFeedback.query.filter_by(
+        game_type=game_type,
+        correct_answer=correct_norm,
+        user_answer=user_norm
+    ).first()
+    
+    if cached:
+        # Update usage stats
+        cached.usage_count += 1
+        cached.last_used = datetime.utcnow()
+        db.session.commit()
+        
+        # Optionally save to the result record
+        if result_id:
+            result = PracticeResult.query.get(result_id)
+            if result:
+                result.feedback = cached.feedback_text
+                db.session.commit()
+        
+        return jsonify({
+            "feedback": cached.feedback_text,
+            "cached": True,
+            "usage_count": cached.usage_count
+        })
+    
+    # Generate new feedback using OpenAI
+    try:
+        game_descriptions = {
+            'words': 'vocabulary quiz (matching Chinese characters to meanings)',
+            'speaking': 'speaking practice (pronouncing Chinese words)',
+            'drawing': 'character writing practice (drawing Chinese characters)',
+            'listening': 'listening comprehension'
+        }
+        game_desc = game_descriptions.get(game_type, 'language practice')
+        
+        prompt = f"""You are a helpful Chinese language learning assistant. A student made a mistake during {game_desc}.
+
+Word being practiced:
+- Chinese: {word_hanzi}
+- Pinyin: {word_pinyin}  
+- English: {word_english}
+
+The correct answer was: {correct_answer}
+The student answered: {user_answer}
+
+Provide a brief, encouraging explanation (2-3 sentences) of:
+1. Why their answer was incorrect
+2. A helpful tip to remember the correct answer
+3. Any common confusion patterns to avoid
+
+Keep the tone friendly and educational. Focus on practical memory tips."""
+
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            temperature=0.7
+        )
+        
+        feedback_text = response.choices[0].message.content.strip()
+        
+        # Cache the feedback
+        new_feedback = AIFeedback(
+            game_type=game_type,
+            question_type=question_type,
+            correct_answer=correct_norm,
+            user_answer=user_norm,
+            feedback_text=feedback_text
+        )
+        db.session.add(new_feedback)
+        
+        # Optionally save to the result record
+        if result_id:
+            result = PracticeResult.query.get(result_id)
+            if result:
+                result.feedback = feedback_text
+        
+        db.session.commit()
+        
+        return jsonify({
+            "feedback": feedback_text,
+            "cached": False,
+            "usage_count": 1
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating AI feedback: {e}")
+        return jsonify({
+            "feedback": f"Keep practicing! The correct answer was: {correct_answer}",
+            "cached": False,
+            "error": str(e)
+        })
 
 
 @app.route('/api/user/practice/history')

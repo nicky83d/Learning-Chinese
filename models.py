@@ -104,7 +104,7 @@ class PracticeScore(db.Model):
     """Track practice game scores for each user"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    game_type = db.Column(db.String(50), nullable=False)  # 'listening', 'words', 'speaking'
+    game_type = db.Column(db.String(50), nullable=False)  # 'listening', 'words', 'speaking', 'drawing'
     score = db.Column(db.Integer, nullable=False, default=0)  # Number of correct answers
     total_questions = db.Column(db.Integer, nullable=False, default=0)  # Total questions in session
     percentage = db.Column(db.Float, nullable=True)  # Score percentage
@@ -113,3 +113,53 @@ class PracticeScore(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='practice_scores')
+    results = db.relationship('PracticeResult', backref='practice_score', lazy='dynamic', cascade='all, delete-orphan')
+
+
+class PracticeResult(db.Model):
+    """Store individual question results for each practice session"""
+    id = db.Column(db.Integer, primary_key=True)
+    practice_score_id = db.Column(db.Integer, db.ForeignKey('practice_score.id'), nullable=False)
+    question_number = db.Column(db.Integer, nullable=False)  # Order in the session
+    
+    # Word being tested
+    vocabulary_id = db.Column(db.Integer, db.ForeignKey('vocabulary.id'), nullable=True)
+    word_hanzi = db.Column(db.String(100), nullable=True)
+    word_pinyin = db.Column(db.String(200), nullable=True)
+    word_english = db.Column(db.String(300), nullable=True)
+    word_french = db.Column(db.String(300), nullable=True)
+    
+    # Question and answer details
+    question_type = db.Column(db.String(50), nullable=True)  # 'hanzi_to_pinyin', 'english_to_hanzi', 'speaking', 'drawing', etc.
+    question_text = db.Column(db.Text, nullable=True)  # The question asked
+    user_answer = db.Column(db.Text, nullable=True)  # What the user answered
+    correct_answer = db.Column(db.Text, nullable=True)  # The correct answer
+    is_correct = db.Column(db.Boolean, nullable=False, default=False)
+    
+    # AI feedback (cached from AIFeedback or generated)
+    feedback = db.Column(db.Text, nullable=True)
+    
+    # Relationships
+    vocabulary = db.relationship('Vocabulary', backref='practice_results')
+
+
+class AIFeedback(db.Model):
+    """Cache AI-generated feedback for common mistakes to reduce API costs"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Unique key for the mistake pattern
+    game_type = db.Column(db.String(50), nullable=False)
+    question_type = db.Column(db.String(50), nullable=True)
+    correct_answer = db.Column(db.String(500), nullable=False)  # Normalized correct answer
+    user_answer = db.Column(db.String(500), nullable=False)  # Normalized wrong answer
+    
+    # Cached feedback
+    feedback_text = db.Column(db.Text, nullable=False)
+    
+    # Usage tracking
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    usage_count = db.Column(db.Integer, default=1)  # How many times this cached feedback was reused
+    last_used = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Make the combination unique for lookup
+    __table_args__ = (db.Index('idx_feedback_lookup', 'game_type', 'correct_answer', 'user_answer'),)

@@ -566,6 +566,36 @@
     </div>
   </div>
 
+  <!-- Game Details Modal -->
+  <div id="gameDetailsModal" class="modal">
+    <div class="modal-backdrop" onclick="closeGameDetailsModal()"></div>
+    <div class="modal-card" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 id="gameDetailsTitle">📊 Game Results</h2>
+        <button onclick="closeGameDetailsModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
+      </div>
+      <div class="modal-body" style="flex: 1; overflow-y: auto;">
+        <div id="gameDetailsLoading" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading game details...</div>
+        <div id="gameDetailsContent" style="display: none;">
+          <!-- Game summary -->
+          <div id="gameDetailsSummary" style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);"></div>
+          
+          <!-- Question by question results -->
+          <div id="gameDetailsResults">
+            <h3 style="margin-bottom: 12px; font-size: 1.1em;">📝 Question Results</h3>
+            <div id="gameDetailsResultsList"></div>
+          </div>
+          
+          <!-- Empty state for old games without detailed results -->
+          <div id="gameDetailsEmpty" style="display: none; text-align: center; padding: 30px; color: var(--text-muted);">
+            <p>Detailed results not available for this game.</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">Results are recorded for games played after this feature was added.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Practice Talking Modal -->
   <div id="practiceTalkingModal" class="modal">
     <div class="modal-backdrop" onclick="closePracticeTalkingModal()"></div>
@@ -868,6 +898,7 @@
   let sessionTotal = 0;
   let sessionStartTime = null;
   let currentGameType = null; // 'listening', 'words', 'speaking', 'drawing'
+  let sessionResults = []; // Detailed results for each question
 
   // Theme Logic
   const themeBtn = document.getElementById('themeBtn');
@@ -928,23 +959,45 @@
     sessionTotal = 0;
     sessionStartTime = Date.now();
     currentGameType = gameType;
+    sessionResults = []; // Reset detailed results
   }
+  
+  function addSessionResult(result) {
+    // Add a detailed result for this question
+    sessionResults.push({
+      vocabulary_id: result.vocabulary_id || null,
+      word_hanzi: result.word_hanzi || '',
+      word_pinyin: result.word_pinyin || '',
+      word_english: result.word_english || '',
+      word_french: result.word_french || '',
+      question_type: result.question_type || currentGameType,
+      question_text: result.question_text || '',
+      user_answer: result.user_answer || '',
+      correct_answer: result.correct_answer || '',
+      is_correct: result.is_correct || false
+    });
+  }
+  
   async function savePracticeScore() {
     if (!currentGameType || sessionTotal === 0) return;
     const duration = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
     try {
-      await fetch('/api/user/practice/save', {
+      const response = await fetch('/api/user/practice/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           game_type: currentGameType,
           score: sessionScore,
           total_questions: sessionTotal,
-          duration: duration
+          duration: duration,
+          results: sessionResults // Include detailed results
         })
       });
+      const data = await response.json();
+      return data.id; // Return the practice score ID
     } catch (e) {
       console.warn('Could not save practice score:', e);
+      return null;
     }
   }
   
@@ -1191,6 +1244,9 @@
   function validateQuizAnswer() {
     if (selectedOptionId === null) return;
     
+    // Get the selected option for tracking
+    const selectedOption = currentQuizOptions.options.find(o => o.id === selectedOptionId);
+    
     fetch('/quiz/check', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -1208,9 +1264,24 @@
       
       const isCorrect = data.correct;
       const explanation = data.explanation || 'Well done!';
+      const correctWord = currentQuizOptions.correct_word;
       
       // Track session stats
       addQuizAttempt();
+      
+      // Track detailed result
+      addSessionResult({
+        vocabulary_id: correctWord.id,
+        word_hanzi: correctWord.hanzi || '',
+        word_pinyin: correctWord.pinyin || '',
+        word_english: correctWord.english || '',
+        word_french: correctWord.french || '',
+        question_type: currentQuizMode === 'chinese' ? 'chinese_to_meaning' : 'french_to_meaning',
+        question_text: currentQuizMode === 'chinese' ? correctWord.pinyin : correctWord.french,
+        user_answer: selectedOption ? (currentQuizMode === 'chinese' ? selectedOption.hanzi : selectedOption.english) : '',
+        correct_answer: currentQuizMode === 'chinese' ? correctWord.hanzi : correctWord.english,
+        is_correct: isCorrect
+      });
       
       // Show result
       document.getElementById('quizOptionsContainer').style.display = 'none';
@@ -1230,7 +1301,6 @@
       }
       
       // Add sentence with clickable flag + English translation for context
-      const correctWord = currentQuizOptions.correct_word;
       const sentenceText = currentQuizMode === 'chinese' ? (correctWord.sent_hanzi || '') : (correctWord.sent_french || '');
       const sentenceEnglish = correctWord.sent_english || '';
       const sentenceFlag = currentQuizMode === 'chinese' ? '🇨🇳' : '🇫🇷';
@@ -2243,14 +2313,15 @@
                             game.percentage >= 60 ? '#fcc419' : '#ff6b6b';
           
           return `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
+            <div onclick="openGameDetailsModal(${game.id})" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='var(--card-bg)'" onmouseout="this.style.background='transparent'">
               <div>
                 <span style="font-size: 1.1em;">${gameIcon} ${gameLabel}</span>
                 <span style="color: var(--text-muted); font-size: 0.85em; margin-left: 10px;">${date} ${time}</span>
               </div>
-              <div style="text-align: right;">
+              <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
                 <span style="font-weight: 600; color: ${scoreColor};">${game.percentage || 0}%</span>
-                <span style="color: var(--text-muted); font-size: 0.85em; margin-left: 5px;">(${game.score}/${game.total_questions})</span>
+                <span style="color: var(--text-muted); font-size: 0.85em;">(${game.score}/${game.total_questions})</span>
+                <span style="color: var(--text-muted); font-size: 0.9em;">→</span>
               </div>
             </div>
           `;
@@ -2265,6 +2336,173 @@
       loading.style.display = 'none';
       empty.style.display = 'block';
       empty.innerHTML = '<p style="color: var(--text-muted);">Error loading scores. Please try again.</p>';
+    }
+  }
+  
+  // ==================== GAME DETAILS MODAL ====================
+  
+  function openGameDetailsModal(gameId) {
+    document.getElementById('gameDetailsModal').style.display = 'flex';
+    loadGameDetails(gameId);
+  }
+  
+  function closeGameDetailsModal() {
+    document.getElementById('gameDetailsModal').style.display = 'none';
+  }
+  
+  async function loadGameDetails(gameId) {
+    const loading = document.getElementById('gameDetailsLoading');
+    const content = document.getElementById('gameDetailsContent');
+    const summary = document.getElementById('gameDetailsSummary');
+    const results = document.getElementById('gameDetailsResults');
+    const resultsList = document.getElementById('gameDetailsResultsList');
+    const empty = document.getElementById('gameDetailsEmpty');
+    
+    loading.style.display = 'block';
+    content.style.display = 'none';
+    
+    try {
+      const response = await fetch(`/api/user/practice/${gameId}/details`);
+      if (!response.ok) throw new Error('Failed to load game details');
+      
+      const data = await response.json();
+      
+      const gameIcon = data.game_type === 'words' ? '📝' : 
+                      data.game_type === 'speaking' ? '🎤' : 
+                      data.game_type === 'drawing' ? '✍️' : '👂';
+      const gameLabel = data.game_type.charAt(0).toUpperCase() + data.game_type.slice(1);
+      const date = data.played_at ? new Date(data.played_at).toLocaleDateString() : 'Unknown';
+      const time = data.played_at ? new Date(data.played_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+      const scoreColor = data.percentage >= 80 ? '#51cf66' : 
+                        data.percentage >= 60 ? '#fcc419' : '#ff6b6b';
+      
+      // Update title
+      document.getElementById('gameDetailsTitle').textContent = `${gameIcon} ${gameLabel} Results`;
+      
+      // Show summary
+      summary.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="font-size: 1.3em; font-weight: 600; color: ${scoreColor};">${data.percentage || 0}%</div>
+            <div style="color: var(--text-muted); font-size: 0.9em;">${data.score}/${data.total_questions} correct</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: var(--text-muted); font-size: 0.9em;">${date}</div>
+            <div style="color: var(--text-muted); font-size: 0.85em;">${time}</div>
+          </div>
+        </div>
+      `;
+      
+      // Show results or empty state
+      if (data.results && data.results.length > 0) {
+        results.style.display = 'block';
+        empty.style.display = 'none';
+        
+        resultsList.innerHTML = data.results.map((r, idx) => {
+          const statusIcon = r.is_correct ? '✅' : '❌';
+          const statusColor = r.is_correct ? '#51cf66' : '#ff6b6b';
+          
+          return `
+            <div style="padding: 12px; margin-bottom: 10px; background: var(--card-bg); border-radius: 8px; border-left: 4px solid ${statusColor};">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                <div style="font-weight: 600;">${statusIcon} Question ${r.question_number}</div>
+                ${r.word_hanzi ? `<div style="font-size: 1.2em;">${r.word_hanzi}</div>` : ''}
+              </div>
+              ${r.word_pinyin ? `<div style="color: var(--text-muted); font-size: 0.9em; margin-bottom: 4px;">${r.word_pinyin}</div>` : ''}
+              ${r.word_english ? `<div style="color: var(--text-muted); font-size: 0.9em; margin-bottom: 8px;">${r.word_english}</div>` : ''}
+              
+              ${!r.is_correct ? `
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                  <div style="font-size: 0.85em; margin-bottom: 4px;">
+                    <span style="color: var(--text-muted);">Your answer:</span> 
+                    <span style="color: #ff6b6b;">${r.user_answer || 'No answer'}</span>
+                  </div>
+                  <div style="font-size: 0.85em; margin-bottom: 8px;">
+                    <span style="color: var(--text-muted);">Correct answer:</span> 
+                    <span style="color: #51cf66;">${r.correct_answer || 'N/A'}</span>
+                  </div>
+                  ${r.feedback ? `
+                    <div style="margin-top: 8px; padding: 10px; background: rgba(255, 193, 7, 0.1); border-radius: 6px; font-size: 0.9em;">
+                      <div style="font-weight: 600; margin-bottom: 4px;">💡 AI Tip:</div>
+                      ${r.feedback}
+                    </div>
+                  ` : `
+                    <button onclick="requestFeedback(${gameId}, ${r.question_number}, this)" class="secondary" style="padding: 6px 12px; font-size: 0.85em; margin-top: 4px;">
+                      💡 Get AI Tips
+                    </button>
+                  `}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      } else {
+        results.style.display = 'none';
+        empty.style.display = 'block';
+      }
+      
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      
+    } catch (error) {
+      console.error('Error loading game details:', error);
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      summary.innerHTML = '<p style="color: var(--text-muted);">Error loading game details.</p>';
+      results.style.display = 'none';
+      empty.style.display = 'none';
+    }
+  }
+  
+  async function requestFeedback(gameId, questionNumber, buttonEl) {
+    buttonEl.disabled = true;
+    buttonEl.textContent = '⏳ Loading...';
+    
+    try {
+      // First get the details to find this question
+      const detailsRes = await fetch(`/api/user/practice/${gameId}/details`);
+      const details = await detailsRes.json();
+      
+      const question = details.results.find(r => r.question_number === questionNumber);
+      if (!question) {
+        buttonEl.textContent = '❌ Error';
+        return;
+      }
+      
+      // Request AI feedback
+      const response = await fetch('/api/user/practice/feedback', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          game_type: details.game_type,
+          question_type: question.question_type,
+          correct_answer: question.correct_answer,
+          user_answer: question.user_answer,
+          word_hanzi: question.word_hanzi,
+          word_pinyin: question.word_pinyin,
+          word_english: question.word_english
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.feedback) {
+        // Replace button with feedback
+        const feedbackHtml = `
+          <div style="margin-top: 8px; padding: 10px; background: rgba(255, 193, 7, 0.1); border-radius: 6px; font-size: 0.9em;">
+            <div style="font-weight: 600; margin-bottom: 4px;">💡 AI Tip: ${data.cached ? '(cached)' : ''}</div>
+            ${data.feedback}
+          </div>
+        `;
+        buttonEl.outerHTML = feedbackHtml;
+      } else {
+        buttonEl.textContent = '❌ No tips available';
+      }
+      
+    } catch (error) {
+      console.error('Error requesting feedback:', error);
+      buttonEl.textContent = '❌ Error';
+      buttonEl.disabled = false;
     }
   }
 
