@@ -170,6 +170,25 @@ def create_tables_and_populate():
         # Run migrations for new columns (safe to run multiple times)
         try:
             from sqlalchemy import text
+            
+            # Create UserDeletedWord table if it doesn't exist
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS user_deleted_word (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                        vocabulary_id INTEGER NOT NULL REFERENCES vocabulary(id) ON DELETE CASCADE,
+                        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(user_id, vocabulary_id)
+                    )
+                """))
+                db.session.commit()
+                logger.info("UserDeletedWord table ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower():
+                    logger.warning(f"Could not create user_deleted_word table: {e}")
+            
             # Add user_id column to photo_log if it doesn't exist
             try:
                 db.session.execute(text("""
@@ -1523,23 +1542,42 @@ def admin_db():
         page_size = 50
         selected_table = request.args.get('table')
 
-        # Fetch available tables (exclude sqlite internal)
-        tables = [row[0] for row in db.session.execute(text("""
-            SELECT name FROM sqlite_master
-            WHERE type='table' AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-        """)).fetchall()]
+        # Check if using SQLite or PostgreSQL
+        db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        is_postgres = 'postgresql' in db_url or 'postgres' in db_url
+
+        # Fetch available tables
+        if is_postgres:
+            tables = [row[0] for row in db.session.execute(text("""
+                SELECT tablename FROM pg_tables
+                WHERE schemaname = 'public'
+                ORDER BY tablename
+            """)).fetchall()]
+        else:
+            tables = [row[0] for row in db.session.execute(text("""
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name NOT LIKE 'sqlite_%'
+                ORDER BY name
+            """)).fetchall()]
 
         if not tables:
-            return render_template('admin_db.html', tables=[], selected_table=None, columns=[], rows=[],
+            return render_template('admin_db.html', tables=[], selected_table=None, columns=[],rows=[],
                                    page=1, page_count=1, total_rows=0)
 
         if selected_table not in tables:
             selected_table = tables[0]
 
-        # Columns
-        col_rows = db.session.execute(text(f"PRAGMA table_info({selected_table})")).fetchall()
-        columns = [c[1] for c in col_rows]
+        # Columns - different query for PostgreSQL vs SQLite
+        if is_postgres:
+            col_rows = db.session.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = :table_name AND table_schema = 'public'
+                ORDER BY ordinal_position
+            """), {"table_name": selected_table}).fetchall()
+            columns = [c[0] for c in col_rows]
+        else:
+            col_rows = db.session.execute(text(f"PRAGMA table_info({selected_table})")).fetchall()
+            columns = [c[1] for c in col_rows]
 
         # Row count
         total_rows = db.session.execute(text(f"SELECT COUNT(*) FROM {selected_table}"))
@@ -1548,11 +1586,24 @@ def admin_db():
         page = min(page, page_count)
         offset = (page - 1) * page_size
 
-        # Rows (order by rowid desc for newest first)
-        rows = db.session.execute(
-            text(f"SELECT * FROM {selected_table} ORDER BY rowid DESC LIMIT :limit OFFSET :offset"),
-            {"limit": page_size, "offset": offset}
-        ).mappings().all()
+        # Rows - use id for ordering if available, otherwise just LIMIT/OFFSET
+        if is_postgres:
+            # Check if table has 'id' column
+            if 'id' in columns:
+                rows = db.session.execute(
+                    text(f"SELECT * FROM {selected_table} ORDER BY id DESC LIMIT :limit OFFSET :offset"),
+                    {"limit": page_size, "offset": offset}
+                ).mappings().all()
+            else:
+                rows = db.session.execute(
+                    text(f"SELECT * FROM {selected_table} LIMIT :limit OFFSET :offset"),
+                    {"limit": page_size, "offset": offset}
+                ).mappings().all()
+        else:
+            rows = db.session.execute(
+                text(f"SELECT * FROM {selected_table} ORDER BY rowid DESC LIMIT :limit OFFSET :offset"),
+                {"limit": page_size, "offset": offset}
+            ).mappings().all()
 
         return render_template(
             'admin_db.html',
@@ -1567,6 +1618,7 @@ def admin_db():
         )
     except Exception as e:
         logger.error(f"Error loading DB browser: {e}", exc_info=True)
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 
@@ -2242,9 +2294,20 @@ def get_user_stats(user_id):
         if not user:
             return jsonify({"error": "User not found"}), 404
         
-        # Get vocabulary stats
-        vocab_count = UserVocabulary.query.filter_by(user_id=user_id).count()
-        deleted_count = UserDeletedWord.query.filter_by(user_id=user_id).count()
+        # Get vocabulary stats - with fallback for missing tables
+        try:
+            vocab_count = UserVocabulary.query.filter_by(user_id=user_id).count()
+        except Exception as e:
+            logger.warning(f"Could not get vocab count: {e}")
+            db.session.rollback()
+            vocab_count = 0
+        
+        try:
+            deleted_count = UserDeletedWord.query.filter_by(user_id=user_id).count()
+        except Exception as e:
+            logger.warning(f"Could not get deleted count: {e}")
+            db.session.rollback()
+            deleted_count = 0
         
         # Skip PhotoLog user_id queries until migration is run on production
         total_uploads = 0
