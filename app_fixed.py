@@ -1168,6 +1168,11 @@ def google_auth_start():
     state = secrets.token_urlsafe(16)
     session['oauth_state'] = state
     session.permanent = True
+    
+    # Store the 'next' URL for post-login redirect
+    next_url = request.args.get('next')
+    if next_url:
+        session['oauth_next'] = next_url
 
     params = {
         "client_id": client_id,
@@ -1267,9 +1272,12 @@ def google_auth_callback():
     session['admin_logged_in'] = user.is_admin  # Keep for backward compatibility
     session.pop('oauth_state', None)
     
-    # Redirect to onboarding if first time, otherwise to admin if admin or home
+    # Redirect to onboarding if first time, otherwise check for stored next URL
+    next_url = session.pop('oauth_next', None)
     if not user.is_onboarded:
         return redirect(url_for('index', onboarding='true'))
+    elif next_url:
+        return redirect(next_url)
     elif user.is_admin:
         return redirect(url_for('admin_page'))
     else:

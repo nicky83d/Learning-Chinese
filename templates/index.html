@@ -2000,8 +2000,8 @@
     if (wrapper.classList.contains('disabled')) {
       event.preventDefault();
       event.stopPropagation();
-      // Redirect to login, then return to this page
-      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+      // Redirect to Google login, then return to this page
+      window.location.href = '/auth/google?next=' + encodeURIComponent(window.location.pathname);
     }
   }
 
