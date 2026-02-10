@@ -1140,7 +1140,7 @@
                 `;
 
                 // Close mobile drawer after selection
-                closeMobileDrawer();
+                closeSidebar();
             } catch (error) {
                 console.error('Error loading user stats:', error);
                 document.getElementById('detailPanel').innerHTML = `<div class="error-message">Error loading user details: ${escapeHtml(error.message)}</div>`;
