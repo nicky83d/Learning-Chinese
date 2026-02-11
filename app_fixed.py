@@ -232,6 +232,8 @@ def create_tables_and_populate():
                         word_pinyin VARCHAR(200),
                         word_english VARCHAR(300),
                         word_french VARCHAR(300),
+                        word_japanese_kanji VARCHAR(300),
+                        word_japanese_romaji VARCHAR(300),
                         question_type VARCHAR(50),
                         question_text TEXT,
                         user_answer TEXT,
@@ -319,10 +321,14 @@ def create_tables_and_populate():
                         pinyin=r["pinyin"] or '',
                         english=r["english"] or '',
                         french=r["french"] or '',
+                        japanese_kanji=r.get("japanese_kanji") or '',
+                        japanese_romaji=r.get("japanese_romaji") or '',
                         sent_hanzi=r["sent_hanzi"] or '',
                         sent_pinyin=r["sent_pinyin"] or '',
                         sent_english=r["sent_english"] or '',
                         sent_french=r["sent_french"] or '',
+                        sent_japanese_kanji=r.get("sent_japanese_kanji") or '',
+                        sent_japanese_romaji=r.get("sent_japanese_romaji") or '',
                         is_approved=True,
                     )
                     db.session.add(entry)
@@ -401,13 +407,19 @@ def search():
                 match = folded_query in fold_text(entry.english)
             elif field == 'french':
                 match = folded_query in fold_text(entry.french)
+            elif field == 'japanese_kanji':
+                match = folded_query in fold_text(entry.japanese_kanji)
+            elif field == 'japanese_romaji':
+                match = folded_query in fold_text(entry.japanese_romaji)
             elif field == 'pinyin':
                 match = folded_query in fold_text(entry.pinyin)
             else:
-                # "All fields" search: looks in English, French, Pinyin, and Hanzi
+                # "All fields" search: looks in English, French, Japanese (both), Pinyin, and Hanzi
                 match = (
                     folded_query in fold_text(entry.english) or
                     folded_query in fold_text(entry.french) or
+                    folded_query in fold_text(entry.japanese_kanji) or
+                    folded_query in fold_text(entry.japanese_romaji) or
                     folded_query in fold_text(entry.pinyin) or
                     query in entry.hanzi  # Hanzi stays as-is (no accent folding)
                 )
@@ -427,10 +439,14 @@ def search():
             "pinyin": r.pinyin,
             "english": r.english,
             "french": r.french,
+            "japanese_kanji": r.japanese_kanji,
+            "japanese_romaji": r.japanese_romaji,
             "sent_hanzi": r.sent_hanzi,
             "sent_pinyin": r.sent_pinyin,
             "sent_english": r.sent_english,
-            "sent_french": r.sent_french
+            "sent_french": r.sent_french,
+            "sent_japanese_kanji": r.sent_japanese_kanji,
+            "sent_japanese_romaji": r.sent_japanese_romaji
         } for r in results
     ])
 
@@ -491,10 +507,14 @@ def random_word():
         "pinyin": word.pinyin,
         "english": word.english,
         "french": word.french,
+        "japanese_kanji": word.japanese_kanji,
+        "japanese_romaji": word.japanese_romaji,
         "sent_hanzi": word.sent_hanzi,
         "sent_pinyin": word.sent_pinyin,
         "sent_english": word.sent_english,
         "sent_french": word.sent_french,
+        "sent_japanese_kanji": word.sent_japanese_kanji,
+        "sent_japanese_romaji": word.sent_japanese_romaji,
         "section": word.section
     })
 
@@ -540,10 +560,14 @@ def random_words():
         "pinyin": word.pinyin,
         "english": word.english,
         "french": word.french,
+        "japanese_kanji": word.japanese_kanji,
+        "japanese_romaji": word.japanese_romaji,
         "sent_hanzi": word.sent_hanzi,
         "sent_pinyin": word.sent_pinyin,
         "sent_english": word.sent_english,
         "sent_french": word.sent_french,
+        "sent_japanese_kanji": word.sent_japanese_kanji,
+        "sent_japanese_romaji": word.sent_japanese_romaji,
         "section": word.section
     } for word in words])
 
@@ -566,11 +590,15 @@ def update_word():
     vocab.pinyin = (data.get('pinyin', vocab.pinyin) or '').strip()
     vocab.english = (data.get('english', vocab.english) or '').strip()
     vocab.french = (data.get('french', vocab.french) or '').strip()
+    vocab.japanese_kanji = (data.get('japanese_kanji', vocab.japanese_kanji) or '').strip()
+    vocab.japanese_romaji = (data.get('japanese_romaji', vocab.japanese_romaji) or '').strip()
     vocab.section = (data.get('section', vocab.section) or '').strip()
     vocab.sent_hanzi = (data.get('sent_hanzi', vocab.sent_hanzi) or '').strip()
     vocab.sent_pinyin = (data.get('sent_pinyin', vocab.sent_pinyin) or '').strip()
     vocab.sent_english = (data.get('sent_english', vocab.sent_english) or '').strip()
     vocab.sent_french = (data.get('sent_french', vocab.sent_french) or '').strip()
+    vocab.sent_japanese_kanji = (data.get('sent_japanese_kanji', vocab.sent_japanese_kanji) or '').strip()
+    vocab.sent_japanese_romaji = (data.get('sent_japanese_romaji', vocab.sent_japanese_romaji) or '').strip()
 
     if not vocab.section:
         return jsonify({"ok": False, "error": "Section cannot be empty"}), 400
@@ -606,7 +634,7 @@ def add_word():
     section = s("section")
     if not section:
         return jsonify({"ok": False, "error": "Section required"}), 400
-    if not (s("hanzi") or s("pinyin") or s("english") or s("french")):
+    if not (s("hanzi") or s("pinyin") or s("english") or s("french") or s("japanese_kanji") or s("japanese_romaji")):
         return jsonify({"ok": False, "error": "At least one word field required"}), 400
 
     entry = Vocabulary(
@@ -615,10 +643,14 @@ def add_word():
         pinyin=s("pinyin"),
         english=s("english"),
         french=s("french"),
+        japanese_kanji=s("japanese_kanji"),
+        japanese_romaji=s("japanese_romaji"),
         sent_hanzi=s("sent_hanzi"),
         sent_pinyin=s("sent_pinyin"),
         sent_english=s("sent_english"),
         sent_french=s("sent_french"),
+        sent_japanese_kanji=s("sent_japanese_kanji"),
+        sent_japanese_romaji=s("sent_japanese_romaji"),
     )
     db.session.add(entry)
     db.session.commit()
@@ -1867,10 +1899,14 @@ def get_quiz_options():
                 "pinyin": correct.pinyin,
                 "english": correct.english,
                 "french": correct.french,
+                "japanese_kanji": correct.japanese_kanji,
+                "japanese_romaji": correct.japanese_romaji,
                 "sent_hanzi": correct.sent_hanzi,
                 "sent_pinyin": correct.sent_pinyin,
                 "sent_english": correct.sent_english,
                 "sent_french": correct.sent_french,
+                "sent_japanese_kanji": correct.sent_japanese_kanji,
+                "sent_japanese_romaji": correct.sent_japanese_romaji,
             },
             "options": [
                 {
@@ -1879,6 +1915,8 @@ def get_quiz_options():
                     "pinyin": opt.pinyin,
                     "english": opt.english,
                     "french": opt.french,
+                    "japanese_kanji": opt.japanese_kanji,
+                    "japanese_romaji": opt.japanese_romaji,
                 } for opt in options
             ],
             "explanation": explanation
@@ -2191,10 +2229,14 @@ def get_user_vocabulary():
         "pinyin": v.pinyin,
         "english": v.english,
         "french": v.french,
+        "japanese_kanji": v.japanese_kanji,
+        "japanese_romaji": v.japanese_romaji,
         "sent_hanzi": v.sent_hanzi,
         "sent_pinyin": v.sent_pinyin,
         "sent_english": v.sent_english,
-        "sent_french": v.sent_french
+        "sent_french": v.sent_french,
+        "sent_japanese_kanji": v.sent_japanese_kanji,
+        "sent_japanese_romaji": v.sent_japanese_romaji
     } for v in vocab_items])
 
 
@@ -2388,6 +2430,8 @@ def save_practice_score():
                     word_pinyin=result.get('word_pinyin', '')[:200] if result.get('word_pinyin') else None,
                     word_english=result.get('word_english', '')[:300] if result.get('word_english') else None,
                     word_french=result.get('word_french', '')[:300] if result.get('word_french') else None,
+                    word_japanese_kanji=result.get('word_japanese_kanji', '')[:300] if result.get('word_japanese_kanji') else None,
+                    word_japanese_romaji=result.get('word_japanese_romaji', '')[:300] if result.get('word_japanese_romaji') else None,
                     question_type=result.get('question_type'),
                     question_text=result.get('question_text'),
                     user_answer=result.get('user_answer'),
@@ -2438,6 +2482,8 @@ def get_practice_details(score_id):
             "word_pinyin": r.word_pinyin,
             "word_english": r.word_english,
             "word_french": r.word_french,
+            "word_japanese_kanji": r.word_japanese_kanji,
+            "word_japanese_romaji": r.word_japanese_romaji,
             "question_type": r.question_type,
             "question_text": r.question_text,
             "user_answer": r.user_answer,

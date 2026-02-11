@@ -25,8 +25,8 @@ def extract_all_rows() -> List[Dict[str, str]]:
     """Return all vocab rows found in chinese_code.py.
 
     Output dict keys:
-      section, hanzi, pinyin, english, french,
-      sent_hanzi, sent_pinyin, sent_english, sent_french
+      section, hanzi, pinyin, english, french, japanese_kanji, japanese_romaji,
+      sent_hanzi, sent_pinyin, sent_english, sent_french, sent_japanese_kanji, sent_japanese_romaji
     """
     file_path = _get_source_path()
     if not file_path.exists():
@@ -82,12 +82,29 @@ def extract_all_rows() -> List[Dict[str, str]]:
         section_title = sections.get(var_name, "Unknown")
 
         for item in value:
-            if not (isinstance(item, tuple) and len(item) == 8):
+            if not (isinstance(item, tuple) and len(item) in (8, 10, 12)):
                 continue
             if not all(isinstance(x, str) for x in item):
                 continue
 
-            hanzi, pinyin, english, french, sent_hanzi, sent_pinyin, sent_english, sent_french = item
+            # Support multiple formats:
+            # 8-column: (hanzi, pinyin, english, french, sent_hanzi, sent_pinyin, sent_english, sent_french)
+            # 10-column: 8-column + japanese, sent_japanese (legacy single-column Japanese)
+            # 12-column: (hanzi, pinyin, english, french, japanese_kanji, japanese_romaji, sent_hanzi, sent_pinyin, sent_english, sent_french, sent_japanese_kanji, sent_japanese_romaji)
+            
+            if len(item) == 8:
+                hanzi, pinyin, english, french, sent_hanzi, sent_pinyin, sent_english, sent_french = item
+                japanese_kanji, japanese_romaji = '', ''
+                sent_japanese_kanji, sent_japanese_romaji = '', ''
+            elif len(item) == 10:
+                hanzi, pinyin, english, french, japanese, sent_hanzi, sent_pinyin, sent_english, sent_french, sent_japanese = item
+                # Legacy format: split single Japanese into kanji and romaji
+                japanese_kanji = japanese
+                japanese_romaji = ''
+                sent_japanese_kanji = sent_japanese
+                sent_japanese_romaji = ''
+            else:  # len(item) == 12
+                hanzi, pinyin, english, french, japanese_kanji, japanese_romaji, sent_hanzi, sent_pinyin, sent_english, sent_french, sent_japanese_kanji, sent_japanese_romaji = item
 
             all_rows.append({
                 "section": section_title,
@@ -95,10 +112,14 @@ def extract_all_rows() -> List[Dict[str, str]]:
                 "pinyin": pinyin,
                 "english": english,
                 "french": french,
+                "japanese_kanji": japanese_kanji,
+                "japanese_romaji": japanese_romaji,
                 "sent_hanzi": sent_hanzi,
                 "sent_pinyin": sent_pinyin,
                 "sent_english": sent_english,
                 "sent_french": sent_french,
+                "sent_japanese_kanji": sent_japanese_kanji,
+                "sent_japanese_romaji": sent_japanese_romaji,
             })
 
     print(f"[extract_data.py] Successfully extracted {len(all_rows)} vocabulary items.")

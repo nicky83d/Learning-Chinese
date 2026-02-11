@@ -13,12 +13,16 @@ class Vocabulary(db.Model):
     pinyin = db.Column(db.String(100), nullable=True, default='')
     english = db.Column(db.String(200), nullable=True, default='')
     french = db.Column(db.String(200), nullable=True, default='')
+    japanese_kanji = db.Column(db.String(200), nullable=True, default='')
+    japanese_romaji = db.Column(db.String(200), nullable=True, default='')
     
     # Keep example sentences nullable too (or set default='')
     sent_hanzi = db.Column(db.String(100), nullable=True, default='')
     sent_pinyin = db.Column(db.String(150), nullable=True, default='')
     sent_english = db.Column(db.String(200), nullable=True, default='')
     sent_french = db.Column(db.String(200), nullable=True, default='')
+    sent_japanese_kanji = db.Column(db.String(200), nullable=True, default='')
+    sent_japanese_romaji = db.Column(db.String(200), nullable=True, default='')
     
     # Quiz explanation field (cached from AI)
     explanation = db.Column(db.Text, nullable=True, default='')
@@ -128,6 +132,8 @@ class PracticeResult(db.Model):
     word_pinyin = db.Column(db.String(200), nullable=True)
     word_english = db.Column(db.String(300), nullable=True)
     word_french = db.Column(db.String(300), nullable=True)
+    word_japanese_kanji = db.Column(db.String(300), nullable=True)
+    word_japanese_romaji = db.Column(db.String(300), nullable=True)
     
     # Question and answer details
     question_type = db.Column(db.String(50), nullable=True)  # 'hanzi_to_pinyin', 'english_to_hanzi', 'speaking', 'drawing', etc.
