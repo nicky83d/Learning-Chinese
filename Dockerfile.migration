@@ -19,5 +19,5 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run migration script
-CMD ["python", "migrate_production.py"]
+# Run final migration script
+CMD ["python", "migrate_final.py"]
