@@ -271,6 +271,81 @@ def create_tables_and_populate():
                 if "already exists" not in str(e).lower():
                     logger.warning(f"Could not create ai_feedback table: {e}")
             
+            # Add missing Japanese columns to vocabulary table (safe migration)
+            try:
+                # Check if columns exist, add if missing
+                db.session.execute(text("""
+                    ALTER TABLE vocabulary
+                    ADD COLUMN IF NOT EXISTS japanese_kanji VARCHAR(200) DEFAULT ''
+                """))
+                db.session.commit()
+                logger.info("Added japanese_kanji column to vocabulary")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.debug(f"japanese_kanji column might already exist: {e}")
+            
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE vocabulary
+                    ADD COLUMN IF NOT EXISTS japanese_romaji VARCHAR(200) DEFAULT ''
+                """))
+                db.session.commit()
+                logger.info("Added japanese_romaji column to vocabulary")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.debug(f"japanese_romaji column might already exist: {e}")
+            
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE vocabulary
+                    ADD COLUMN IF NOT EXISTS sent_japanese_kanji VARCHAR(200) DEFAULT ''
+                """))
+                db.session.commit()
+                logger.info("Added sent_japanese_kanji column to vocabulary")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.debug(f"sent_japanese_kanji column might already exist: {e}")
+            
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE vocabulary
+                    ADD COLUMN IF NOT EXISTS sent_japanese_romaji VARCHAR(200) DEFAULT ''
+                """))
+                db.session.commit()
+                logger.info("Added sent_japanese_romaji column to vocabulary")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.debug(f"sent_japanese_romaji column might already exist: {e}")
+            
+            # Add missing Japanese columns to practice_result table
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE practice_result
+                    ADD COLUMN IF NOT EXISTS word_japanese_kanji VARCHAR(300) DEFAULT NULL
+                """))
+                db.session.commit()
+                logger.info("Added word_japanese_kanji column to practice_result")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.debug(f"word_japanese_kanji column might already exist: {e}")
+            
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE practice_result
+                    ADD COLUMN IF NOT EXISTS word_japanese_romaji VARCHAR(300) DEFAULT NULL
+                """))
+                db.session.commit()
+                logger.info("Added word_japanese_romaji column to practice_result")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.debug(f"word_japanese_romaji column might already exist: {e}")
+            
             # Create index on AIFeedback for fast lookups
             try:
                 db.session.execute(text("""
