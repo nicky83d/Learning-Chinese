@@ -19,5 +19,5 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run final migration script
-CMD ["python", "migrate_final.py"]
+# Run Cloud Run optimized migration script
+CMD ["python", "migrate_cloud_run.py"]
