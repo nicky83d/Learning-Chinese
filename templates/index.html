@@ -418,14 +418,14 @@
 
         <!-- Japanese Kanji line -->
         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <span style="width:1.5em; text-align:center; font-size:1.2em;">🇯🇵</span>
+          <span style="width:1.5em; text-align:center;"></span>
           <input type="text" id="mw_japanese_kanji" placeholder="Japanese Kanji (e.g. こんにちは)" style="flex:1;">
           <input type="text" id="mw_sent_japanese_kanji" placeholder="Japanese sentence" style="flex:2;">
         </div>
 
         <!-- Japanese Romaji line -->
         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <span style="width:1.5em; text-align:center;"></span>
+          <button class="speak-btn" onclick="playJapanese(document.getElementById('mw_sent_japanese_kanji').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇯🇵</button>
           <input type="text" id="mw_japanese_romaji" placeholder="Romaji (e.g. konnichiwa)" style="flex:1;">
           <input type="text" id="mw_sent_japanese_romaji" placeholder="Romaji sentence" style="flex:2;">
         </div>
@@ -1116,6 +1116,7 @@
   function playChinese(text) { speak(text, 'zh-CN'); }
   function playEnglish(text) { speak(text, 'en-GB'); }
   function playFrench(text) { speak(text, 'fr-FR'); }
+  function playJapanese(text) { speak(text, 'ja-JP'); }
 
   function performSearch() {
     const q = searchInput.value.trim();
@@ -1440,14 +1441,18 @@
 
     document.getElementById('mw_hanzi').value = hanzi;
     document.getElementById('mw_sent_hanzi').value = row ? row.sent_hanzi : "";
+
     document.getElementById('mw_pinyin').value = row ? row.pinyin : "";
     document.getElementById('mw_sent_pinyin').value = row ? row.sent_pinyin : "";
+
     document.getElementById('mw_japanese_kanji').value = row ? (row.japanese_kanji || "") : "";
     document.getElementById('mw_sent_japanese_kanji').value = row ? (row.sent_japanese_kanji || "") : "";
     document.getElementById('mw_japanese_romaji').value = row ? (row.japanese_romaji || "") : "";
     document.getElementById('mw_sent_japanese_romaji').value = row ? (row.sent_japanese_romaji || "") : "";
+
     document.getElementById('mw_french').value = row ? row.french : "";
     document.getElementById('mw_sent_french').value = row ? row.sent_french : "";
+
     document.getElementById('mw_english').value = row ? row.english : "";
     document.getElementById('mw_sent_english').value = row ? row.sent_english : "";
     
