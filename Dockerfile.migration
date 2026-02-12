@@ -19,5 +19,5 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run Cloud Run optimized migration script
-CMD ["python", "migrate_cloud_run.py"]
+# Run the fixed Japanese migration script
+CMD ["python", "migrate_japanese_fix.py"]
