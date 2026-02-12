@@ -124,8 +124,7 @@ def main():
             echo=False,
             pool_pre_ping=True,
             pool_size=10,
-            max_overflow=5,
-            connect_args={"connect_timeout": 10}
+            max_overflow=5
         )
         
         with engine.connect() as conn:
