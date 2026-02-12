@@ -1810,8 +1810,11 @@ def admin_db():
             col_rows = db.session.execute(text(f"PRAGMA table_info({selected_table})")).fetchall()
             columns = [c[1] for c in col_rows]
 
+        # Quote table name for PostgreSQL (handles reserved keywords like 'user')
+        quoted_table = f'"{selected_table}"' if is_postgres else selected_table
+
         # Row count
-        total_rows = db.session.execute(text(f"SELECT COUNT(*) FROM {selected_table}"))
+        total_rows = db.session.execute(text(f"SELECT COUNT(*) FROM {quoted_table}"))
         total_rows = total_rows.scalar() if total_rows else 0
         page_count = max(1, ceil(total_rows / page_size)) if total_rows else 1
         page = min(page, page_count)
@@ -1822,17 +1825,17 @@ def admin_db():
             # Check if table has 'id' column
             if 'id' in columns:
                 rows = db.session.execute(
-                    text(f"SELECT * FROM {selected_table} ORDER BY id DESC LIMIT :limit OFFSET :offset"),
+                    text(f"SELECT * FROM {quoted_table} ORDER BY id DESC LIMIT :limit OFFSET :offset"),
                     {"limit": page_size, "offset": offset}
                 ).mappings().all()
             else:
                 rows = db.session.execute(
-                    text(f"SELECT * FROM {selected_table} LIMIT :limit OFFSET :offset"),
+                    text(f"SELECT * FROM {quoted_table} LIMIT :limit OFFSET :offset"),
                     {"limit": page_size, "offset": offset}
                 ).mappings().all()
         else:
             rows = db.session.execute(
-                text(f"SELECT * FROM {selected_table} ORDER BY rowid DESC LIMIT :limit OFFSET :offset"),
+                text(f"SELECT * FROM {quoted_table} ORDER BY rowid DESC LIMIT :limit OFFSET :offset"),
                 {"limit": page_size, "offset": offset}
             ).mappings().all()
 
