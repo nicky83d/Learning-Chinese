@@ -1446,10 +1446,9 @@
     document.getElementById('mw_sent_pinyin').value = row ? row.sent_pinyin : "";
 
     document.getElementById('mw_japanese_kanji').value = row ? (row.japanese_kanji || "") : "";
-    // TEMPORARY FIX: Swap sentence fields due to migration script error
-    document.getElementById('mw_sent_japanese_kanji').value = row ? (row.sent_japanese_romaji || "") : "";  // Using romaji field for kanji display
+    document.getElementById('mw_sent_japanese_kanji').value = row ? (row.sent_japanese_kanji || "") : "";
     document.getElementById('mw_japanese_romaji').value = row ? (row.japanese_romaji || "") : "";
-    document.getElementById('mw_sent_japanese_romaji').value = row ? (row.sent_japanese_kanji || "") : "";  // Using kanji field for romaji display
+    document.getElementById('mw_sent_japanese_romaji').value = row ? (row.sent_japanese_romaji || "") : "";
 
     document.getElementById('mw_french').value = row ? row.french : "";
     document.getElementById('mw_sent_french').value = row ? row.sent_french : "";
@@ -1552,9 +1551,8 @@
       section: finalSection,
       sent_hanzi: document.getElementById('mw_sent_hanzi').value.trim(),
       sent_pinyin: document.getElementById('mw_sent_pinyin').value.trim(),
-      // TEMPORARY FIX: Swap sentence fields when saving to match current database structure
-      sent_japanese_kanji: document.getElementById('mw_sent_japanese_romaji').value.trim(),  // UI romaji -> DB kanji
-      sent_japanese_romaji: document.getElementById('mw_sent_japanese_kanji').value.trim(),  // UI kanji -> DB romaji
+      sent_japanese_kanji: document.getElementById('mw_sent_japanese_kanji').value.trim(),
+      sent_japanese_romaji: document.getElementById('mw_sent_japanese_romaji').value.trim(),
       sent_french: document.getElementById('mw_sent_french').value.trim(),
       sent_english: document.getElementById('mw_sent_english').value.trim()
     };
