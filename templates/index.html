@@ -395,10 +395,17 @@
       <div class="modal-body">
         <input type="hidden" id="mw_id">
         
-        <!-- Stroke animation area -->
-        <div style="text-align:center; margin:15px 0;">
+        <!-- Chinese stroke animation area -->
+        <div id="stroke_chinese_section" style="text-align:center; margin:15px 0;">
           <div id="strokeAnimContainer" style="width:320px; height:180px; margin:0 auto; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; overflow-x:auto; overflow-y:hidden; display:flex; align-items:center;">
             <!-- Horizontal scrollable wrapper will be injected here -->
+          </div>
+        </div>
+        
+        <!-- Japanese stroke animation area -->
+        <div id="stroke_japanese_section" style="text-align:center; margin:15px 0; display:none;">
+          <div id="strokeAnimContainerJapanese" style="width:320px; height:180px; margin:0 auto; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; overflow-x:auto; overflow-y:hidden; display:flex; align-items:center;">
+            <!-- Japanese character animation will be injected here -->
           </div>
         </div>
 
@@ -1554,7 +1561,9 @@
     document.getElementById('mw_sent_english').value = row ? row.sent_english : "";
     
     // Show/hide language sections based on settings
+    document.getElementById('stroke_chinese_section').style.display = langSettings.chinese ? 'block' : 'none';
     document.getElementById('modal_chinese_section').style.display = langSettings.chinese ? 'block' : 'none';
+    document.getElementById('stroke_japanese_section').style.display = langSettings.japanese ? 'block' : 'none';
     document.getElementById('modal_japanese_section').style.display = langSettings.japanese ? 'block' : 'none';
     document.getElementById('modal_french_section').style.display = langSettings.french ? 'block' : 'none';
     
@@ -1578,51 +1587,114 @@
       })
       .catch(() => { sectionInput.value = rowSection || ''; });
 
-    // Stroke animation setup
+    // Chinese stroke animation setup
     const container = document.getElementById('strokeAnimContainer');
     container.innerHTML = '';
     currentHanziWriters = [];
 
-    if (hanzi.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">No Hanzi to practice</p>';
-    } else if (hanzi.length > 10) {
-      container.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">Too many characters (max 10)</p>';
-    } else {
-      const scrollWrapper = document.createElement('div');
-      scrollWrapper.style.display = 'flex';
-      scrollWrapper.style.alignItems = 'center';
-      scrollWrapper.style.gap = '0px';
-      scrollWrapper.style.padding = '0 10px';
-      scrollWrapper.style.height = '100%';
-      container.appendChild(scrollWrapper);
+    if (langSettings.chinese) {
+      if (hanzi.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">No Hanzi to practice</p>';
+      } else if (hanzi.length > 10) {
+        container.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">Too many characters (max 10)</p>';
+      } else {
+        const scrollWrapper = document.createElement('div');
+        scrollWrapper.style.display = 'flex';
+        scrollWrapper.style.alignItems = 'center';
+        scrollWrapper.style.gap = '0px';
+        scrollWrapper.style.padding = '0 10px';
+        scrollWrapper.style.height = '100%';
+        container.appendChild(scrollWrapper);
 
-      const charSize = 140;
+        const charSize = 140;
 
-      for (let i = 0; i < hanzi.length; i++) {
-        const char = hanzi[i];
-        const charContainer = document.createElement('div');
-        charContainer.style.width = `${charSize}px`;
-        charContainer.style.height = `${charSize}px`;
-        charContainer.style.flexShrink = '0';
-        if (i < hanzi.length - 1) {
-          charContainer.style.marginRight = '-25px';
+        for (let i = 0; i < hanzi.length; i++) {
+          const char = hanzi[i];
+          const charContainer = document.createElement('div');
+          charContainer.style.width = `${charSize}px`;
+          charContainer.style.height = `${charSize}px`;
+          charContainer.style.flexShrink = '0';
+          if (i < hanzi.length - 1) {
+            charContainer.style.marginRight = '-25px';
+          }
+          scrollWrapper.appendChild(charContainer);
+
+          const writer = HanziWriter.create(charContainer, char, {
+            width: charSize,
+            height: charSize,
+            padding: 10,
+            showOutline: true,
+            showCharacter: true,
+            strokeColor: '#168',
+            radicalColor: '#168',
+            delayBetweenStrokes: 700,
+            delayBetweenLoops: 3000
+          });
+
+          writer.loopCharacterAnimation();
+          currentHanziWriters.push(writer);
         }
-        scrollWrapper.appendChild(charContainer);
+      }
+    }
+    
+    // Japanese stroke animation setup
+    const japaneseContainer = document.getElementById('strokeAnimContainerJapanese');
+    japaneseContainer.innerHTML = '';
+    
+    if (langSettings.japanese) {
+      const japaneseKanji = row ? (row.japanese_kanji || "").trim() : "";
+      // Filter to only include kanji characters (CJK unified ideographs)
+      const kanjiChars = japaneseKanji.split('').filter(char => {
+        const code = char.charCodeAt(0);
+        return (code >= 0x4E00 && code <= 0x9FFF) || // CJK Unified Ideographs
+               (code >= 0x3400 && code <= 0x4DBF);   // CJK Extension A
+      });
+      
+      if (kanjiChars.length === 0) {
+        japaneseContainer.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">No Kanji to practice</p>';
+      } else if (kanjiChars.length > 10) {
+        japaneseContainer.innerHTML = '<p style="color:var(--text-muted); padding-top:60px; font-size:0.9rem;">Too many characters (max 10)</p>';
+      } else {
+        const scrollWrapper = document.createElement('div');
+        scrollWrapper.style.display = 'flex';
+        scrollWrapper.style.alignItems = 'center';
+        scrollWrapper.style.gap = '0px';
+        scrollWrapper.style.padding = '0 10px';
+        scrollWrapper.style.height = '100%';
+        japaneseContainer.appendChild(scrollWrapper);
 
-        const writer = HanziWriter.create(charContainer, char, {
-          width: charSize,
-          height: charSize,
-          padding: 10,
-          showOutline: true,
-          showCharacter: true,
-          strokeColor: '#168',
-          radicalColor: '#168',
-          delayBetweenStrokes: 700,
-          delayBetweenLoops: 3000
-        });
+        const charSize = 140;
 
-        writer.loopCharacterAnimation();
-        currentHanziWriters.push(writer);
+        for (let i = 0; i < kanjiChars.length; i++) {
+          const char = kanjiChars[i];
+          const charContainer = document.createElement('div');
+          charContainer.style.width = `${charSize}px`;
+          charContainer.style.height = `${charSize}px`;
+          charContainer.style.flexShrink = '0';
+          if (i < kanjiChars.length - 1) {
+            charContainer.style.marginRight = '-25px';
+          }
+          scrollWrapper.appendChild(charContainer);
+
+          try {
+            const writer = HanziWriter.create(charContainer, char, {
+              width: charSize,
+              height: charSize,
+              padding: 10,
+              showOutline: true,
+              showCharacter: true,
+              strokeColor: '#c41',
+              radicalColor: '#c41',
+              delayBetweenStrokes: 700,
+              delayBetweenLoops: 3000
+            });
+            writer.loopCharacterAnimation();
+            currentHanziWriters.push(writer);
+          } catch (e) {
+            // Character not supported by HanziWriter
+            charContainer.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:3em;">${char}</div>`;
+          }
+        }
       }
     }
 
@@ -1634,6 +1706,8 @@
     modal.style.display = 'none';
     const container = document.getElementById('strokeAnimContainer');
     container.innerHTML = '';
+    const japaneseContainer = document.getElementById('strokeAnimContainerJapanese');
+    japaneseContainer.innerHTML = '';
     currentHanziWriters = [];
   }
 
