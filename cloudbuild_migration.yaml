@@ -1,7 +1,7 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-f', 'Dockerfile.migration', '-t', 'gcr.io/chinese-website-482900/migrate-japanese:latest', '.']
+    args: ['build', '-f', 'Dockerfile.migration', '-t', 'gcr.io/chinese-website-482900/migrate-user-tracking:latest', '.']
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/chinese-website-482900/migrate-japanese:latest']
+    args: ['push', 'gcr.io/chinese-website-482900/migrate-user-tracking:latest']
 images:
-  - 'gcr.io/chinese-website-482900/migrate-japanese:latest'
+  - 'gcr.io/chinese-website-482900/migrate-user-tracking:latest'

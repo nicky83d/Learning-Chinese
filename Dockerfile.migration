@@ -19,5 +19,5 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run the fixed Japanese migration script
-CMD ["python", "migrate_japanese_fix.py"]
+# Run the user tracking migration script
+CMD ["python", "migrate_user_tracking.py"]
