@@ -208,28 +208,38 @@ def main():
     Session = sessionmaker(bind=engine)
     session = Session()
     
-    # First, clear all bad Japanese data
-    logger.info("Clearing bad Japanese sentence data...")
-    try:
-        session.execute(text("""
-            UPDATE vocabulary
-            SET sent_japanese_kanji = '',
-                sent_japanese_romaji = ''
-            WHERE sent_japanese_kanji != '' OR sent_japanese_romaji != ''
-        """))
-        session.commit()
-        logger.info("✓ Cleared all Japanese sentence fields")
-    except Exception as e:
-        logger.error(f"Clear failed: {e}")
-        session.rollback()
+    # Check for env flag to skip clearing (for continued batches)
+    skip_clear = os.environ.get("SKIP_CLEAR", "false").lower() == "true"
     
-    # Fetch all items that need translation
+    if not skip_clear:
+        # Clear all bad Japanese data only on first run
+        logger.info("Clearing bad Japanese sentence data...")
+        try:
+            session.execute(text("""
+                UPDATE vocabulary
+                SET sent_japanese_kanji = '',
+                    sent_japanese_romaji = ''
+                WHERE sent_japanese_kanji != '' OR sent_japanese_romaji != ''
+            """))
+            session.commit()
+            logger.info("✓ Cleared all Japanese sentence fields")
+        except Exception as e:
+            logger.error(f"Clear failed: {e}")
+            session.rollback()
+    else:
+        logger.info("Skipping clear (SKIP_CLEAR=true)")
+    
+    # Fetch items that need translation (empty or missing Japanese fields)
     logger.info("Fetching items to translate...")
     try:
         result = session.execute(text("""
             SELECT id, hanzi, pinyin, sent_hanzi
             FROM vocabulary
             WHERE hanzi IS NOT NULL AND hanzi != ''
+              AND (
+                  sent_japanese_kanji = '' OR sent_japanese_kanji IS NULL
+                  OR sent_japanese_romaji = '' OR sent_japanese_romaji IS NULL
+              )
             ORDER BY id
             LIMIT :limit
         """), {"limit": batch_limit})
