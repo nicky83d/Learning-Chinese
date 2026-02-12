@@ -400,9 +400,6 @@
           <div id="strokeAnimContainer" style="width:320px; height:180px; margin:0 auto; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; overflow-x:auto; overflow-y:hidden; display:flex; align-items:center;">
             <!-- Horizontal scrollable wrapper will be injected here -->
           </div>
-          <div style="margin-top:12px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-            <button id="animateStrokesBtn" class="secondary">🖌️ Animate Strokes</button>
-          </div>
         </div>
 
         <!-- Chinese line (indented to align with flag buttons below) -->
@@ -419,11 +416,18 @@
           <input type="text" id="mw_sent_pinyin" placeholder="Pinyin sentence" style="flex:2;">
         </div>
 
-        <!-- English line -->
+        <!-- Japanese Kanji line -->
         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <button class="speak-btn" onclick="playEnglish(document.getElementById('mw_sent_english').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇬🇧</button>
-          <input type="text" id="mw_english" placeholder="English (e.g. Hello)" style="flex:1;">
-          <input type="text" id="mw_sent_english" placeholder="English sentence" style="flex:2;">
+          <span style="width:1.5em; text-align:center; font-size:1.2em;">🇯🇵</span>
+          <input type="text" id="mw_japanese_kanji" placeholder="Japanese Kanji (e.g. こんにちは)" style="flex:1;">
+          <input type="text" id="mw_sent_japanese_kanji" placeholder="Japanese sentence" style="flex:2;">
+        </div>
+
+        <!-- Japanese Romaji line -->
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <span style="width:1.5em; text-align:center;"></span>
+          <input type="text" id="mw_japanese_romaji" placeholder="Romaji (e.g. konnichiwa)" style="flex:1;">
+          <input type="text" id="mw_sent_japanese_romaji" placeholder="Romaji sentence" style="flex:2;">
         </div>
 
         <!-- French line -->
@@ -431,6 +435,13 @@
           <button class="speak-btn" onclick="playFrench(document.getElementById('mw_sent_french').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇫🇷</button>
           <input type="text" id="mw_french" placeholder="French (e.g. Bonjour)" style="flex:1;">
           <input type="text" id="mw_sent_french" placeholder="French sentence" style="flex:2;">
+        </div>
+
+        <!-- English line -->
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <button class="speak-btn" onclick="playEnglish(document.getElementById('mw_sent_english').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇬🇧</button>
+          <input type="text" id="mw_english" placeholder="English (e.g. Hello)" style="flex:1;">
+          <input type="text" id="mw_sent_english" placeholder="English sentence" style="flex:2;">
         </div>
 
         <!-- Category -->
@@ -1431,10 +1442,14 @@
     document.getElementById('mw_sent_hanzi').value = row ? row.sent_hanzi : "";
     document.getElementById('mw_pinyin').value = row ? row.pinyin : "";
     document.getElementById('mw_sent_pinyin').value = row ? row.sent_pinyin : "";
-    document.getElementById('mw_english').value = row ? row.english : "";
-    document.getElementById('mw_sent_english').value = row ? row.sent_english : "";
+    document.getElementById('mw_japanese_kanji').value = row ? (row.japanese_kanji || "") : "";
+    document.getElementById('mw_sent_japanese_kanji').value = row ? (row.sent_japanese_kanji || "") : "";
+    document.getElementById('mw_japanese_romaji').value = row ? (row.japanese_romaji || "") : "";
+    document.getElementById('mw_sent_japanese_romaji').value = row ? (row.sent_japanese_romaji || "") : "";
     document.getElementById('mw_french').value = row ? row.french : "";
     document.getElementById('mw_sent_french').value = row ? row.sent_french : "";
+    document.getElementById('mw_english').value = row ? row.english : "";
+    document.getElementById('mw_sent_english').value = row ? row.sent_english : "";
     
     // Populate category suggestions (datalist) and set value
     const sectionInput = document.getElementById('mw_section');
@@ -1515,22 +1530,7 @@
     currentHanziWriters = [];
   }
 
-  // Animate strokes button for edit word modal
-  document.getElementById('animateStrokesBtn').addEventListener('click', () => {
-    if (currentHanziWriters.length === 0) return;
-    // Animate each character in sequence
-    let index = 0;
-    function animateNext() {
-      if (index >= currentHanziWriters.length) return;
-      currentHanziWriters[index].animateCharacter({
-        onComplete: () => {
-          index++;
-          animateNext();
-        }
-      });
-    }
-    animateNext();
-  });
+  // Removed animate strokes button functionality
 
   document.getElementById('saveModal').onclick = () => {
     // Get section from the editable input (datalist) - user can type or pick
@@ -1539,13 +1539,17 @@
     const payload = {
       hanzi: document.getElementById('mw_hanzi').value.trim(),
       pinyin: document.getElementById('mw_pinyin').value.trim(),
-      english: document.getElementById('mw_english').value.trim(),
+      japanese_kanji: document.getElementById('mw_japanese_kanji').value.trim(),
+      japanese_romaji: document.getElementById('mw_japanese_romaji').value.trim(),
       french: document.getElementById('mw_french').value.trim(),
+      english: document.getElementById('mw_english').value.trim(),
       section: finalSection,
       sent_hanzi: document.getElementById('mw_sent_hanzi').value.trim(),
       sent_pinyin: document.getElementById('mw_sent_pinyin').value.trim(),
-      sent_english: document.getElementById('mw_sent_english').value.trim(),
-      sent_french: document.getElementById('mw_sent_french').value.trim()
+      sent_japanese_kanji: document.getElementById('mw_sent_japanese_kanji').value.trim(),
+      sent_japanese_romaji: document.getElementById('mw_sent_japanese_romaji').value.trim(),
+      sent_french: document.getElementById('mw_sent_french').value.trim(),
+      sent_english: document.getElementById('mw_sent_english').value.trim()
     };
     
     if (!payload.section) {
