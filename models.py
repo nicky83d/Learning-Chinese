@@ -8,6 +8,10 @@ class Vocabulary(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     section = db.Column(db.String(100), nullable=False)
     
+    # Track who added the word and when
+    added_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
+    
     # ← CHANGE THESE TO nullable=True
     hanzi = db.Column(db.String(50), nullable=True, default='')
     pinyin = db.Column(db.String(100), nullable=True, default='')

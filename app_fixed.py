@@ -712,6 +712,9 @@ def add_word():
     if not (s("hanzi") or s("pinyin") or s("english") or s("french") or s("japanese_kanji") or s("japanese_romaji")):
         return jsonify({"ok": False, "error": "At least one word field required"}), 400
 
+    # Track which user added the word
+    user_id = session.get('user_id')
+    
     entry = Vocabulary(
         section=section,
         hanzi=s("hanzi"),
@@ -726,6 +729,8 @@ def add_word():
         sent_french=s("sent_french"),
         sent_japanese_kanji=s("sent_japanese_kanji"),
         sent_japanese_romaji=s("sent_japanese_romaji"),
+        added_by_user_id=user_id,
+        created_at=datetime.utcnow(),
     )
     db.session.add(entry)
     db.session.commit()
@@ -1009,11 +1014,13 @@ def _find_existing_vocab(entry: dict):
     return None
 
 
-def _upsert_full_entry(section: str, entry: dict):
+def _upsert_full_entry(section: str, entry: dict, user_id: int = None):
     row = _find_existing_vocab(entry)
     created = False
     if row is None:
         row = Vocabulary(section=section)
+        row.added_by_user_id = user_id
+        row.created_at = datetime.utcnow()
         created = True
 
     if not getattr(row, "section", None):
@@ -1221,7 +1228,7 @@ def process_photo():
             else:
                 word_section = section
             
-            created, vid = _upsert_full_entry(word_section, e)
+            created, vid = _upsert_full_entry(word_section, e, user_id=user_id)
             e['is_new'] = created  # Mark each entry
             
             # Clear sentence fields for existing words (save AI costs)
@@ -1744,7 +1751,11 @@ def admin_db():
     """Lightweight DB browser for admin (read-only)."""
     try:
         page = max(1, int(request.args.get('page', 1) or 1))
-        page_size = 50
+        page_size = int(request.args.get('page_size', 50) or 50)
+        if page_size < 1:
+            page_size = 50
+        if page_size > 1000:
+            page_size = 1000
         selected_table = request.args.get('table')
 
         # Check if using SQLite or PostgreSQL

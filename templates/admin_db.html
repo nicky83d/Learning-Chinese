@@ -19,10 +19,17 @@
         .content { padding: 1.25rem; overflow: auto; }
         .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap; }
         .toolbar .meta { color: #6b7b8c; font-size: 0.9rem; }
+        .filter-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .filter-input { padding: 0.4rem 0.75rem; border: 1px solid #d5d9dd; border-radius: 4px; font-size: 0.9rem; min-width: 200px; }
+        .page-size-btns { display: flex; gap: 0.25rem; }
+        .page-size-btn { padding: 0.35rem 0.6rem; border: 1px solid #d5d9dd; border-radius: 4px; background: white; cursor: pointer; font-size: 0.8rem; color: #2c3e50; }
+        .page-size-btn.active { background: #3498db; color: white; border-color: #3498db; }
+        .page-size-btn:hover:not(.active) { background: #ecf0f1; }
         table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e1e4e8; table-layout: fixed; }
         th, td { padding: 0.55rem 0.65rem; border: 1px solid #e1e4e8; text-align: left; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         th { background: #f7f9fb; font-weight: 700; }
         tr:nth-child(even) td { background: #fbfdff; }
+        tr.hidden-row { display: none; }
         /* Allow long text columns to wrap */
         .col-ocr_text, .col-entries_json, .col-image_path { white-space: normal; word-break: break-word; }
         /* Give generous width to content-heavy columns */
@@ -37,10 +44,13 @@
         .col-timestamp { width: 150px; }
         .col-user_ip { width: 120px; }
         .pagination { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; }
-        .pagination a, .pagination span { padding: 0.35rem 0.75rem; border: 1px solid #d5d9dd; border-radius: 4px; text-decoration: none; color: #2c3e50; background: white; }
+        .pagination a, .pagination span { padding: 0.35rem 0.75rem; border: 1px solid #d5d9dd; border-radius: 4px; text-decoration: none; color: #2c3e50; background: white; font-size: 0.9rem; }
+        .pagination a:hover { background: #ecf0f1; }
         .pagination .active { background: #3498db; color: white; border-color: #3498db; }
+        .pagination .disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         .empty { padding: 2rem; text-align: center; color: #7f8c8d; background: white; border: 1px solid #e1e4e8; }
         .notice { background: #fffbe6; border: 1px solid #ffe58f; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; color: #8c6d1f; }
+        .filter-count { font-size: 0.85rem; color: #7f8c8d; margin-left: 0.5rem; }
     </style>
 </head>
 <body>
@@ -58,7 +68,7 @@
             <ul class="table-list">
                 {% for t in tables %}
                 <li class="{% if t == selected_table %}active{% endif %}">
-                    <a href="/admin/db?table={{ t }}" style="flex:1; text-decoration:none; color:inherit;">{{ t }}</a>
+                    <a href="/admin/db?table={{ t }}&page_size={{ page_size }}" style="flex:1; text-decoration:none; color:inherit;">{{ t }}</a>
                 </li>
                 {% endfor %}
             </ul>
@@ -70,16 +80,25 @@
             {% else %}
                 <div class="toolbar">
                     <div class="meta">
-                        <strong>{{ selected_table }}</strong> — {{ total_rows }} rows — page {{ page }} / {{ page_count }} — showing up to {{ page_size }} per page
+                        <strong>{{ selected_table }}</strong> — {{ total_rows }} rows — page {{ page }} / {{ page_count }} — showing {{ page_size }} per page
                     </div>
-                    <div class="meta">Read-only viewer (SQLite)</div>
+                    <div class="filter-controls">
+                        <input type="text" id="filterInput" class="filter-input" placeholder="🔍 Filter rows..." oninput="filterTable()">
+                        <span id="filterCount" class="filter-count"></span>
+                        <div class="page-size-btns">
+                            <a href="/admin/db?table={{ selected_table }}&page=1&page_size=10" class="page-size-btn {% if page_size == 10 %}active{% endif %}">10</a>
+                            <a href="/admin/db?table={{ selected_table }}&page=1&page_size=50" class="page-size-btn {% if page_size == 50 %}active{% endif %}">50</a>
+                            <a href="/admin/db?table={{ selected_table }}&page=1&page_size=100" class="page-size-btn {% if page_size == 100 %}active{% endif %}">100</a>
+                            <a href="/admin/db?table={{ selected_table }}&page=1&page_size=1000" class="page-size-btn {% if page_size == 1000 %}active{% endif %}">All</a>
+                        </div>
+                    </div>
                 </div>
 
                 {% if rows|length == 0 %}
                     <div class="empty">No rows to display.</div>
                 {% else %}
                     <div style="overflow-x:auto;">
-                        <table>
+                        <table id="dataTable">
                             <thead>
                                 <tr>
                                     {% for col in columns %}
@@ -87,7 +106,7 @@
                                     {% endfor %}
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="tableBody">
                                 {% for row in rows %}
                                     <tr>
                                         {% for col in columns %}
@@ -100,25 +119,67 @@
                     </div>
 
                     <div class="pagination">
-                        {% set prev_page = page - 1 %}
-                        {% set next_page = page + 1 %}
                         {% if page > 1 %}
-                            <a href="/admin/db?table={{ selected_table }}&page={{ prev_page }}">Prev</a>
+                            <a href="/admin/db?table={{ selected_table }}&page=1&page_size={{ page_size }}">First</a>
+                            <a href="/admin/db?table={{ selected_table }}&page={{ page - 1 }}&page_size={{ page_size }}">Prev</a>
                         {% else %}
-                            <span>Prev</span>
+                            <span class="disabled">First</span>
+                            <span class="disabled">Prev</span>
                         {% endif %}
 
-                        <span class="active">{{ page }}</span>
+                        <span class="active">{{ page }} / {{ page_count }}</span>
 
                         {% if page < page_count %}
-                            <a href="/admin/db?table={{ selected_table }}&page={{ next_page }}">Next</a>
+                            <a href="/admin/db?table={{ selected_table }}&page={{ page + 1 }}&page_size={{ page_size }}">Next</a>
+                            <a href="/admin/db?table={{ selected_table }}&page={{ page_count }}&page_size={{ page_size }}">Last</a>
                         {% else %}
-                            <span>Next</span>
+                            <span class="disabled">Next</span>
+                            <span class="disabled">Last</span>
                         {% endif %}
                     </div>
                 {% endif %}
             {% endif %}
         </main>
     </div>
+
+    <script>
+        function filterTable() {
+            const input = document.getElementById('filterInput');
+            const filter = input.value.toLowerCase();
+            const tbody = document.getElementById('tableBody');
+            const rows = tbody ? tbody.getElementsByTagName('tr') : [];
+            let visibleCount = 0;
+            let totalCount = rows.length;
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.getElementsByTagName('td');
+                let match = false;
+                
+                for (let j = 0; j < cells.length; j++) {
+                    const cellText = cells[j].textContent || cells[j].innerText;
+                    if (cellText.toLowerCase().indexOf(filter) > -1) {
+                        match = true;
+                        break;
+                    }
+                }
+                
+                if (match) {
+                    row.classList.remove('hidden-row');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden-row');
+                }
+            }
+            
+            // Update filter count
+            const countEl = document.getElementById('filterCount');
+            if (filter) {
+                countEl.textContent = `(${visibleCount} of ${totalCount})`;
+            } else {
+                countEl.textContent = '';
+            }
+        }
+    </script>
 </body>
 </html>
