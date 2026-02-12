@@ -403,38 +403,45 @@
         </div>
 
         <!-- Chinese line (indented to align with flag buttons below) -->
-        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <span style="width:1.5em; text-align:center;"></span>
-          <input type="text" id="mw_hanzi" placeholder="Hanzi (e.g. 你好)" style="flex:1;">
-          <input type="text" id="mw_sent_hanzi" placeholder="Chinese sentence" style="flex:2;">
+        <div id="modal_chinese_section">
+          <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+            <span style="width:1.5em; text-align:center;"></span>
+            <input type="text" id="mw_hanzi" placeholder="Hanzi (e.g. 你好)" style="flex:1;">
+            <input type="text" id="mw_sent_hanzi" placeholder="Chinese sentence" style="flex:2;">
+          </div>
+
+          <!-- Pinyin line -->
+          <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+            <button class="speak-btn" onclick="playChinese(document.getElementById('mw_sent_hanzi').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇨🇳</button>
+            <input type="text" id="mw_pinyin" placeholder="Pinyin (e.g. nǐ hǎo)" style="flex:1;">
+            <input type="text" id="mw_sent_pinyin" placeholder="Pinyin sentence" style="flex:2;">
+          </div>
         </div>
 
-        <!-- Pinyin line -->
-        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <button class="speak-btn" onclick="playChinese(document.getElementById('mw_sent_hanzi').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇨🇳</button>
-          <input type="text" id="mw_pinyin" placeholder="Pinyin (e.g. nǐ hǎo)" style="flex:1;">
-          <input type="text" id="mw_sent_pinyin" placeholder="Pinyin sentence" style="flex:2;">
+        <!-- Japanese section -->
+        <div id="modal_japanese_section">
+          <!-- Japanese Kanji line -->
+          <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+            <span style="width:1.5em; text-align:center;"></span>
+            <input type="text" id="mw_japanese_kanji" placeholder="Japanese Kanji (e.g. こんにちは)" style="flex:1;">
+            <input type="text" id="mw_sent_japanese_kanji" placeholder="Japanese sentence" style="flex:2;">
+          </div>
+
+          <!-- Japanese Romaji line -->
+          <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+            <button class="speak-btn" onclick="playJapanese(document.getElementById('mw_sent_japanese_kanji').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇯🇵</button>
+            <input type="text" id="mw_japanese_romaji" placeholder="Romaji (e.g. konnichiwa)" style="flex:1;">
+            <input type="text" id="mw_sent_japanese_romaji" placeholder="Romaji sentence" style="flex:2;">
+          </div>
         </div>
 
-        <!-- Japanese Kanji line -->
-        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <span style="width:1.5em; text-align:center;"></span>
-          <input type="text" id="mw_japanese_kanji" placeholder="Japanese Kanji (e.g. こんにちは)" style="flex:1;">
-          <input type="text" id="mw_sent_japanese_kanji" placeholder="Japanese sentence" style="flex:2;">
-        </div>
-
-        <!-- Japanese Romaji line -->
-        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <button class="speak-btn" onclick="playJapanese(document.getElementById('mw_sent_japanese_kanji').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇯🇵</button>
-          <input type="text" id="mw_japanese_romaji" placeholder="Romaji (e.g. konnichiwa)" style="flex:1;">
-          <input type="text" id="mw_sent_japanese_romaji" placeholder="Romaji sentence" style="flex:2;">
-        </div>
-
-        <!-- French line -->
-        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <button class="speak-btn" onclick="playFrench(document.getElementById('mw_sent_french').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇫🇷</button>
-          <input type="text" id="mw_french" placeholder="French (e.g. Bonjour)" style="flex:1;">
-          <input type="text" id="mw_sent_french" placeholder="French sentence" style="flex:2;">
+        <!-- French section -->
+        <div id="modal_french_section">
+          <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+            <button class="speak-btn" onclick="playFrench(document.getElementById('mw_sent_french').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇫🇷</button>
+            <input type="text" id="mw_french" placeholder="French (e.g. Bonjour)" style="flex:1;">
+            <input type="text" id="mw_sent_french" placeholder="French sentence" style="flex:2;">
+          </div>
         </div>
 
         <!-- English line -->
@@ -485,12 +492,16 @@
           </div>
           <div>
             <p style="margin:12px 0 8px; color:var(--text-muted);">Language to listen to</p>
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-              <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+            <div id="pl_lang_options" style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label id="pl_lang_chinese" style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pl_lang" value="chinese" checked>
                 🇨🇳 Chinese
               </label>
-              <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+              <label id="pl_lang_japanese" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+                <input type="radio" name="pl_lang" value="japanese">
+                🇯🇵 Japanese
+              </label>
+              <label id="pl_lang_french" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pl_lang" value="french">
                 🇫🇷 French
               </label>
@@ -538,12 +549,16 @@
         </div>
         <div>
           <p style="margin-bottom:8px; color:var(--text-muted);">Choose language to practice</p>
-          <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+          <div id="pw_lang_options" style="display:flex; gap:12px; flex-wrap:wrap;">
+            <label id="pw_lang_chinese" style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
               <input type="radio" name="pw_lang" value="chinese" checked>
               🇨🇳 Chinese
             </label>
-            <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+            <label id="pw_lang_japanese" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+              <input type="radio" name="pw_lang" value="japanese">
+              🇯🇵 Japanese
+            </label>
+            <label id="pw_lang_french" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
               <input type="radio" name="pw_lang" value="french">
               🇫🇷 French
             </label>
@@ -657,12 +672,16 @@
           </div>
           <div>
             <p style="margin-bottom:8px; color:var(--text-muted);">Choose language to practice</p>
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-              <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+            <div id="pt_lang_options" style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label id="pt_lang_chinese" style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pt_lang" value="chinese" checked>
                 🇨🇳 Chinese
               </label>
-              <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+              <label id="pt_lang_japanese" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+                <input type="radio" name="pt_lang" value="japanese">
+                🇯🇵 Japanese
+              </label>
+              <label id="pt_lang_french" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pt_lang" value="french">
                 🇫🇷 French
               </label>
@@ -835,6 +854,28 @@
   function openPracticeWordsModal() {
     practiceWordsModal.style.display = 'flex';
     practiceWordsStatus.style.display = 'none';
+    
+    // Update language options visibility based on settings
+    document.getElementById('pw_lang_chinese').style.display = langSettings.chinese ? 'flex' : 'none';
+    document.getElementById('pw_lang_japanese').style.display = langSettings.japanese ? 'flex' : 'none';
+    document.getElementById('pw_lang_french').style.display = langSettings.french ? 'flex' : 'none';
+    
+    // Ensure a valid language is selected
+    const chineseRadio = document.querySelector('#pw_lang_chinese input');
+    const japaneseRadio = document.querySelector('#pw_lang_japanese input');
+    const frenchRadio = document.querySelector('#pw_lang_french input');
+    
+    chineseRadio.checked = false;
+    japaneseRadio.checked = false;
+    frenchRadio.checked = false;
+    
+    if (langSettings.chinese) {
+      chineseRadio.checked = true;
+    } else if (langSettings.japanese) {
+      japaneseRadio.checked = true;
+    } else if (langSettings.french) {
+      frenchRadio.checked = true;
+    }
   }
 
   function closePracticeWordsModal() {
@@ -999,6 +1040,25 @@
   document.documentElement.setAttribute('data-theme', savedTheme);
   updateThemeButton(savedTheme);
 
+  // Language display settings (default: Chinese on, Japanese/French off)
+  function getLanguageSettings() {
+    const settings = JSON.parse(localStorage.getItem('languageSettings') || '{}');
+    return {
+      chinese: settings.chinese !== false,
+      japanese: settings.japanese === true,
+      french: settings.french === true
+    };
+  }
+  let langSettings = getLanguageSettings();
+  
+  // Listen for language settings changes from preferences page
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'languageSettings') {
+      langSettings = getLanguageSettings();
+      performSearch(); // Re-render cards with new settings
+    }
+  });
+
   // Listen for theme changes from other pages/tabs
   window.addEventListener('storage', (e) => {
     if (e.key === 'theme') {
@@ -1138,26 +1198,41 @@
           const hanziText = (row.hanzi || '').trim();
           const hanziEsc = hanziText.replace(/'/g, "\\'");
 
-          card.innerHTML = `
+          // Build card HTML based on language settings
+          let cardHtml = '';
+          
+          // Chinese section (if enabled)
+          if (langSettings.chinese) {
+            cardHtml += `
               <div class="hanzi-cell" style="margin-bottom:3px;">${hanziText}</div>
-
               <div style="position:relative; margin:3px -12px; width:calc(100% + 24px); box-sizing:border-box;">
                 <button class="speak-btn" onclick="event.stopPropagation(); playChinese('${hanziEsc}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇨🇳</button>
                 <div class="pinyin-text" onclick="event.stopPropagation(); playChinese('${hanziEsc}')" style="text-align:left; width:100%; cursor:pointer; padding-left:47px; padding-right:12px;">${row.pinyin || ''}</div>
-              </div>
+              </div>`;
+          }
 
+          // Japanese section (if enabled)
+          if (langSettings.japanese && (row.japanese_kanji || row.japanese_romaji)) {
+            cardHtml += `
+              <div style="position:relative; margin:2px -12px; width:calc(100% + 24px); box-sizing:border-box;">
+                <button class="speak-btn" onclick="event.stopPropagation(); playJapanese('${(row.japanese_kanji || '').replace(/'/g, "\\'")}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇯🇵</button>
+                <div class="pinyin-text" style="text-align:left; width:100%; padding-left:47px; padding-right:12px;">${row.japanese_kanji || ''} ${row.japanese_romaji ? '(' + row.japanese_romaji + ')' : ''}</div>
+              </div>`;
+          }
+
+          // French section (if enabled)
+          if (langSettings.french) {
+            cardHtml += `
               <div style="position:relative; margin:2px -12px; width:calc(100% + 24px); box-sizing:border-box;">
                 <button class="speak-btn" onclick="event.stopPropagation(); playFrench('${(row.french || '').replace(/'/g, "\\'")}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇫🇷</button>
                 <div class="pinyin-text" onclick="event.stopPropagation(); playFrench('${(row.french || '').replace(/'/g, "\\'")}')" style="text-align:left; width:100%; cursor:pointer; padding-left:47px; padding-right:12px;">${row.french || ''}</div>
-              </div>
+              </div>`;
+          }
 
-              ${(row.japanese_kanji || row.japanese_romaji) ? `<div style="position:relative; margin:2px -12px; width:calc(100% + 24px); box-sizing:border-box;">
-                <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:1.3em; padding:0; line-height:1; z-index:1;">🇯🇵</span>
-                <div class="pinyin-text" style="text-align:left; width:100%; padding-left:47px; padding-right:12px;">${row.japanese_kanji || ''} ${row.japanese_romaji ? '(' + row.japanese_romaji + ')' : ''}</div>
-              </div>` : ''}
+          // English (always shown)
+          cardHtml += `<div class="translation-text" style="margin-top:8px; text-align:center; width:100%;">${row.english || ''}</div>`;
 
-              <div class="translation-text" style="margin-top:8px; text-align:center; width:100%;">${row.english || ''}</div>
-            `;
+          card.innerHTML = cardHtml;
           card.onclick = () => openEditModal(row);
           grid.appendChild(card);
         });
@@ -1191,7 +1266,14 @@
     // Start tracking session for 'words' practice
     startPracticeSession('words');
 
-    const modeText = mode === 'chinese' ? 'Chinese → Translations' : 'Français → Translations';
+    let modeText;
+    if (mode === 'chinese') {
+      modeText = 'Chinese → Translations';
+    } else if (mode === 'japanese') {
+      modeText = 'Japanese → Translations';
+    } else {
+      modeText = 'Français → Translations';
+    }
     quizCounter.textContent = `Words in quiz: ${currentWords.length} (${modeText})`;
     showRandomCard();
   }
@@ -1230,10 +1312,19 @@
       
       currentQuizOptions = data;
       
-      // Display word on card (pinyin for Chinese, French for French)
-      const wordText = currentQuizMode === 'chinese' ? randomWord.pinyin : randomWord.french;
-      const speakerLang = currentQuizMode === 'chinese' ? 'playChinese' : 'playFrench';
-      const wordEsc = wordText.replace(/'/g, "\\'");
+      // Display word on card (based on quiz mode)
+      let wordText, speakerLang;
+      if (currentQuizMode === 'chinese') {
+        wordText = randomWord.pinyin;
+        speakerLang = 'playChinese';
+      } else if (currentQuizMode === 'japanese') {
+        wordText = randomWord.japanese_romaji || randomWord.japanese_kanji || '';
+        speakerLang = 'playJapanese';
+      } else {
+        wordText = randomWord.french;
+        speakerLang = 'playFrench';
+      }
+      const wordEsc = (wordText || '').replace(/'/g, "\\'");
       
       quizCard.innerHTML = `
         <div style="font-size:2.6em; margin-bottom:20px; line-height:1.2;">${wordText || ''}</div>
@@ -1243,6 +1334,8 @@
       // Auto-play word
       if (currentQuizMode === 'chinese') {
         playChinese(randomWord.hanzi);
+      } else if (currentQuizMode === 'japanese') {
+        playJapanese(randomWord.japanese_kanji || randomWord.japanese_romaji);
       } else {
         playFrench(randomWord.french);
       }
@@ -1275,6 +1368,10 @@
       let bottomText = '';
       if (currentQuizMode === 'french') {
         // For French quiz, show ONLY English (no French - that gives answer away)
+        topText = opt.english || '';
+        bottomText = '';
+      } else if (currentQuizMode === 'japanese') {
+        // For Japanese quiz: show English
         topText = opt.english || '';
         bottomText = '';
       } else {
@@ -1455,6 +1552,11 @@
 
     document.getElementById('mw_english').value = row ? row.english : "";
     document.getElementById('mw_sent_english').value = row ? row.sent_english : "";
+    
+    // Show/hide language sections based on settings
+    document.getElementById('modal_chinese_section').style.display = langSettings.chinese ? 'block' : 'none';
+    document.getElementById('modal_japanese_section').style.display = langSettings.japanese ? 'block' : 'none';
+    document.getElementById('modal_french_section').style.display = langSettings.french ? 'block' : 'none';
     
     // Populate category suggestions (datalist) and set value
     const sectionInput = document.getElementById('mw_section');
@@ -1733,6 +1835,30 @@
     const select = document.getElementById('pl_section');
     select.innerHTML = '<option value="all">All Categories</option>' + 
       sections.map(s => `<option value="${s}">${s}</option>`).join('');
+    
+    // Update language options visibility based on settings
+    document.getElementById('pl_lang_chinese').style.display = langSettings.chinese ? 'flex' : 'none';
+    document.getElementById('pl_lang_japanese').style.display = langSettings.japanese ? 'flex' : 'none';
+    document.getElementById('pl_lang_french').style.display = langSettings.french ? 'flex' : 'none';
+    
+    // Ensure a valid language is selected
+    const chineseRadio = document.querySelector('#pl_lang_chinese input');
+    const japaneseRadio = document.querySelector('#pl_lang_japanese input');
+    const frenchRadio = document.querySelector('#pl_lang_french input');
+    
+    // Select the first available language
+    chineseRadio.checked = false;
+    japaneseRadio.checked = false;
+    frenchRadio.checked = false;
+    
+    if (langSettings.chinese) {
+      chineseRadio.checked = true;
+    } else if (langSettings.japanese) {
+      japaneseRadio.checked = true;
+    } else if (langSettings.french) {
+      frenchRadio.checked = true;
+    }
+    
     document.getElementById('practiceModal').style.display = 'flex';
   }
 
@@ -1810,8 +1936,18 @@
     if (!word) return;
 
     const lang = listeningState.language;
-    const targetWord = lang === 'chinese' ? word.hanzi : word.french;
-    const langCode = lang === 'chinese' ? 'zh-CN' : 'fr-FR';
+    let targetWord, langCode;
+    
+    if (lang === 'chinese') {
+      targetWord = word.hanzi;
+      langCode = 'zh-CN';
+    } else if (lang === 'japanese') {
+      targetWord = word.japanese_kanji || word.japanese_romaji;
+      langCode = 'ja-JP';
+    } else {
+      targetWord = word.french;
+      langCode = 'fr-FR';
+    }
     
     speakText(targetWord, langCode);
   }
@@ -1833,7 +1969,14 @@
 
     // Track detailed result
     const lang = listeningState.language;
-    const targetWord = lang === 'chinese' ? word.hanzi : word.french;
+    let targetWord;
+    if (lang === 'chinese') {
+      targetWord = word.hanzi;
+    } else if (lang === 'japanese') {
+      targetWord = word.japanese_kanji || word.japanese_romaji;
+    } else {
+      targetWord = word.french;
+    }
     addSessionResult({
       vocabulary_id: word.id,
       word_hanzi: word.hanzi || '',
@@ -1864,7 +2007,14 @@
     // Show feedback
     const feedback = document.getElementById('listeningFeedback');
     const lang2 = listeningState.language;
-    const display = lang2 === 'chinese' ? `${word.hanzi} (${word.pinyin || ''})` : word.french;
+    let display;
+    if (lang2 === 'chinese') {
+      display = `${word.hanzi} (${word.pinyin || ''})`;
+    } else if (lang2 === 'japanese') {
+      display = `${word.japanese_kanji || ''} (${word.japanese_romaji || ''})`;
+    } else {
+      display = word.french;
+    }
     if (isCorrect) {
       feedback.innerHTML = `✅ Correct! <strong>${display}</strong> = ${correct}`;
       feedback.style.background = 'rgba(76, 175, 80, 0.2)';
@@ -1985,6 +2135,28 @@
     document.getElementById('talkingConfigSection').style.display = 'block';
     document.getElementById('talkingPracticeSection').style.display = 'none';
     
+    // Update language options visibility based on settings
+    document.getElementById('pt_lang_chinese').style.display = langSettings.chinese ? 'flex' : 'none';
+    document.getElementById('pt_lang_japanese').style.display = langSettings.japanese ? 'flex' : 'none';
+    document.getElementById('pt_lang_french').style.display = langSettings.french ? 'flex' : 'none';
+    
+    // Ensure a valid language is selected
+    const chineseRadio = document.querySelector('#pt_lang_chinese input');
+    const japaneseRadio = document.querySelector('#pt_lang_japanese input');
+    const frenchRadio = document.querySelector('#pt_lang_french input');
+    
+    chineseRadio.checked = false;
+    japaneseRadio.checked = false;
+    frenchRadio.checked = false;
+    
+    if (langSettings.chinese) {
+      chineseRadio.checked = true;
+    } else if (langSettings.japanese) {
+      japaneseRadio.checked = true;
+    } else if (langSettings.french) {
+      frenchRadio.checked = true;
+    }
+    
     // Populate categories
     const ptSection = document.getElementById('pt_section');
     if (ptSection && sectionSelect) {
@@ -2095,16 +2267,34 @@
 
     // Display the word/sentence
     if (mode === 'words') {
-      const targetText = lang === 'chinese' ? word.hanzi : word.french;
-      const pinyinText = lang === 'chinese' ? word.pinyin : '';
+      let targetText, pinyinText;
+      if (lang === 'chinese') {
+        targetText = word.hanzi;
+        pinyinText = word.pinyin;
+      } else if (lang === 'japanese') {
+        targetText = word.japanese_kanji || '';
+        pinyinText = word.japanese_romaji || '';
+      } else {
+        targetText = word.french;
+        pinyinText = '';
+      }
       
       document.getElementById('talkingTargetText').textContent = targetText;
       document.getElementById('talkingPinyinText').textContent = pinyinText;
       document.getElementById('talkingEnglishText').textContent = word.english;
     } else {
       // Sentences mode
-      const targetText = lang === 'chinese' ? word.sent_hanzi : word.sent_french;
-      const pinyinText = lang === 'chinese' ? word.sent_pinyin : '';
+      let targetText, pinyinText;
+      if (lang === 'chinese') {
+        targetText = word.sent_hanzi;
+        pinyinText = word.sent_pinyin;
+      } else if (lang === 'japanese') {
+        targetText = word.sent_japanese_kanji || '';
+        pinyinText = word.sent_japanese_romaji || '';
+      } else {
+        targetText = word.sent_french;
+        pinyinText = '';
+      }
       
       document.getElementById('talkingTargetText').textContent = targetText || 'No example available';
       document.getElementById('talkingPinyinText').textContent = pinyinText;
@@ -2120,13 +2310,17 @@
     const word = practiceTalkingState.words[practiceTalkingState.currentIndex];
     const lang = practiceTalkingState.language;
     const mode = practiceTalkingState.mode;
-    const langCode = lang === 'chinese' ? 'zh-CN' : 'fr-FR';
-
-    let textToSpeak = '';
-    if (mode === 'words') {
-      textToSpeak = lang === 'chinese' ? word.hanzi : word.french;
+    
+    let langCode, textToSpeak;
+    if (lang === 'chinese') {
+      langCode = 'zh-CN';
+      textToSpeak = mode === 'words' ? word.hanzi : word.sent_hanzi;
+    } else if (lang === 'japanese') {
+      langCode = 'ja-JP';
+      textToSpeak = mode === 'words' ? (word.japanese_kanji || word.japanese_romaji) : (word.sent_japanese_kanji || word.sent_japanese_romaji);
     } else {
-      textToSpeak = lang === 'chinese' ? word.sent_hanzi : word.sent_french;
+      langCode = 'fr-FR';
+      textToSpeak = mode === 'words' ? word.french : word.sent_french;
     }
 
     if (textToSpeak) {
@@ -2154,13 +2348,17 @@
     const word = practiceTalkingState.words[practiceTalkingState.currentIndex];
     const lang = practiceTalkingState.language;
     const mode = practiceTalkingState.mode;
-    const langCode = lang === 'chinese' ? 'zh-CN' : 'fr-FR';
     
-    let expectedText = '';
-    if (mode === 'words') {
-      expectedText = lang === 'chinese' ? word.hanzi : word.french;
+    let langCode, expectedText;
+    if (lang === 'chinese') {
+      langCode = 'zh-CN';
+      expectedText = mode === 'words' ? word.hanzi : word.sent_hanzi;
+    } else if (lang === 'japanese') {
+      langCode = 'ja-JP';
+      expectedText = mode === 'words' ? (word.japanese_kanji || word.japanese_romaji) : (word.sent_japanese_kanji || word.sent_japanese_romaji);
     } else {
-      expectedText = lang === 'chinese' ? word.sent_hanzi : word.sent_french;
+      langCode = 'fr-FR';
+      expectedText = mode === 'words' ? word.french : word.sent_french;
     }
 
     // Start recording audio

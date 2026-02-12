@@ -222,24 +222,23 @@
     </div>
 
     <div class="section-group">
-      <h2>📚 Available Categories</h2>
+      <h2>🌐 Language Display Settings</h2>
       <p style="color: var(--text-muted); margin-bottom: 16px;">
-        Select categories to add to your vocabulary, or uncheck to remove them.
+        Choose which languages are shown on vocabulary cards, in the edit modal, and during practice games.
       </p>
-      
-      <div class="select-controls">
-        <button class="select-all-btn" onclick="selectAll()">✅ Select All</button>
-        <button class="deselect-all-btn" onclick="deselectAll()">❌ Deselect All</button>
-      </div>
+      <button class="btn btn-primary" onclick="showLanguageModal()">
+        🌐 Configure Languages
+      </button>
+    </div>
 
-      <div id="categoryGrid" class="category-grid">
-        <p style="text-align: center; color: var(--text-muted); grid-column: 1/-1;">Loading categories...</p>
-      </div>
-
-      <div class="action-buttons">
-        <button class="btn btn-primary" onclick="savePreferences()">💾 Save Changes</button>
-        <button class="btn btn-outline" onclick="window.location.href='/'">Cancel</button>
-      </div>
+    <div class="section-group">
+      <h2>📚 Word Selection</h2>
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Select categories to add words to your vocabulary, or uncheck to remove them.
+      </p>
+      <button class="btn btn-secondary" onclick="showWordSelectionModal()">
+        📚 Manage Word Categories
+      </button>
     </div>
 
     <div class="section-group">
@@ -268,12 +267,116 @@
     </div>
   </div>
 
+  <!-- Language Settings Modal -->
+  <div id="languageModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: var(--card-bg); border-radius: 16px; max-width: 500px; width: 95%; padding: 32px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+      <h2 style="margin-bottom: 24px; color: var(--primary);">🌐 Language Display Settings</h2>
+      <p style="color: var(--text-muted); margin-bottom: 24px;">
+        Select which languages to display. English is always shown as the base language.
+      </p>
+      
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <label class="category-item" style="opacity: 0.6; pointer-events: none;">
+          <input type="checkbox" checked disabled>
+          <span class="category-name">🇬🇧 English</span>
+          <span class="category-count">(always on)</span>
+        </label>
+        
+        <label class="category-item">
+          <input type="checkbox" id="langChinese" checked>
+          <span class="category-name">🇨🇳 Chinese</span>
+          <span class="category-count">Hanzi, Pinyin</span>
+        </label>
+        
+        <label class="category-item">
+          <input type="checkbox" id="langJapanese">
+          <span class="category-name">🇯🇵 Japanese</span>
+          <span class="category-count">Kanji, Romaji</span>
+        </label>
+        
+        <label class="category-item">
+          <input type="checkbox" id="langFrench">
+          <span class="category-name">🇫🇷 French</span>
+          <span class="category-count">Français</span>
+        </label>
+      </div>
+
+      <div class="action-buttons" style="margin-top: 24px;">
+        <button class="btn btn-primary" onclick="saveLanguageSettings()">💾 Save Settings</button>
+        <button class="btn btn-outline" onclick="closeLanguageModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Word Selection Modal -->
+  <div id="wordSelectionModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: var(--card-bg); border-radius: 16px; max-width: 800px; width: 95%; max-height: 85vh; overflow-y: auto; padding: 32px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+      <h2 style="margin-bottom: 24px; color: var(--primary);">📚 Word Categories</h2>
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Select categories to add words to your vocabulary.
+      </p>
+      
+      <div class="select-controls">
+        <button class="select-all-btn" onclick="selectAll()">✅ Select All</button>
+        <button class="deselect-all-btn" onclick="deselectAll()">❌ Deselect All</button>
+      </div>
+
+      <div id="categoryGrid" class="category-grid">
+        <p style="text-align: center; color: var(--text-muted); grid-column: 1/-1;">Loading categories...</p>
+      </div>
+
+      <div class="action-buttons" style="margin-top: 24px;">
+        <button class="btn btn-primary" onclick="savePreferences()">💾 Save Changes</button>
+        <button class="btn btn-outline" onclick="closeWordSelectionModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Load and apply saved theme on page load
     (function() {
       const savedTheme = localStorage.getItem('theme') || 'light';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
+
+    // Language Settings Functions
+    function loadLanguageSettings() {
+      const settings = JSON.parse(localStorage.getItem('languageSettings') || '{}');
+      // Default: Chinese is on, Japanese and French are off
+      document.getElementById('langChinese').checked = settings.chinese !== false;
+      document.getElementById('langJapanese').checked = settings.japanese === true;
+      document.getElementById('langFrench').checked = settings.french === true;
+    }
+
+    function showLanguageModal() {
+      loadLanguageSettings();
+      document.getElementById('languageModal').style.display = 'flex';
+    }
+
+    function closeLanguageModal() {
+      document.getElementById('languageModal').style.display = 'none';
+    }
+
+    function saveLanguageSettings() {
+      const settings = {
+        chinese: document.getElementById('langChinese').checked,
+        japanese: document.getElementById('langJapanese').checked,
+        french: document.getElementById('langFrench').checked
+      };
+      localStorage.setItem('languageSettings', JSON.stringify(settings));
+      showToast('✅ Language settings saved!', 'success');
+      closeLanguageModal();
+    }
+
+    // Word Selection Modal Functions
+    function showWordSelectionModal() {
+      document.getElementById('wordSelectionModal').style.display = 'flex';
+      loadCategories();
+    }
+
+    function closeWordSelectionModal() {
+      document.getElementById('wordSelectionModal').style.display = 'none';
+    }
 
     let allCategories = [];
     let importedSections = [];
@@ -376,11 +479,7 @@
         if (totalRemoved > 0) message.push(`Removed ${totalRemoved} words`);
         
         showToast('✅ ' + message.join(', '), 'success');
-        
-        // Reload after a delay
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        closeWordSelectionModal();
 
       } catch (error) {
         console.error('Error saving preferences:', error);
@@ -397,9 +496,6 @@
         toast.classList.remove('show');
       }, 3000);
     }
-
-    // Load categories on page load
-    loadCategories();
 
     // Load deletable words count
     async function loadDeletableCount() {
