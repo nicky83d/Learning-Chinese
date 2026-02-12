@@ -1499,22 +1499,55 @@
         resetQuizWins();
       }
       
-      // Add sentence with clickable flag + English translation for context
-      const sentenceText = currentQuizMode === 'chinese' ? (correctWord.sent_hanzi || '') : (correctWord.sent_french || '');
+      // Add sentences based on user's preferred languages
       const sentenceEnglish = correctWord.sent_english || '';
-      const sentenceFlag = currentQuizMode === 'chinese' ? '🇨🇳' : '🇫🇷';
-      const sentenceLang = currentQuizMode === 'chinese' ? 'zh-CN' : 'fr-FR';
-      const sentencePinyin = currentQuizMode === 'chinese' ? (correctWord.sent_pinyin || '') : '';
+      const currentLangSettings = getLanguageSettings();
+      
+      // Build sentence display for all enabled languages
+      let sentenceLines = [];
+      
+      // Chinese sentence (if enabled)
+      if (currentLangSettings.chinese && correctWord.sent_hanzi) {
+        const hanziText = correctWord.sent_hanzi.replace(/'/g, "\\'");
+        sentenceLines.push(`<div style="margin-bottom:8px;">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${hanziText}', 'zh-CN');">🇨🇳</button>
+          <span style="font-size:0.95em; color:var(--text-muted);">${correctWord.sent_hanzi}</span>
+        </div>`);
+        if (correctWord.sent_pinyin) {
+          sentenceLines.push(`<div style="font-size:0.9em; color:var(--text-muted); margin-left:38px; margin-top:4px;">${correctWord.sent_pinyin}</div>`);
+        }
+      }
+      
+      // Japanese sentence (if enabled)
+      if (currentLangSettings.japanese && correctWord.sent_japanese_kanji) {
+        const jpText = correctWord.sent_japanese_kanji.replace(/'/g, "\\'");
+        sentenceLines.push(`<div style="margin-bottom:8px; margin-top:10px;">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${jpText}', 'ja-JP');">🇯🇵</button>
+          <span style="font-size:0.95em; color:var(--text-muted);">${correctWord.sent_japanese_kanji}</span>
+        </div>`);
+        if (correctWord.sent_japanese_romaji) {
+          sentenceLines.push(`<div style="font-size:0.9em; color:var(--text-muted); margin-left:38px; margin-top:4px;">${correctWord.sent_japanese_romaji}</div>`);
+        }
+      }
+      
+      // French sentence (if enabled)
+      if (currentLangSettings.french && correctWord.sent_french) {
+        const frText = correctWord.sent_french.replace(/'/g, "\\'");
+        sentenceLines.push(`<div style="margin-bottom:8px; margin-top:10px;">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${frText}', 'fr-FR');">🇫🇷</button>
+          <span style="font-size:0.95em; color:var(--text-muted);">${correctWord.sent_french}</span>
+        </div>`);
+      }
+      
+      // English translation (always shown if available)
+      if (sentenceEnglish) {
+        sentenceLines.push(`<div style="font-size:0.9em; color:var(--text-muted); font-style:italic; margin-left:38px; margin-top:8px;">${sentenceEnglish}</div>`);
+      }
       
       let sentenceDisplay = '';
-      if (sentenceText) {
+      if (sentenceLines.length > 0) {
         sentenceDisplay = `<div style="margin-top:15px; padding-top:15px; border-top:1px solid var(--border-color);">
-          <div style="margin-bottom:8px;">
-            <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${sentenceText.replace(/'/g, "\\'")}', '${sentenceLang}');">${sentenceFlag}</button>
-            <span style="font-size:0.95em; color:var(--text-muted);">${sentenceText}</span>
-          </div>
-          ${sentencePinyin ? `<div style="font-size:0.9em; color:var(--text-muted); margin-left:38px; margin-top:4px;">${sentencePinyin}</div>` : ''}
-          ${sentenceEnglish ? `<div style="font-size:0.9em; color:var(--text-muted); font-style:italic; margin-left:38px; margin-top:8px;">${sentenceEnglish}</div>` : ''}
+          ${sentenceLines.join('')}
         </div>`;
       }
       

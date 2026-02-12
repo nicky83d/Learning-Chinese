@@ -988,13 +988,22 @@ Return ONLY the JSON array starting with [."""
     return cleaned
 
 
-def _find_existing_vocab(entry: dict):
+def _find_existing_vocab(entry: dict, approved_only: bool = False):
+    """Find existing vocabulary entry by hanzi, pinyin, english or french.
+    
+    Args:
+        entry: Dict with vocabulary fields
+        approved_only: If True, only match against admin-approved words (is_approved=True)
+    """
     hanzi = entry.get("hanzi") or ""
     pinyin = (entry.get("pinyin") or "").strip()
     english = (entry.get("english") or "").strip()
     french = (entry.get("french") or "").strip()
 
     q = Vocabulary.query
+    if approved_only:
+        q = q.filter(Vocabulary.is_approved == True)
+    
     if hanzi:
         hit = q.filter(Vocabulary.hanzi == hanzi).first()
         if hit:
@@ -1214,11 +1223,12 @@ def process_photo():
         added_words = []
         # Track whether each entry is new or existing
         for e in entries:
-            # Check if word exists before upserting
-            existing = _find_existing_vocab(e)
+            # Check if word exists in APPROVED vocabulary before upserting
+            # Only count as "duplicate" if an approved word already exists
+            existing_approved = _find_existing_vocab(e, approved_only=True)
             
             # Determine best category for new words
-            if not existing:
+            if not existing_approved:
                 best_category = _get_best_category_for_word(
                     e.get('hanzi', ''),
                     e.get('english', ''),
@@ -1229,16 +1239,21 @@ def process_photo():
                 word_section = section
             
             created, vid = _upsert_full_entry(word_section, e, user_id=user_id)
-            e['is_new'] = created  # Mark each entry
             
-            # Clear sentence fields for existing words (save AI costs)
-            if not created:
+            # Mark as "new" if no approved version existed before
+            # (even if we're updating a previously rejected entry)
+            is_effectively_new = not existing_approved
+            e['is_new'] = is_effectively_new
+            
+            # Clear sentence fields for existing approved words (save AI costs)
+            if existing_approved:
                 e['sent_hanzi'] = ''
                 e['sent_pinyin'] = ''
                 e['sent_english'] = ''
                 e['sent_french'] = ''
             
-            if created:
+            # Count based on approved status, not raw DB creation
+            if is_effectively_new:
                 created_count += 1
                 # Record the main word for frontend confirmation
                 try:
