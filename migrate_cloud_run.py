@@ -6,6 +6,7 @@ Must be run from Cloud Run where it can access the database
 import os
 import sys
 import time
+import re
 import requests
 import logging
 
@@ -36,14 +37,27 @@ def _call_openai(api_key, prompt, max_tokens):
         logger.warning(f"API error {resp.status_code}: {resp.text[:120]}")
         return "", ""
 
-    content = resp.json()['choices'][0]['message']['content'].lower()
-    kanji = romaji = ""
+    content = resp.json()['choices'][0]['message']['content'].strip()
+    kanji = ""
+    romaji = ""
 
-    for line in content.split('\n'):
-        if 'kanji:' in line:
-            kanji = line.split('kanji:')[1].strip().replace('xxx', '').replace('xxxx', '').strip()
-        elif 'romaji:' in line:
-            romaji = line.split('romaji:')[1].strip().replace('xxx', '').replace('xxxx', '').strip()
+    # Handle single-line or multi-line responses with both labels.
+    kanji_match = re.search(r"kanji:\s*(.*?)\s*romaji:", content, re.IGNORECASE | re.DOTALL)
+    romaji_match = re.search(r"romaji:\s*(.*)", content, re.IGNORECASE | re.DOTALL)
+
+    if kanji_match:
+        kanji = kanji_match.group(1).strip()
+    if romaji_match:
+        romaji = romaji_match.group(1).strip()
+
+    if not kanji or not romaji:
+        # Fallback to per-line parsing.
+        for line in content.split('\n'):
+            line_lower = line.lower()
+            if 'kanji:' in line_lower:
+                kanji = line.split(':', 1)[1].strip()
+            elif 'romaji:' in line_lower:
+                romaji = line.split(':', 1)[1].strip()
 
     return kanji, romaji
 
@@ -144,6 +158,10 @@ def main():
             SELECT id, hanzi, pinyin, sent_hanzi
             FROM vocabulary
             WHERE (japanese_kanji = '' OR japanese_kanji IS NULL)
+               OR (japanese_romaji = '' OR japanese_romaji IS NULL)
+               OR (japanese_kanji ILIKE '%romaji:%')
+               OR (sent_japanese_kanji ILIKE '%romaji:%')
+               OR (sent_japanese_romaji = '' OR sent_japanese_romaji IS NULL)
             ORDER BY id
             LIMIT :limit
         """), {"limit": batch_limit})
