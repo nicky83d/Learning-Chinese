@@ -795,9 +795,10 @@
           <div style="text-align:center; margin-bottom:12px;">
             <div id="drawingEnglish" style="font-size:1.2em; font-weight:bold; color:var(--primary); margin-bottom:5px;"></div>
             <div id="drawingPinyin" style="font-size:1em; color:var(--text-muted);"></div>
+            <div id="drawingCharProgress" style="font-size:0.9em; color:var(--text-muted); margin-top:5px;">Character: <span id="drawingCharCurrent">1</span> / <span id="drawingCharTotal">1</span></div>
           </div>
-          <div id="drawingCanvasContainer" style="min-height:180px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; overflow-x:auto; overflow-y:hidden; display:flex; align-items:center; justify-content:center; padding:10px;">
-            <!-- HanziWriter canvases will be injected here -->
+          <div id="drawingCanvasContainer" style="min-height:280px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; display:flex; align-items:center; justify-content:center; padding:15px;">
+            <!-- HanziWriter canvas will be injected here -->
           </div>
           <div style="display:flex; gap:12px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
             <button id="drawingSkipBtn" class="secondary" style="padding:12px 24px;">⏭️ Skip</button>
@@ -2784,9 +2785,11 @@
     currentIndex: 0,
     score: 0,
     total: 0,
-    writers: [],
+    currentWord: null,
+    characters: [],
     currentCharIndex: 0,
-    charMistakes: 0
+    charMistakes: 0,
+    currentWriter: null
   };
 
   function openPracticeDrawingModal() {
@@ -2822,10 +2825,11 @@
     drawingPracticeState.currentIndex = 0;
     drawingPracticeState.score = 0;
     drawingPracticeState.total = 0;
-    drawingPracticeState.writers = [];
+    drawingPracticeState.currentWord = null;
+    drawingPracticeState.characters = [];
     drawingPracticeState.currentCharIndex = 0;
-    drawingPracticeState._quizStarted = false;
     drawingPracticeState.charMistakes = 0;
+    drawingPracticeState.currentWriter = null;
     document.getElementById('drawingConfigSection').style.display = 'block';
     document.getElementById('drawingPracticeSection').style.display = 'none';
     document.getElementById('drawingCanvasContainer').innerHTML = '';
@@ -2873,6 +2877,9 @@
     }
 
     const word = drawingPracticeState.words[drawingPracticeState.currentIndex];
+    drawingPracticeState.currentWord = word;
+    drawingPracticeState.characters = word.hanzi.split('');
+    drawingPracticeState.currentCharIndex = 0;
     
     // Update UI
     document.getElementById('drawingEnglish').textContent = word.english || '';
@@ -2880,123 +2887,87 @@
     document.getElementById('drawingCurrent').textContent = drawingPracticeState.currentIndex + 1;
     document.getElementById('drawingTotal').textContent = drawingPracticeState.words.length;
     document.getElementById('drawingScore').textContent = drawingPracticeState.score;
+    document.getElementById('drawingCharTotal').textContent = drawingPracticeState.characters.length;
     
-    // Create HanziWriter instances for each character
-    const container = document.getElementById('drawingCanvasContainer');
-    container.innerHTML = '';
-    drawingPracticeState.writers = [];
-    drawingPracticeState.currentCharIndex = 0;
-    drawingPracticeState._quizStarted = false;
-
-    const characters = word.hanzi.split('');
-    
-    characters.forEach((char, i) => {
-      const charDiv = document.createElement('div');
-      charDiv.style.cssText = 'width:100px; height:100px; display:inline-block; margin:5px; border:1px solid var(--border-color); border-radius:8px; background:white;';
-      charDiv.id = `drawChar_${i}`;
-      container.appendChild(charDiv);
-
-      const writer = HanziWriter.create(charDiv, char, {
-        width: 100,
-        height: 100,
-        padding: 5,
-        showOutline: true,
-        strokeAnimationSpeed: 1,
-        delayBetweenStrokes: 100,
-        showCharacter: false,
-        showHintAfterMisses: 3,
-        onLoadCharDataSuccess: function() {
-          // Mark this writer as ready
-          writer._charLoaded = true;
-          // Try to start quiz if this is the first character and all previous are loaded
-          tryStartQuiz();
-        },
-        onLoadCharDataError: function() {
-          console.error('Failed to load character:', char);
-          writer._charLoaded = true; // Mark as loaded anyway to not block
-          writer._loadError = true;
-          tryStartQuiz();
-        }
-      });
-      drawingPracticeState.writers.push(writer);
-    });
-
-    function tryStartQuiz() {
-      // Check if first writer is loaded and quiz hasn't started yet
-      const firstWriter = drawingPracticeState.writers[0];
-      if (firstWriter && firstWriter._charLoaded && !drawingPracticeState._quizStarted) {
-        drawingPracticeState._quizStarted = true;
-        quizDrawingCharacter(0, word, characters);
-      }
-    }
+    // Show first character
+    showDrawingCharacter(0);
   }
 
-  function quizDrawingCharacter(index, word, characters) {
-    if (index >= drawingPracticeState.writers.length) {
+  function showDrawingCharacter(charIndex) {
+    const characters = drawingPracticeState.characters;
+    if (charIndex >= characters.length) {
       // Word complete, move to next word
       drawingPracticeState.currentIndex++;
       setTimeout(() => showNextDrawingWord(), 500);
       return;
     }
 
-    drawingPracticeState.currentCharIndex = index;
+    drawingPracticeState.currentCharIndex = charIndex;
     drawingPracticeState.charMistakes = 0;
-    drawingPracticeState.total++;
-    sessionTotal = drawingPracticeState.total;
+    
+    // Update character progress
+    document.getElementById('drawingCharCurrent').textContent = charIndex + 1;
+    
+    const container = document.getElementById('drawingCanvasContainer');
+    container.innerHTML = '';
+    
+    const char = characters[charIndex];
+    const charDiv = document.createElement('div');
+    charDiv.style.cssText = 'width:250px; height:250px; border:2px solid var(--border-color); border-radius:12px; background:white;';
+    charDiv.id = 'drawChar_current';
+    container.appendChild(charDiv);
 
-    drawingPracticeState.writers[index].quiz({
+    const writer = HanziWriter.create(charDiv, char, {
+      width: 250,
+      height: 250,
+      padding: 10,
+      showOutline: true,
+      strokeAnimationSpeed: 1,
+      delayBetweenStrokes: 100,
+      showCharacter: false,
       showHintAfterMisses: 3,
-      onMistake: () => {
-        drawingPracticeState.charMistakes++;
-      },
-      onComplete: () => {
-        const isCorrect = drawingPracticeState.charMistakes <= 1;
-        if (isCorrect) {
-          drawingPracticeState.score++;
-          sessionScore = drawingPracticeState.score;
-        }
+      onLoadCharDataSuccess: function() {
+        // Start quiz once character is loaded
+        drawingPracticeState.total++;
+        sessionTotal = drawingPracticeState.total;
         
-        // Track detailed result
-        addSessionResult({
-          vocabulary_id: word.id,
-          word_hanzi: characters[index],
-          word_pinyin: word.pinyin || '',
-          word_english: word.english || '',
-          word_french: word.french || '',
-          question_type: 'drawing',
-          question_text: `Draw: ${characters[index]}`,
-          user_answer: isCorrect ? 'Correct drawing' : `${drawingPracticeState.charMistakes} mistakes`,
-          correct_answer: characters[index],
-          is_correct: isCorrect
+        writer.quiz({
+          showHintAfterMisses: 3,
+          onMistake: () => {
+            drawingPracticeState.charMistakes++;
+          },
+          onComplete: () => {
+            const isCorrect = drawingPracticeState.charMistakes <= 1;
+            if (isCorrect) {
+              drawingPracticeState.score++;
+              sessionScore = drawingPracticeState.score;
+            }
+            
+            // Update score display
+            document.getElementById('drawingScore').textContent = drawingPracticeState.score;
+            
+            // Move to next character
+            setTimeout(() => showDrawingCharacter(charIndex + 1), 400);
+          }
         });
-
-        document.getElementById('drawingScore').textContent = drawingPracticeState.score;
-        
-        // Move to next character
-        quizDrawingCharacter(index + 1, word, characters);
+      },
+      onLoadCharDataError: function() {
+        console.error('Failed to load character:', char);
+        // Skip this character
+        setTimeout(() => showDrawingCharacter(charIndex + 1), 400);
       }
     });
+    
+    drawingPracticeState.currentWriter = writer;
   }
 
   function skipDrawingWord() {
     // Mark remaining characters as skipped
-    const word = drawingPracticeState.words[drawingPracticeState.currentIndex];
+    const word = drawingPracticeState.currentWord;
     if (word) {
-      const characters = word.hanzi.split('');
+      const characters = drawingPracticeState.characters;
       for (let i = drawingPracticeState.currentCharIndex; i < characters.length; i++) {
         drawingPracticeState.total++;
-        addSessionResult({
-          vocabulary_id: word.id,
-          word_hanzi: characters[i],
-          word_pinyin: word.pinyin || '',
-          word_english: word.english || '',
-          word_french: word.french || '',
-          question_type: 'drawing',
-          question_text: `Draw: ${characters[i]}`,
-          user_answer: 'Skipped',
-          correct_answer: characters[i],
-          is_correct: false
-        });
       }
       sessionTotal = drawingPracticeState.total;
     }
