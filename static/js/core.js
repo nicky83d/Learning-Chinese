@@ -186,13 +186,6 @@ VocabApp.initTheme = function() {
       updateThemeButton(newTheme);
     }
   });
-  
-  // Listen for language settings changes from preferences page
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'languageSettings') {
-      VocabApp.langSettings = VocabApp.getLanguageSettings();
-    }
-  });
 };
 
 // ==================== UTILITIES ====================
@@ -214,14 +207,5 @@ VocabApp.populateSectionDropdown = function(selectId, sourceSelect) {
     targetSelect.appendChild(newOpt);
   });
 };
-
-// Initialize theme on page load
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function() {
-    VocabApp.initTheme();
-  });
-} else {
-  VocabApp.initTheme();
-}
 
 console.log('VocabApp core loaded');
