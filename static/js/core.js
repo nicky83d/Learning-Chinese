@@ -160,31 +160,21 @@ VocabApp.speakAsync = function(text, lang) {
 
 // ==================== THEME ====================
 VocabApp.initTheme = function() {
-  console.log('[THEME] Initializing theme...');
   const themeBtn = document.getElementById('themeBtn');
-  if (!themeBtn) {
-    console.error('[THEME] Theme button not found!');
-    return;
-  }
-  
-  console.log('[THEME] Theme button found, setting up handlers');
+  if (!themeBtn) return;
   
   function updateThemeButton(theme) {
     themeBtn.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌓 Dark Mode';
-    console.log('[THEME] Updated button text for theme:', theme);
   }
   
   themeBtn.onclick = () => {
-    const current = document.documentElement.getAttribute('data-theme');
-    const next = current === 'light' ? 'dark' : 'light';
-    console.log('[THEME] Theme toggle clicked - changing from', current, 'to', next);
+    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
     updateThemeButton(next);
   };
   
   const savedTheme = localStorage.getItem('theme') || 'light';
-  console.log('[THEME] Saved theme from localStorage:', savedTheme);
   document.documentElement.setAttribute('data-theme', savedTheme);
   updateThemeButton(savedTheme);
   
@@ -192,7 +182,6 @@ VocabApp.initTheme = function() {
   window.addEventListener('storage', (e) => {
     if (e.key === 'theme') {
       const newTheme = e.newValue || 'light';
-      console.log('[THEME] Storage event detected - changing to:', newTheme);
       document.documentElement.setAttribute('data-theme', newTheme);
       updateThemeButton(newTheme);
     }
@@ -202,11 +191,8 @@ VocabApp.initTheme = function() {
   window.addEventListener('storage', (e) => {
     if (e.key === 'languageSettings') {
       VocabApp.langSettings = VocabApp.getLanguageSettings();
-      console.log('[THEME] Language settings updated via storage event');
     }
   });
-  
-  console.log('[THEME] Theme initialization complete');
 };
 
 // ==================== UTILITIES ====================
@@ -231,14 +217,11 @@ VocabApp.populateSectionDropdown = function(selectId, sourceSelect) {
 
 // Initialize theme on page load
 if (document.readyState === 'loading') {
-  console.log('[CORE] DOMContentLoaded listener - document still loading');
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('[CORE] DOMContentLoaded fired - initializing theme');
     VocabApp.initTheme();
   });
 } else {
-  console.log('[CORE] Document already loaded - initializing theme immediately');
   VocabApp.initTheme();
 }
 
-console.log('[CORE] VocabApp core loaded - functions available:', Object.keys(VocabApp).filter(k => typeof VocabApp[k] === 'function'));
+console.log('VocabApp core loaded');
