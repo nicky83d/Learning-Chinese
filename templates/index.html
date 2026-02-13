@@ -230,6 +230,26 @@
     .topbar .top-menu {
       margin-left: auto;
     }
+    /* Scores empty state buttons */
+    .scores-empty-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .scores-empty-buttons button {
+      padding: 14px 12px;
+      font-size: 1em;
+      border-radius: 8px;
+    }
+    @media (min-width: 600px) {
+      .scores-empty-buttons {
+        grid-template-columns: repeat(4, 1fr);
+        max-width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
@@ -640,7 +660,13 @@
         </div>
         <div id="scoresEmpty" style="display: none; text-align: center; padding: 30px; color: var(--text-muted);">
           <p style="font-size: 1.1em; margin-bottom: 15px;">No practice scores yet!</p>
-          <p>Play some practice games to track your progress.</p>
+          <p style="margin-bottom: 20px;">Start a practice game to track your progress:</p>
+          <div class="scores-empty-buttons">
+            <button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3069,7 +3095,14 @@
       if (statsRes.status === 401 || historyRes.status === 401) {
         loading.style.display = 'none';
         empty.style.display = 'block';
-        empty.innerHTML = '<p style="color: var(--text-muted);">Please log in to view your scores.</p>';
+        empty.innerHTML = '<p style="font-size: 1.1em; margin-bottom: 15px;">Please log in to save your scores.</p>' +
+          '<p style="margin-bottom: 20px;">You can still practice:</p>' +
+          '<div class="scores-empty-buttons">' +
+            '<button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>' +
+            '<button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>' +
+            '<button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>' +
+            '<button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>' +
+          '</div>';
         return;
       }
       
@@ -3152,7 +3185,14 @@
       console.error('Error loading scores:', error);
       loading.style.display = 'none';
       empty.style.display = 'block';
-      empty.innerHTML = '<p style="color: var(--text-muted);">Error loading scores. Please try again.</p>';
+      empty.innerHTML = '<p style="font-size: 1.1em; margin-bottom: 15px;">Error loading scores.</p>' +
+        '<p style="margin-bottom: 20px;">Start a practice game:</p>' +
+        '<div class="scores-empty-buttons">' +
+          '<button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>' +
+          '<button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>' +
+          '<button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>' +
+          '<button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>' +
+        '</div>';
     }
   }
   
