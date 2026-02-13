@@ -119,14 +119,7 @@
           }
           if (this.elements.empty) {
             this.elements.empty.style.display = 'block';
-            this.elements.empty.innerHTML = '<p style="font-size: 1.1em; margin-bottom: 15px;">Please log in to save your scores.</p>' +
-              '<p style="margin-bottom: 20px;">You can still practice:</p>' +
-              '<div class="scores-empty-buttons">' +
-                '<button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>' +
-                '<button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>' +
-                '<button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>' +
-                '<button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>' +
-              '</div>';
+            this.elements.empty.innerHTML = '<p style="color: var(--text-muted);">Please log in to view your scores.</p>';
           }
           return;
         }
@@ -180,14 +173,7 @@
         }
         if (this.elements.empty) {
           this.elements.empty.style.display = 'block';
-          this.elements.empty.innerHTML = '<p style="font-size: 1.1em; margin-bottom: 15px;">Error loading scores.</p>' +
-            '<p style="margin-bottom: 20px;">Start a practice game:</p>' +
-            '<div class="scores-empty-buttons">' +
-              '<button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>' +
-              '<button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>' +
-              '<button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>' +
-              '<button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>' +
-            '</div>';
+          this.elements.empty.innerHTML = '<p style="color: var(--text-muted);">Error loading scores. Please try again.</p>';
         }
       }
     },
