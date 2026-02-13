@@ -1217,12 +1217,24 @@
     const field = document.getElementById('fieldSelect').value;
     const section = sectionSelect.value;
 
+    console.log('[SEARCH] Searching with:', { q, field, section });
+
     return fetch(`/search?q=${encodeURIComponent(q)}&field=${field}`)
-      .then(r => r.json())
+      .then(r => {
+        console.log('[SEARCH] Response status:', r.status);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(data => {
+        console.log('[SEARCH] Got data - total rows:', data.length);
         grid.innerHTML = '';
         let filtered = (section === 'all') ? data : data.filter(r => r.section === section);
+        console.log('[SEARCH] After section filter:', filtered.length, 'rows');
         currentWords = filtered;
+
+        if (filtered.length === 0) {
+          console.log('[SEARCH] No vocabulary found - checking if user is logged in');
+        }
 
         filtered.forEach(row => {
           const card = document.createElement('div');
@@ -1280,6 +1292,10 @@
             showRandomCard();
           }
         }
+        })
+        .catch(err => {
+          console.error('[SEARCH] Error fetching vocabulary:', err);
+          grid.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Error loading vocabulary. Check console for details.</p>';
         });
   }
 
@@ -1898,6 +1914,7 @@
   }
 
   loadSections();
+  console.log('[MAIN] Calling performSearch to load initial vocabulary...');
   performSearch();
 
   // Event Listeners
@@ -3342,8 +3359,16 @@
 
   async function checkUserAuth() {
     try {
+      console.log('[AUTH] Checking user authentication...');
       const response = await fetch('/api/user/check');
+      
+      if (!response.ok) {
+        console.error('[AUTH] Fetch failed with status:', response.status);
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('[AUTH] Response:', { authenticated: data.authenticated, user_id: data.user_id, first_name: data.first_name });
       
       // Get elements that require login
       const addWordsWrapper = document.getElementById('addWordsWrapper');
@@ -3351,6 +3376,8 @@
       
       if (data.authenticated) {
         currentUser = data;
+        console.log('[AUTH] User authenticated:', data.first_name);
+        
         // Update UI
         document.getElementById('userGreeting').style.display = 'block';
         document.getElementById('userFirstName').textContent = data.first_name;
@@ -3358,6 +3385,7 @@
         document.getElementById('logoutLink').style.display = 'inline-block';
         document.getElementById('preferencesLink').style.display = 'inline-block';
         document.getElementById('myScoresLink').style.display = 'inline-block';
+        console.log('[AUTH] Updated menu: showing logout, preferences, scores');
         
         // Enable login-required features
         if (addWordsWrapper) addWordsWrapper.classList.remove('disabled');
@@ -3365,14 +3393,18 @@
         
         if (data.is_admin) {
           document.getElementById('adminLink').style.display = 'inline-block';
+          console.log('[AUTH] User is admin - showing admin link');
         }
         
         // Show onboarding modal if not onboarded
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('onboarding') === 'true' && !data.is_onboarded) {
+          console.log('[AUTH] Showing onboarding modal');
           showOnboardingModal();
         }
       } else {
+        console.log('[AUTH] User not authenticated');
+        
         // User not logged in - show login button
         document.getElementById('loginLink').style.display = 'inline-block';
         document.getElementById('logoutLink').style.display = 'none';
@@ -3384,9 +3416,16 @@
         // Disable login-required features
         if (addWordsWrapper) addWordsWrapper.classList.add('disabled');
         if (speakingWrapper) speakingWrapper.classList.add('disabled');
+        console.log('[AUTH] Updated menu: showing login button only');
       }
     } catch (error) {
-      console.error('Error checking auth:', error);
+      console.error('[AUTH] Error checking auth:', error);
+      // Fallback to unauthenticated state
+      document.getElementById('loginLink').style.display = 'inline-block';
+      document.getElementById('logoutLink').style.display = 'none';
+      document.getElementById('adminLink').style.display = 'none';
+      document.getElementById('preferencesLink').style.display = 'none';
+      document.getElementById('myScoresLink').style.display = 'none';
     }
   }
 
@@ -3488,7 +3527,9 @@
   });
 
   // Check auth on page load
+  console.log('[MAIN] Page fully loaded - calling checkUserAuth()');
   checkUserAuth();
+  console.log('[MAIN] Initialization complete');
 
   // Register menu event listeners (after all functions are defined)
   document.getElementById('menuPracticeListening').addEventListener('click', () => {
