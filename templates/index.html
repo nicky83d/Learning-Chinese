@@ -1081,54 +1081,16 @@
   let currentGameType = null; // 'listening', 'words', 'speaking', 'drawing'
   let sessionResults = []; // Detailed results for each question
 
-  // Theme Logic
-  const themeBtn = document.getElementById('themeBtn');
-  
-  function updateThemeButton(theme) {
-    if (theme === 'dark') {
-      themeBtn.textContent = '☀️ Light Mode';
-    } else {
-      themeBtn.textContent = '🌓 Dark Mode';
-    }
-  }
-  
-  themeBtn.onclick = () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-    updateThemeButton(next);
-  };
-  
-  // Set initial theme and button text
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  updateThemeButton(savedTheme);
+  // Theme is initialized in VocabApp.initTheme() from core.js
 
-  // Language display settings (default: Chinese on, Japanese/French off)
-  function getLanguageSettings() {
-    const settings = JSON.parse(localStorage.getItem('languageSettings') || '{}');
-    return {
-      chinese: settings.chinese !== false,
-      japanese: settings.japanese === true,
-      french: settings.french === true
-    };
-  }
-  let langSettings = getLanguageSettings();
+  // Language display settings - use VocabApp's synced version
+  let langSettings = VocabApp.langSettings;
   
-  // Listen for language settings changes from preferences page
+  // Listen for language settings changes and re-render
   window.addEventListener('storage', (e) => {
     if (e.key === 'languageSettings') {
-      langSettings = getLanguageSettings();
+      langSettings = VocabApp.langSettings;
       performSearch(); // Re-render cards with new settings
-    }
-  });
-
-  // Listen for theme changes from other pages/tabs
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'theme') {
-      const newTheme = e.newValue || 'light';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      updateThemeButton(newTheme);
     }
   });
 
