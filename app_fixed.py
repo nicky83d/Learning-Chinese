@@ -2919,6 +2919,62 @@ def get_user_stats(user_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/admin/user/<int:user_id>/reset-scores', methods=['POST'])
+@admin_required
+def admin_reset_user_scores(user_id):
+    """Admin endpoint to reset a user's practice scores"""
+    try:
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        
+        # Delete all practice results for this user's scores
+        scores = PracticeScore.query.filter_by(user_id=user_id).all()
+        score_ids = [s.id for s in scores]
+        
+        if score_ids:
+            PracticeResult.query.filter(PracticeResult.practice_score_id.in_(score_ids)).delete(synchronize_session=False)
+        
+        # Delete all practice scores
+        deleted_count = PracticeScore.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        
+        logger.info(f"Admin reset scores for user {user_id}: deleted {deleted_count} scores")
+        return jsonify({"success": True, "deleted_count": deleted_count})
+    except Exception as e:
+        logger.error(f"Error resetting user scores: {e}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/reset-my-scores', methods=['POST'])
+@login_required
+def reset_my_scores():
+    """User endpoint to reset their own practice scores"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Not authenticated"}), 401
+        
+        # Delete all practice results for this user's scores
+        scores = PracticeScore.query.filter_by(user_id=user_id).all()
+        score_ids = [s.id for s in scores]
+        
+        if score_ids:
+            PracticeResult.query.filter(PracticeResult.practice_score_id.in_(score_ids)).delete(synchronize_session=False)
+        
+        # Delete all practice scores
+        deleted_count = PracticeScore.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        
+        logger.info(f"User {user_id} reset their own scores: deleted {deleted_count} scores")
+        return jsonify({"success": True, "deleted_count": deleted_count})
+    except Exception as e:
+        logger.error(f"Error resetting my scores: {e}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     create_tables_and_populate()
     # Use config-based debug mode

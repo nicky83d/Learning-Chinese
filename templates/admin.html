@@ -1086,7 +1086,7 @@
                         </div>
                         <div class="action-buttons">
                             <button class="btn btn-delete" onclick="banUser(${userId})">🚫 Ban User</button>
-                            <button class="btn" onclick="resetUserAccount(${userId})" style="background: #95a5a6; color: white;">🔄 Reset</button>
+                            <button class="btn" onclick="resetUserScores(${userId})" style="background: #e67e22; color: white;">🔄 Reset Scores</button>
                         </div>
                     </div>
 
@@ -1193,10 +1193,30 @@
             }
         }
 
-        function resetUserAccount(userId) {
-            if (confirm('This will reset all user data. Are you sure?')) {
-                console.log('Resetting user account:', userId);
-                alert('Reset functionality will be implemented');
+        async function resetUserScores(userId) {
+            if (!confirm('This will delete ALL practice scores for this user. Are you sure?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/user/${userId}/reset-scores`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to reset scores');
+                }
+                
+                const result = await response.json();
+                alert(`✅ Reset complete! Deleted ${result.deleted_count} practice scores.`);
+                
+                // Refresh user stats
+                selectUser(userId);
+            } catch (error) {
+                console.error('Error resetting scores:', error);
+                alert('Error resetting scores: ' + error.message);
             }
         }
 

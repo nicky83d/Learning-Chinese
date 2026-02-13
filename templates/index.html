@@ -622,6 +622,11 @@
             <h3 style="margin-bottom: 12px; font-size: 1.1em;">📅 Recent Games</h3>
             <div id="scoresRecentList" style="max-height: 250px; overflow-y: auto;"></div>
           </div>
+          
+          <!-- Reset Scores -->
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+            <button onclick="resetMyScores()" class="secondary" style="padding: 8px 16px; color: #e74c3c; border-color: #e74c3c;">🗑️ Reset All Scores</button>
+          </div>
         </div>
         <div id="scoresEmpty" style="display: none; text-align: center; padding: 30px; color: var(--text-muted);">
           <p style="font-size: 1.1em; margin-bottom: 15px;">No practice scores yet!</p>
@@ -2772,8 +2777,8 @@
   }
 
   function closePracticeDrawingModal() {
-    // Save score if there are any attempts before closing
-    if (drawingPracticeState.total > 0) {
+    // Save score if there are any attempts before closing (but not if already at completion)
+    if (drawingPracticeState.total > 0 && drawingPracticeState.currentIndex < drawingPracticeState.words.length) {
       sessionScore = drawingPracticeState.score;
       sessionTotal = drawingPracticeState.total;
       savePracticeScore();
@@ -3004,6 +3009,33 @@
   
   function closeScoresModal() {
     document.getElementById('scoresModal').style.display = 'none';
+  }
+  
+  async function resetMyScores() {
+    if (!confirm('This will delete ALL your practice scores. Are you sure?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/reset-my-scores', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to reset scores');
+      }
+      
+      const result = await response.json();
+      alert(`✅ Reset complete! Deleted ${result.deleted_count} practice scores.`);
+      
+      // Reload the scores display
+      loadScores();
+    } catch (error) {
+      console.error('Error resetting scores:', error);
+      alert('Error resetting scores: ' + error.message);
+    }
   }
   
   async function loadScores() {
