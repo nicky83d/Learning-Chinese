@@ -2286,8 +2286,9 @@
   }
 
   function closePracticeTalkingModal() {
-    // Save score if there are any attempts before closing
-    if (practiceTalkingState.total > 0) {
+    // Only save if we have attempts AND showCompletionMessage hasn't already saved
+    // Check if not already at completion (score hasn't been saved yet)
+    if (practiceTalkingState.total > 0 && practiceTalkingState.currentIndex < practiceTalkingState.words.length) {
       // Sync session tracking with practiceTalkingState for saving
       sessionScore = practiceTalkingState.score;
       sessionTotal = practiceTalkingState.total;
@@ -2788,6 +2789,7 @@
     drawingPracticeState.total = 0;
     drawingPracticeState.writers = [];
     drawingPracticeState.currentCharIndex = 0;
+    drawingPracticeState._quizStarted = false;
     drawingPracticeState.charMistakes = 0;
     document.getElementById('drawingConfigSection').style.display = 'block';
     document.getElementById('drawingPracticeSection').style.display = 'none';
@@ -2849,6 +2851,7 @@
     container.innerHTML = '';
     drawingPracticeState.writers = [];
     drawingPracticeState.currentCharIndex = 0;
+    drawingPracticeState._quizStarted = false;
 
     const characters = word.hanzi.split('');
     
@@ -2866,13 +2869,31 @@
         strokeAnimationSpeed: 1,
         delayBetweenStrokes: 100,
         showCharacter: false,
-        showHintAfterMisses: 3
+        showHintAfterMisses: 3,
+        onLoadCharDataSuccess: function() {
+          // Mark this writer as ready
+          writer._charLoaded = true;
+          // Try to start quiz if this is the first character and all previous are loaded
+          tryStartQuiz();
+        },
+        onLoadCharDataError: function() {
+          console.error('Failed to load character:', char);
+          writer._charLoaded = true; // Mark as loaded anyway to not block
+          writer._loadError = true;
+          tryStartQuiz();
+        }
       });
       drawingPracticeState.writers.push(writer);
     });
 
-    // Start quizzing on first character
-    quizDrawingCharacter(0, word, characters);
+    function tryStartQuiz() {
+      // Check if first writer is loaded and quiz hasn't started yet
+      const firstWriter = drawingPracticeState.writers[0];
+      if (firstWriter && firstWriter._charLoaded && !drawingPracticeState._quizStarted) {
+        drawingPracticeState._quizStarted = true;
+        quizDrawingCharacter(0, word, characters);
+      }
+    }
   }
 
   function quizDrawingCharacter(index, word, characters) {
