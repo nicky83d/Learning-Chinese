@@ -582,17 +582,20 @@
   <!-- My Scores Modal -->
   <div id="scoresModal" class="modal">
     <div class="modal-backdrop" onclick="closeScoresModal()"></div>
-    <div class="modal-card" style="max-width: 550px;">
+    <div class="modal-card" style="max-width: 550px; max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
         <h2>🏆 My Scores</h2>
         <button onclick="closeScoresModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="flex: 1; overflow-y: auto;">
         <div id="scoresLoading" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading scores...</div>
         <div id="scoresContent" style="display: none;">
           <!-- Practice Games Links -->
           <div style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
-            <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">Start a Practice Game:</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <p style="margin: 0; font-weight: 600; color: var(--text-main);">Start a Practice Game:</p>
+              <button onclick="resetMyScores()" class="secondary" style="padding: 6px 12px; font-size: 0.85em; color: #e74c3c; border-color: #e74c3c;">🗑️ Reset Scores</button>
+            </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
               <button onclick="closeScoresModal(); openPracticeListeningModal();" class="secondary" style="padding: 10px 16px;">👂 Listening</button>
               <button onclick="closeScoresModal(); openPracticeWordsModal();" class="secondary" style="padding: 10px 16px;">📝 Words</button>
@@ -621,11 +624,6 @@
           <div>
             <h3 style="margin-bottom: 12px; font-size: 1.1em;">📅 Recent Games</h3>
             <div id="scoresRecentList" style="max-height: 250px; overflow-y: auto;"></div>
-          </div>
-          
-          <!-- Reset Scores -->
-          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color);">
-            <button onclick="resetMyScores()" class="secondary" style="padding: 8px 16px; color: #e74c3c; border-color: #e74c3c;">🗑️ Reset All Scores</button>
           </div>
         </div>
         <div id="scoresEmpty" style="display: none; text-align: center; padding: 30px; color: var(--text-muted);">

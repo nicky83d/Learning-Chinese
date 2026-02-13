@@ -2948,13 +2948,13 @@ def admin_reset_user_scores(user_id):
 
 
 @app.route('/api/reset-my-scores', methods=['POST'])
-@login_required
 def reset_my_scores():
     """User endpoint to reset their own practice scores"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
     try:
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({"error": "Not authenticated"}), 401
         
         # Delete all practice results for this user's scores
         scores = PracticeScore.query.filter_by(user_id=user_id).all()
