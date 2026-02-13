@@ -1937,11 +1937,18 @@
 
   function openPracticeListeningModal() {
     resetListeningPractice();
-    // Populate categories
-    const sections = [...new Set(allVocab.map(v => v.section).filter(Boolean))];
-    const select = document.getElementById('pl_section');
-    select.innerHTML = '<option value="all">All Categories</option>' + 
-      sections.map(s => `<option value="${s}">${s}</option>`).join('');
+    // Populate categories from main sectionSelect (same as other games)
+    const plSection = document.getElementById('pl_section');
+    if (plSection && sectionSelect) {
+      plSection.innerHTML = '<option value="all">All Categories</option>';
+      const options = Array.from(sectionSelect.options).slice(1);
+      options.forEach(opt => {
+        const newOpt = document.createElement('option');
+        newOpt.value = opt.value;
+        newOpt.textContent = opt.textContent;
+        plSection.appendChild(newOpt);
+      });
+    }
     
     // Update language options visibility based on settings
     document.getElementById('pl_lang_chinese').style.display = langSettings.chinese ? 'flex' : 'none';
@@ -2012,8 +2019,8 @@
     const word = listeningState.words[listeningState.currentIndex];
     listeningState.currentWord = word;
 
-    // Generate 3 random wrong options
-    const wrongOptions = allVocab
+    // Generate 3 random wrong options from the quiz word set
+    const wrongOptions = listeningState.words
       .filter(v => v.english && v.english !== word.english)
       .sort(() => Math.random() - 0.5)
       .slice(0, 3)
@@ -2748,11 +2755,18 @@
 
   function openPracticeDrawingModal() {
     resetDrawingPractice();
-    // Populate categories
-    const sections = [...new Set(allVocab.map(v => v.section).filter(Boolean))];
-    const select = document.getElementById('pd_section');
-    select.innerHTML = '<option value="all">All Categories</option>' + 
-      sections.map(s => `<option value="${s}">${s}</option>`).join('');
+    // Populate categories from main sectionSelect (same as other games)
+    const pdSection = document.getElementById('pd_section');
+    if (pdSection && sectionSelect) {
+      pdSection.innerHTML = '<option value="all">All Categories</option>';
+      const options = Array.from(sectionSelect.options).slice(1);
+      options.forEach(opt => {
+        const newOpt = document.createElement('option');
+        newOpt.value = opt.value;
+        newOpt.textContent = opt.textContent;
+        pdSection.appendChild(newOpt);
+      });
+    }
     document.getElementById('practiceDrawingModal').style.display = 'flex';
   }
 
