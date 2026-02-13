@@ -620,21 +620,22 @@
         <button onclick="closeScoresModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
       <div class="modal-body" style="flex: 1; overflow-y: auto;">
+        <!-- Practice Games Links - Always Visible -->
+        <div style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <p style="margin: 0; font-weight: 600; color: var(--text-main);">Start a Practice Game:</p>
+            <button id="resetScoresBtn" onclick="resetMyScores()" class="secondary" style="padding: 6px 12px; font-size: 0.85em; color: #e74c3c; border-color: #e74c3c; display: none;">🗑️ Reset Scores</button>
+          </div>
+          <div class="scores-empty-buttons">
+            <button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>
+          </div>
+        </div>
+        
         <div id="scoresLoading" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading scores...</div>
         <div id="scoresContent" style="display: none;">
-          <!-- Practice Games Links -->
-          <div style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <p style="margin: 0; font-weight: 600; color: var(--text-main);">Start a Practice Game:</p>
-              <button onclick="resetMyScores()" class="secondary" style="padding: 6px 12px; font-size: 0.85em; color: #e74c3c; border-color: #e74c3c;">🗑️ Reset Scores</button>
-            </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button onclick="closeScoresModal(); openPracticeListeningModal();" class="secondary" style="padding: 10px 16px;">👂 Listening</button>
-              <button onclick="closeScoresModal(); openPracticeWordsModal();" class="secondary" style="padding: 10px 16px;">📝 Words</button>
-              <button onclick="closeScoresModal(); openPracticeTalkingModal();" class="secondary" style="padding: 10px 16px;">🎤 Speaking</button>
-              <button onclick="closeScoresModal(); openPracticeDrawingModal();" class="secondary" style="padding: 10px 16px;">✍️ Drawing</button>
-            </div>
-          </div>
           
           <!-- Summary Stats -->
           <div style="margin-bottom: 20px;">
@@ -659,14 +660,8 @@
           </div>
         </div>
         <div id="scoresEmpty" style="display: none; text-align: center; padding: 30px; color: var(--text-muted);">
-          <p style="font-size: 1.1em; margin-bottom: 15px;">No practice scores yet!</p>
-          <p style="margin-bottom: 20px;">Start a practice game to track your progress:</p>
-          <div class="scores-empty-buttons">
-            <button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>
-            <button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>
-            <button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>
-            <button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>
-          </div>
+          <p style="font-size: 1.1em;">No practice scores yet!</p>
+          <p style="color: var(--text-muted);">Play some games to start tracking your progress.</p>
         </div>
       </div>
     </div>
@@ -3087,14 +3082,7 @@
       if (statsRes.status === 401 || historyRes.status === 401) {
         loading.style.display = 'none';
         empty.style.display = 'block';
-        empty.innerHTML = '<p style="font-size: 1.1em; margin-bottom: 15px;">Please log in to save your scores.</p>' +
-          '<p style="margin-bottom: 20px;">You can still practice:</p>' +
-          '<div class="scores-empty-buttons">' +
-            '<button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>' +
-            '<button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>' +
-            '<button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>' +
-            '<button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>' +
-          '</div>';
+        empty.innerHTML = '<p style="font-size: 1.1em;">Please log in to save your scores.</p>';
         return;
       }
       
@@ -3107,8 +3095,12 @@
       if (totalGames === 0) {
         loading.style.display = 'none';
         empty.style.display = 'block';
+        document.getElementById('resetScoresBtn').style.display = 'none';
         return;
       }
+      
+      // Show reset button when there are scores
+      document.getElementById('resetScoresBtn').style.display = 'inline-block';
       
       // Populate stats table
       const statsBody = document.getElementById('scoresStatsBody');
@@ -3177,14 +3169,8 @@
       console.error('Error loading scores:', error);
       loading.style.display = 'none';
       empty.style.display = 'block';
-      empty.innerHTML = '<p style="font-size: 1.1em; margin-bottom: 15px;">Error loading scores.</p>' +
-        '<p style="margin-bottom: 20px;">Start a practice game:</p>' +
-        '<div class="scores-empty-buttons">' +
-          '<button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>' +
-          '<button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>' +
-          '<button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>' +
-          '<button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>' +
-        '</div>';
+      empty.innerHTML = '<p style="font-size: 1.1em;">Error loading scores.</p><p style="color: var(--text-muted);">Please try again.</p>';
+      document.getElementById('resetScoresBtn').style.display = 'none';
     }
   }
   
