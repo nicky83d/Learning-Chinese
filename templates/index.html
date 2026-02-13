@@ -350,6 +350,10 @@
 
   <!-- Quiz Card -->
   <div id="quizContainer" style="display:none; max-width:700px; margin:40px auto;">
+    <!-- Streak Progress -->
+    <div id="streakProgress" style="text-align:center; margin-bottom:15px; font-size:0.95em; color:var(--text-muted);">
+      Streak: <span id="streakCount">0</span>/5 🔥
+    </div>
     <div id="quizCard" class="vocab-card" style="cursor:pointer; min-height:200px; display:flex; flex-direction:column; justify-content:center; align-items:center; font-size:1.5em;">
     </div>
     
@@ -513,6 +517,14 @@
                 🇫🇷 French
               </label>
             </div>
+          </div>
+          <div>
+            <label for="pl_count" style="display:block; margin-bottom:6px; margin-top:12px; color:var(--text-muted);">Number of rounds</label>
+            <select id="pl_count" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+              <option value="5">5 rounds</option>
+              <option value="10" selected>10 rounds</option>
+              <option value="20">20 rounds</option>
+            </select>
           </div>
           <div style="text-align:right; margin-top:16px;">
             <button id="startPracticeListening" class="primary" style="padding:12px 18px; font-size:1.05em;">Start Listening Practice</button>
@@ -710,6 +722,14 @@
               </label>
             </div>
           </div>
+          <div>
+            <label for="pt_count" style="display:block; margin-bottom:6px; margin-top:12px; color:var(--text-muted);">Number of rounds</label>
+            <select id="pt_count" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+              <option value="5">5 rounds</option>
+              <option value="10" selected>10 rounds</option>
+              <option value="20">20 rounds</option>
+            </select>
+          </div>
           <div style="text-align:right; margin-top:8px;">
             <button id="startPracticeTalking" class="primary" style="padding:12px 18px; font-size:1.05em;">Start Speaking Practice</button>
           </div>
@@ -762,7 +782,6 @@
             <select id="pd_count" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
               <option value="5">5 words</option>
               <option value="10" selected>10 words</option>
-              <option value="15">15 words</option>
               <option value="20">20 words</option>
             </select>
           </div>
@@ -1081,9 +1100,17 @@
   // Quiz wins tracking
   function loadQuizWins() {
     quizWins = parseInt(localStorage.getItem('quizWins') || '0');
+    updateStreakDisplay();
   }
   function saveQuizWins() {
     localStorage.setItem('quizWins', quizWins.toString());
+    updateStreakDisplay();
+  }
+  function updateStreakDisplay() {
+    const streakEl = document.getElementById('streakCount');
+    if (streakEl) {
+      streakEl.textContent = quizWins % 5;
+    }
   }
   function resetQuizWins() {
     quizWins = 0;
@@ -1905,8 +1932,8 @@
   
   // Practice Modal Functions
   function closePracticeModal() {
-    // Save score if there are any attempts before closing
-    if (listeningState.total > 0) {
+    // Save score if there are any attempts before closing (but not if at completion)
+    if (listeningState.total > 0 && listeningState.currentIndex < listeningState.words.length) {
       sessionScore = listeningState.score;
       sessionTotal = listeningState.total;
       savePracticeScore();
@@ -1982,6 +2009,7 @@
   async function startListeningPractice() {
     const lang = (document.querySelector('input[name="pl_lang"]:checked') || {}).value || 'chinese';
     const section = document.getElementById('pl_section').value || 'all';
+    const count = parseInt(document.getElementById('pl_count').value) || 10;
 
     // Start unified practice session tracking
     startPracticeSession('listening');
@@ -1990,7 +2018,7 @@
     listeningState.total = 0;
 
     try {
-      const response = await fetch(`/random_words?section=${encodeURIComponent(section)}&limit=10`);
+      const response = await fetch(`/random_words?section=${encodeURIComponent(section)}&limit=${count}`);
       if (!response.ok) throw new Error('Failed to fetch words');
       const words = await response.json();
 
@@ -2046,6 +2074,9 @@
         ${String.fromCharCode(65 + i)}. ${opt}
       </button>
     `).join('');
+
+    // Auto-play the audio after a brief delay
+    setTimeout(() => playListeningAudio(), 300);
   }
 
   function playListeningAudio() {
@@ -2337,13 +2368,14 @@
     const lang = (document.querySelector('input[name="pt_lang"]:checked') || {}).value || 'chinese';
     const mode = (document.querySelector('input[name="pt_mode"]:checked') || {}).value || 'words';
     const section = document.getElementById('pt_section').value || 'all';
+    const count = parseInt(document.getElementById('pt_count').value) || 10;
 
     // Start unified practice session tracking
     startPracticeSession('speaking');
 
     // Fetch words from backend
     try {
-      const response = await fetch(`/random_words?section=${encodeURIComponent(section)}&limit=10`);
+      const response = await fetch(`/random_words?section=${encodeURIComponent(section)}&limit=${count}`);
       if (!response.ok) throw new Error('Failed to fetch words');
       const words = await response.json();
 
