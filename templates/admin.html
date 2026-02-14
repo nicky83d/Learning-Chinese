@@ -1103,6 +1103,35 @@
                             <div>${user.is_onboarded ? '✅ Yes' : '⏳ No'}</div>
                         </div>
                     </div>
+                    <div class="detail-section">
+                        <h3 style="margin-top: 0;">🌐 Languages</h3>
+                        <form id="userLangForm">
+                            <label><input type="checkbox" name="userLang" value="chinese" ${user.languages && user.languages.includes('chinese') ? 'checked' : ''}/> Chinese</label><br>
+                            <label><input type="checkbox" name="userLang" value="japanese" ${user.languages && user.languages.includes('japanese') ? 'checked' : ''}/> Japanese</label><br>
+                            <label><input type="checkbox" name="userLang" value="french" ${user.languages && user.languages.includes('french') ? 'checked' : ''}/> French</label><br>
+                            <button type="button" class="btn btn-primary" onclick="saveUserLanguages(${userId})">Save Languages</button>
+                        </form>
+                    </div>
+        // Save user languages (AJAX stub)
+        async function saveUserLanguages(userId) {
+            const form = document.getElementById('userLangForm');
+            const langs = Array.from(form.querySelectorAll('input[name="userLang"]:checked')).map(cb => cb.value);
+            // TODO: Implement backend endpoint to update user languages
+            // Example POST request:
+            try {
+                const response = await fetch(`/api/admin/user/${userId}/languages`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({languages: langs})
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to update languages');
+                }
+                alert('Languages updated!');
+            } catch (e) {
+                alert('Error updating languages: ' + e.message);
+            }
+        }
 
                     <div class="detail-section">
                         <h3 style="margin-top: 0;">📚 Vocabulary Stats</h3>
