@@ -364,6 +364,12 @@
         french: document.getElementById('langFrench').checked
       };
       localStorage.setItem('languageSettings', JSON.stringify(settings));
+      // Update enabledLangs for practice modals (non-English only)
+      const enabledLangs = [];
+      if (settings.chinese) enabledLangs.push('chinese');
+      if (settings.japanese) enabledLangs.push('japanese');
+      if (settings.french) enabledLangs.push('french');
+      localStorage.setItem('enabledLangs', JSON.stringify(enabledLangs));
       showToast('✅ Language settings saved!', 'success');
       closeLanguageModal();
     }
