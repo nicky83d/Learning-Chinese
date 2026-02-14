@@ -603,11 +603,33 @@
             </label>
           </div>
         </div>
+        <div>
+          <label for="pw_count" style="display:block; margin-bottom:6px; margin-top:12px; color:var(--text-muted);">Number of rounds</label>
+          <select id="pw_count" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+            <option value="5">5 rounds</option>
+            <option value="10" selected>10 rounds</option>
+            <option value="20">20 rounds</option>
+          </select>
+        </div>
         <div style="text-align:right; margin-top:8px;">
           <button id="startPracticeWords" class="primary" style="padding:12px 18px; font-size:1.05em;">Start Practice</button>
         </div>
         <div id="practiceWordsStatus" style="display:none; padding:12px; border-radius:8px; background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-muted);"></div>
       </div>
+    </div>
+  </div>
+  <!-- End of Practice Popup Modal for Words Game -->
+  <div id="practiceWordsEndModal" class="modal">
+    <div class="modal-backdrop" onclick="closePracticeWordsEndModal()"></div>
+    <div class="modal-card" style="max-width: 520px; text-align: center;">
+      <div style="font-size: 4em; margin-bottom: 10px;">🏆</div>
+      <h2 style="margin-bottom: 10px; color: var(--primary);">Practice Complete!</h2>
+      <div id="practiceWordsEndStats" style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1em;"></div>
+      <div id="practiceWordsEndTips" style="margin-bottom: 18px; color: var(--text-muted); font-size: 1em;"></div>
+      <div style="margin-bottom: 18px;">
+        <span style="font-weight: 600; color: var(--primary);">📝 <a href="#" id="practiceWordsEndDetailLink" onclick="openGameDetailsFromEndModal(); return false;">Practice Words</a></span>
+      </div>
+      <button onclick="closePracticeWordsEndModal()" class="primary" style="padding: 12px 28px; font-size: 1.1em;">Close</button>
     </div>
   </div>
 
