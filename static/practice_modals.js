@@ -5,10 +5,11 @@ function updatePracticeLanguageSelectors(enabledLangs) {
   // Practice Words
   const pwLangArea = document.getElementById('pw_lang_select_area');
   if (pwLangArea) {
-    if (enabledLangs.length === 1) {
+    if (enabledLangs.length <= 1) {
       pwLangArea.style.display = 'none';
-      // Auto-select the only language
-      document.querySelector('input[name="pw_lang"][value="'+enabledLangs[0]+'"]').checked = true;
+      if (enabledLangs.length === 1) {
+        document.querySelector('input[name="pw_lang"][value="'+enabledLangs[0]+'"]').checked = true;
+      }
     } else {
       pwLangArea.style.display = '';
     }
@@ -16,9 +17,11 @@ function updatePracticeLanguageSelectors(enabledLangs) {
   // Practice Listening
   const plLangArea = document.getElementById('pl_lang_options');
   if (plLangArea) {
-    if (enabledLangs.length === 1) {
+    if (enabledLangs.length <= 1) {
       plLangArea.parentElement.style.display = 'none';
-      document.querySelector('input[name="pl_lang"][value="'+enabledLangs[0]+'"]').checked = true;
+      if (enabledLangs.length === 1) {
+        document.querySelector('input[name="pl_lang"][value="'+enabledLangs[0]+'"]').checked = true;
+      }
     } else {
       plLangArea.parentElement.style.display = '';
     }
@@ -26,9 +29,11 @@ function updatePracticeLanguageSelectors(enabledLangs) {
   // Practice Speaking
   const ptLangArea = document.getElementById('pt_lang_options');
   if (ptLangArea) {
-    if (enabledLangs.length === 1) {
+    if (enabledLangs.length <= 1) {
       ptLangArea.parentElement.style.display = 'none';
-      document.querySelector('input[name="pt_lang"][value="'+enabledLangs[0]+'"]').checked = true;
+      if (enabledLangs.length === 1) {
+        document.querySelector('input[name="pt_lang"][value="'+enabledLangs[0]+'"]').checked = true;
+      }
     } else {
       ptLangArea.parentElement.style.display = '';
     }
