@@ -1,6 +1,7 @@
 // practice_modals.js
 // Hide language selection if only one non-English language is enabled
 function updatePracticeLanguageSelectors(enabledLangs) {
+  console.log('updatePracticeLanguageSelectors called with:', enabledLangs);
   // enabledLangs: array of non-English languages enabled, e.g. ['chinese'], ['chinese','french']
   // Hide language selection unless 2 or more enabled non-English languages
   // Practice Words
