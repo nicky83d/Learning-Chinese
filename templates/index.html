@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <!-- Hanzi Writer CDN -->
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@latest/dist/hanzi-writer.min.js"></script>
+  <script src="/static/practice_modals.js"></script>
   <style>
     #uploadToast {
       position: fixed;
@@ -3529,24 +3530,39 @@
   checkUserAuth();
 
   // Register menu event listeners (after all functions are defined)
-  document.getElementById('menuPracticeListening').addEventListener('click', () => {
-    document.getElementById('hamburgerMenu').classList.remove('show');
-    document.getElementById('practiceSubmenu').classList.remove('show');
-    document.getElementById('addWordsSubmenu').classList.remove('show');
-    openPracticeListeningModal();
-  });
+
+  // Example: get enabled languages from user preferences (replace with real logic)
+  function getEnabledLanguages() {
+    // This should return an array of enabled non-English languages, e.g. ['chinese'], ['chinese','japanese']
+    // For demo, try to read from localStorage or fallback to ['chinese']
+    try {
+      const langs = JSON.parse(localStorage.getItem('enabledLangs'));
+      if (Array.isArray(langs) && langs.length > 0) return langs;
+    } catch(e) {}
+    return ['chinese'];
+  }
 
   document.getElementById('menuPracticeWords').addEventListener('click', () => {
     document.getElementById('hamburgerMenu').classList.remove('show');
     document.getElementById('practiceSubmenu').classList.remove('show');
     document.getElementById('addWordsSubmenu').classList.remove('show');
+    updatePracticeLanguageSelectors(getEnabledLanguages());
     openPracticeWordsModal();
+  });
+
+  document.getElementById('menuPracticeListening').addEventListener('click', () => {
+    document.getElementById('hamburgerMenu').classList.remove('show');
+    document.getElementById('practiceSubmenu').classList.remove('show');
+    document.getElementById('addWordsSubmenu').classList.remove('show');
+    updatePracticeLanguageSelectors(getEnabledLanguages());
+    openPracticeListeningModal();
   });
 
   document.getElementById('menuPracticeTalking').addEventListener('click', () => {
     document.getElementById('hamburgerMenu').classList.remove('show');
     document.getElementById('practiceSubmenu').classList.remove('show');
     document.getElementById('addWordsSubmenu').classList.remove('show');
+    updatePracticeLanguageSelectors(getEnabledLanguages());
     openPracticeTalkingModal();
   });
 
