@@ -4,5 +4,12 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"/^winget install Python\\.Python\\.3\\.12 --silent$/": {
+				"approve": true,
+				"matchCommandLine": true
+			}
+		}
+	}
 }

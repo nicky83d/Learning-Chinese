@@ -177,6 +177,9 @@ def create_tables_and_populate():
     with app.app_context():
         db.create_all()
         
+        # Detect database type for migration compatibility
+        is_sqlite = 'sqlite' in str(db.engine.url).lower()
+        
         # Run migrations for new columns (safe to run multiple times)
         try:
             from sqlalchemy import text
@@ -274,10 +277,16 @@ def create_tables_and_populate():
             # Add missing Japanese columns to vocabulary table (safe migration)
             try:
                 # Check if columns exist, add if missing
-                db.session.execute(text("""
-                    ALTER TABLE vocabulary
-                    ADD COLUMN IF NOT EXISTS japanese_kanji VARCHAR(200) DEFAULT ''
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN japanese_kanji VARCHAR(200) DEFAULT ''
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN IF NOT EXISTS japanese_kanji VARCHAR(200) DEFAULT ''
+                    """))
                 db.session.commit()
                 logger.info("Added japanese_kanji column to vocabulary")
             except Exception as e:
@@ -286,10 +295,16 @@ def create_tables_and_populate():
                     logger.debug(f"japanese_kanji column might already exist: {e}")
             
             try:
-                db.session.execute(text("""
-                    ALTER TABLE vocabulary
-                    ADD COLUMN IF NOT EXISTS japanese_romaji VARCHAR(200) DEFAULT ''
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN japanese_romaji VARCHAR(200) DEFAULT ''
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN IF NOT EXISTS japanese_romaji VARCHAR(200) DEFAULT ''
+                    """))
                 db.session.commit()
                 logger.info("Added japanese_romaji column to vocabulary")
             except Exception as e:
@@ -298,10 +313,16 @@ def create_tables_and_populate():
                     logger.debug(f"japanese_romaji column might already exist: {e}")
             
             try:
-                db.session.execute(text("""
-                    ALTER TABLE vocabulary
-                    ADD COLUMN IF NOT EXISTS sent_japanese_kanji VARCHAR(200) DEFAULT ''
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN sent_japanese_kanji VARCHAR(200) DEFAULT ''
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN IF NOT EXISTS sent_japanese_kanji VARCHAR(200) DEFAULT ''
+                    """))
                 db.session.commit()
                 logger.info("Added sent_japanese_kanji column to vocabulary")
             except Exception as e:
@@ -310,10 +331,16 @@ def create_tables_and_populate():
                     logger.debug(f"sent_japanese_kanji column might already exist: {e}")
             
             try:
-                db.session.execute(text("""
-                    ALTER TABLE vocabulary
-                    ADD COLUMN IF NOT EXISTS sent_japanese_romaji VARCHAR(200) DEFAULT ''
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN sent_japanese_romaji VARCHAR(200) DEFAULT ''
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN IF NOT EXISTS sent_japanese_romaji VARCHAR(200) DEFAULT ''
+                    """))
                 db.session.commit()
                 logger.info("Added sent_japanese_romaji column to vocabulary")
             except Exception as e:
@@ -323,10 +350,16 @@ def create_tables_and_populate():
             
             # Add missing Japanese columns to practice_result table
             try:
-                db.session.execute(text("""
-                    ALTER TABLE practice_result
-                    ADD COLUMN IF NOT EXISTS word_japanese_kanji VARCHAR(300) DEFAULT NULL
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE practice_result
+                        ADD COLUMN word_japanese_kanji VARCHAR(300) DEFAULT NULL
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE practice_result
+                        ADD COLUMN IF NOT EXISTS word_japanese_kanji VARCHAR(300) DEFAULT NULL
+                    """))
                 db.session.commit()
                 logger.info("Added word_japanese_kanji column to practice_result")
             except Exception as e:
@@ -335,10 +368,16 @@ def create_tables_and_populate():
                     logger.debug(f"word_japanese_kanji column might already exist: {e}")
             
             try:
-                db.session.execute(text("""
-                    ALTER TABLE practice_result
-                    ADD COLUMN IF NOT EXISTS word_japanese_romaji VARCHAR(300) DEFAULT NULL
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE practice_result
+                        ADD COLUMN word_japanese_romaji VARCHAR(300) DEFAULT NULL
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE practice_result
+                        ADD COLUMN IF NOT EXISTS word_japanese_romaji VARCHAR(300) DEFAULT NULL
+                    """))
                 db.session.commit()
                 logger.info("Added word_japanese_romaji column to practice_result")
             except Exception as e:
@@ -358,28 +397,40 @@ def create_tables_and_populate():
             
             # Add user_id column to photo_log if it doesn't exist
             try:
-                db.session.execute(text("""
-                    ALTER TABLE photo_log 
-                    ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE photo_log 
+                        ADD COLUMN user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE photo_log 
+                        ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL
+                    """))
                 db.session.commit()
                 logger.info("PhotoLog: user_id column ensured")
             except Exception as e:
                 db.session.rollback()
-                if "already exists" not in str(e).lower():
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
                     logger.warning(f"Could not add user_id column: {e}")
             
             # Add image_data column to photo_log if it doesn't exist
             try:
-                db.session.execute(text("""
-                    ALTER TABLE photo_log 
-                    ADD COLUMN IF NOT EXISTS image_data BYTEA
-                """))
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE photo_log 
+                        ADD COLUMN image_data BLOB
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE photo_log 
+                        ADD COLUMN IF NOT EXISTS image_data BYTEA
+                    """))
                 db.session.commit()
                 logger.info("PhotoLog: image_data column ensured")
             except Exception as e:
                 db.session.rollback()
-                if "already exists" not in str(e).lower():
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
                     logger.warning(f"Could not add image_data column: {e}")
         except Exception as e:
             logger.warning(f"Migration check failed: {e}")
