@@ -416,9 +416,44 @@
       <button id="quizPlayAgainBtn" class="primary" style="padding:12px 30px; font-size:1.1em; margin-right:10px;">Play Again</button>
       <button id="quizExitBtn" class="secondary" style="padding:12px 30px; font-size:1.1em;">Back to Vocabulary</button>
     </div>
+
+    <!-- Unified Game Completion Page -->
+    <div id="gameCompletionPage" style="display:none; padding:30px 20px; max-width:900px; margin:0 auto;">
+      <div style="text-align:center; margin-bottom:40px;">
+        <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin: 30px 0;">
+          <div style="background: var(--card-bg); padding: 20px; border-radius: 12px;">
+            <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Score</div>
+            <div style="font-size: 2.5em; font-weight: bold; color: var(--primary);" id="gameCompletionScore">0/0</div>
+          </div>
+          <div style="background: var(--card-bg); padding: 20px; border-radius: 12px;">
+            <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Accuracy</div>
+            <div style="font-size: 2.5em; font-weight: bold; color: var(--primary);" id="gameCompletionPercentage">0%</div>
+          </div>
+          <div style="background: var(--card-bg); padding: 20px; border-radius: 12px;">
+            <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Time</div>
+            <div style="font-size: 2.5em; font-weight: bold; color: var(--primary);" id="gameCompletionDuration">0s</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Review Section -->
+      <div style="background: var(--card-bg); border-radius: 12px; padding: 30px; margin-bottom: 30px;">
+        <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 1.5em;">📋 Game Review</h2>
+        <div id="gameReviewContent" style="max-height: 500px; overflow-y: auto;">
+          <!-- Individual results will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="text-align: center; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        <button id="gamePlayAgainBtn" class="primary" style="padding: 12px 30px; font-size: 1.1em;">🔄 Play Again</button>
+        <button id="gameExitBtn" class="secondary" style="padding: 12px 30px; font-size: 1.1em;">← Back</button>
+      </div>
+    </div>
     
     <div style="text-align:center; margin-top:20px;">
-      <button id="exitQuizBtn" class="secondary" style="padding:10px 20px; font-size:1em;" onclick="endQuizSession()">Exit Quiz</button>
+      <button id="exitQuizBtn" class="secondary" style="padding:10px 20px; font-size:1em;" onclick="showGameCompletion()">Exit Quiz</button>
     </div>
   </div>
 
@@ -1102,6 +1137,7 @@
   let sessionStartTime = null;
   let currentGameType = null; // 'listening', 'words', 'speaking', 'drawing'
   let sessionResults = []; // Detailed results for each question
+  let sessionTargetRounds = 0; // Target number of rounds for current game
 
   // Theme Logic
   const themeBtn = document.getElementById('themeBtn');
@@ -1357,6 +1393,9 @@
     quizHeader.style.display = 'block';
     quizContainer.style.display = 'block';
     
+    // Get target rounds from pw_count input
+    sessionTargetRounds = parseInt(document.getElementById('pw_count').value) || 10;
+    
     // Start tracking session for 'words' practice
     startPracticeSession('words');
 
@@ -1380,32 +1419,91 @@
     grid.style.display = 'grid';
   }
 
-  function endQuizSession() {
-    // Save the current score and show results
+  function showGameCompletion() {
+    // Save the current score
     savePracticeScore();
     
-    // Hide quiz UI elements
+    // Hide active game UI elements
     document.getElementById('quizCard').style.display = 'none';
     document.getElementById('quizOptionsContainer').style.display = 'none';
     document.getElementById('quizResultFeedback').style.display = 'none';
     document.getElementById('streakProgress').style.display = 'none';
     document.getElementById('trophyDisplay').style.display = 'none';
     document.getElementById('exitQuizBtn').style.display = 'none';
+    document.getElementById('listeningOptions').style.display = 'none';
+    document.getElementById('listeningFeedback').style.display = 'none';
+    document.getElementById('listeningNextBtn').style.display = 'none';
+    document.getElementById('listeningPlayBtn').style.display = 'none';
     
-    // Calculate and display results
+    // Calculate stats
     const score = sessionScore;
     const total = sessionTotal;
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    const duration = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
     
-    document.getElementById('quizFinalScore').textContent = score;
-    document.getElementById('quizFinalTotal').textContent = total;
-    document.getElementById('quizFinalPercentage').textContent = pct;
+    // Update stats display
+    document.getElementById('gameCompletionScore').textContent = `${score}/${total}`;
+    document.getElementById('gameCompletionPercentage').textContent = pct;
+    document.getElementById('gameCompletionDuration').textContent = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
     
-    // Show results page
-    document.getElementById('quizResultsPage').style.display = 'block';
+    // Build detailed review
+    let reviewHtml = '';
+    if (sessionResults && sessionResults.length > 0) {
+      reviewHtml = sessionResults.map((result, idx) => {
+        const isCorrect = result.is_correct;
+        const statusIcon = isCorrect ? '✅' : '❌';
+        const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
+        
+        return `
+          <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 12px; background: ${isCorrect ? '#f0fdf4' : '#fef2f2'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-weight: bold; font-size: 1.05em;">${idx + 1}. ${statusIcon}</span>
+              <span style="color: ${statusColor}; font-weight: bold;">${isCorrect ? 'Correct' : 'Incorrect'}</span>
+            </div>
+            <div style="margin: 10px 0; padding: 10px; background: var(--card-bg); border-radius: 6px;">
+              <div style="font-size: 0.9em; color: var(--text-muted);">Question:</div>
+              <div style="font-size: 1.1em; font-weight: 500; margin: 5px 0;">${result.question_text || ''}</div>
+            </div>
+            <div style="margin: 10px 0;">
+              <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 5px;">Your answer:</div>
+              <div style="font-weight: 500; color: ${isCorrect ? '#51cf66' : '#ff6b6b'};">${result.user_answer || 'N/A'}</div>
+            </div>
+            ${!isCorrect ? `
+              <div style="margin: 10px 0;">
+                <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 5px;">Correct answer:</div>
+                <div style="font-weight: 500; color: #51cf66;">${result.correct_answer || 'N/A'}</div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+    
+    document.getElementById('gameReviewContent').innerHTML = reviewHtml;
+    
+    // Show completion page
+    document.getElementById('gameCompletionPage').style.display = 'block';
+  }
+
+  function endQuizSession() {
+    showGameCompletion();
+  }
+
+  function showListeningCompletion() {
+    sessionScore = listeningState.score;
+    sessionTotal = listeningState.total;
+    showGameCompletion();
   }
 
   function showRandomCard() {
+    // Check if we've completed the target rounds
+    if (sessionTargetRounds > 0 && sessionTotal >= sessionTargetRounds) {
+      showGameCompletion();
+      return;
+    }
+    
     if (currentWords.length === 0) return;
     
     const randomWord = currentWords[Math.floor(Math.random() * currentWords.length)];
@@ -2009,27 +2107,39 @@
     showRandomCard();
   });
   
-  // Results page event listeners
-  document.getElementById('quizPlayAgainBtn').addEventListener('click', () => {
-    // Reset quiz and start fresh with same words
-    document.getElementById('quizResultsPage').style.display = 'none';
-    document.getElementById('quizCard').style.display = 'flex';
-    document.getElementById('streakProgress').style.display = 'block';
-    document.getElementById('exitQuizBtn').style.display = 'block';
+  // Unified game completion handlers
+  document.getElementById('gamePlayAgainBtn').addEventListener('click', () => {
+    document.getElementById('gameCompletionPage').style.display = 'none';
+    
+    // Reset session for replay
     sessionScore = 0;
     sessionTotal = 0;
+    sessionStartTime = Date.now();
     sessionResults = [];
-    showRandomCard();
+    
+    // Re-show game UI based on game type
+    if (currentGameType === 'words') {
+      document.getElementById('quizCard').style.display = 'flex';
+      document.getElementById('streakProgress').style.display = 'block';
+      document.getElementById('exitQuizBtn').style.display = 'block';
+      showRandomCard();
+    } else if (currentGameType === 'listening') {
+      document.getElementById('listeningOptions').style.display = 'grid';
+      showNextListeningWord();
+    }
   });
   
-  document.getElementById('quizExitBtn').addEventListener('click', () => {
-    // Exit back to vocabulary grid
-    quizContainer.style.display = 'none';
-    quizHeader.style.display = 'none';
-    mainControls.style.display = 'block';
-    grid.style.display = 'grid';
-    currentQuizMode = null;
-    currentWords = [];
+  document.getElementById('gameExitBtn').addEventListener('click', () => {
+    // Exit based on game type
+    if (currentGameType === 'words') {
+      quizContainer.style.display = 'none';
+      quizHeader.style.display = 'none';
+      mainControls.style.display = 'block';
+      grid.style.display = 'grid';
+    } else if (currentGameType === 'listening') {
+      closePracticeModal();
+    }
+    document.getElementById('gameCompletionPage').style.display = 'none';
   });
   
   // Practice Modal Functions
@@ -2115,6 +2225,7 @@
 
     // Start unified practice session tracking
     startPracticeSession('listening');
+    sessionTargetRounds = count;  // Set target rounds
     listeningState.language = lang;
     listeningState.score = 0;
     listeningState.total = 0;
@@ -2143,6 +2254,12 @@
   }
 
   function showNextListeningWord() {
+    // Check if we've reached target rounds
+    if (sessionTargetRounds > 0 && sessionTotal >= sessionTargetRounds) {
+      showListeningCompletion();
+      return;
+    }
+    
     if (listeningState.currentIndex >= listeningState.words.length) {
       showListeningCompletion();
       return;
