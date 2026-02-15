@@ -2100,85 +2100,122 @@
   if (startFrenchQuizBtn) startFrenchQuizBtn.addEventListener('click', () => startQuiz('french'));
   
   // Exit Quiz - single listener that handles both trophy hiding and exit
-  document.getElementById('exitQuiz').addEventListener('click', () => {
-    document.getElementById('trophyDisplay').style.display = 'none';
-    exitQuiz();
-  });
+  const exitQuizBtn = document.getElementById('exitQuiz');
+  if (exitQuizBtn) {
+    exitQuizBtn.addEventListener('click', () => {
+      const trophy = document.getElementById('trophyDisplay');
+      if (trophy) trophy.style.display = 'none';
+      exitQuiz();
+    });
+  }
   
-  // Quiz-specific event listeners
-  document.getElementById('quizValidateBtn').addEventListener('click', validateQuizAnswer);
-  document.getElementById('nextQuizCardAlt').addEventListener('click', showRandomCard);
-  document.getElementById('continueQuizBtn').addEventListener('click', () => {
-    document.getElementById('trophyDisplay').style.display = 'none';
-    showRandomCard();
-  });
-  document.getElementById('resetTrophyBtn').addEventListener('click', () => {
-    document.getElementById('trophyDisplay').style.display = 'none';
-    resetQuizWins();
-    showRandomCard();
-  });
+  // Quiz-specific event listeners (with safety checks)
+  const quizValidateBtn = document.getElementById('quizValidateBtn');
+  if (quizValidateBtn) quizValidateBtn.addEventListener('click', validateQuizAnswer);
   
-  // Unified game completion handlers
-  document.getElementById('gamePlayAgainBtn').addEventListener('click', () => {
-    document.getElementById('gameCompletionPage').style.display = 'none';
-    
-    // Reset session for replay
-    sessionScore = 0;
-    sessionTotal = 0;
-    sessionStartTime = Date.now();
-    sessionResults = [];
-    
-    // Re-show game UI based on game type
-    if (currentGameType === 'words') {
-      // Make sure quiz container is visible
-      quizContainer.style.display = 'block';
-      quizHeader.style.display = 'block';
-      document.getElementById('quizCard').style.display = 'flex';
-      document.getElementById('streakProgress').style.display = 'block';
-      document.getElementById('exitQuizBtn').style.display = 'block';
-      document.getElementById('quizResultFeedback').style.display = 'none';
-      document.getElementById('quizOptionsContainer').style.display = 'none';
+  const nextQuizCardAlt = document.getElementById('nextQuizCardAlt');
+  if (nextQuizCardAlt) nextQuizCardAlt.addEventListener('click', showRandomCard);
+  
+  const continueQuizBtn = document.getElementById('continueQuizBtn');
+  if (continueQuizBtn) {
+    continueQuizBtn.addEventListener('click', () => {
+      const trophy = document.getElementById('trophyDisplay');
+      if (trophy) trophy.style.display = 'none';
       showRandomCard();
-    } else if (currentGameType === 'listening') {
-      document.getElementById('listeningOptions').style.display = 'grid';
-      document.getElementById('listeningFeedback').style.display = 'none';
-      showNextListeningWord();
-    } else if (currentGameType === 'speaking') {
-      document.getElementById('talkingPracticeSection').style.display = 'block';
-      document.getElementById('talkingRecordBtn').style.display = 'inline-block';
-      document.getElementById('talkingSkipBtn').style.display = 'inline-block';
-      document.getElementById('talkingPlayBtn').style.display = 'inline-block';
-      // Reset speaking practice state
-      practiceTalkingState.currentIndex = 0;
-      practiceTalkingState.score = 0;
-      practiceTalkingState.total = 0;
-      showNextWord();
-    } else if (currentGameType === 'drawing') {
-      document.getElementById('drawingPracticeSection').style.display = 'block';
-      // Reset drawing practice state
-      drawingPracticeState.currentIndex = 0;
-      drawingPracticeState.score = 0;
-      drawingPracticeState.total = 0;
-      showNextDrawingWord();
-    }
-  });
+    });
+  }
   
-  document.getElementById('gameExitBtn').addEventListener('click', () => {
-    // Exit based on game type
-    if (currentGameType === 'words') {
-      quizContainer.style.display = 'none';
-      quizHeader.style.display = 'none';
-      mainControls.style.display = 'block';
-      grid.style.display = 'grid';
-    } else if (currentGameType === 'listening') {
-      closePracticeModal();
-    } else if (currentGameType === 'speaking') {
-      closePracticeTalkingModal();
-    } else if (currentGameType === 'drawing') {
-      closePracticeDrawingModal();
-    }
-    document.getElementById('gameCompletionPage').style.display = 'none';
-  });
+  const resetTrophyBtn = document.getElementById('resetTrophyBtn');
+  if (resetTrophyBtn) {
+    resetTrophyBtn.addEventListener('click', () => {
+      const trophy = document.getElementById('trophyDisplay');
+      if (trophy) trophy.style.display = 'none';
+      resetQuizWins();
+      showRandomCard();
+    });
+  }
+  
+  // Unified game completion handlers (with safety checks)
+  const gamePlayAgainBtn = document.getElementById('gamePlayAgainBtn');
+  if (gamePlayAgainBtn) {
+    gamePlayAgainBtn.addEventListener('click', () => {
+      const page = document.getElementById('gameCompletionPage');
+      if (page) page.style.display = 'none';
+      
+      // Reset session for replay
+      sessionScore = 0;
+      sessionTotal = 0;
+      sessionStartTime = Date.now();
+      sessionResults = [];
+      
+      // Re-show game UI based on game type
+      if (currentGameType === 'words') {
+        // Make sure quiz container is visible
+        if (quizContainer) quizContainer.style.display = 'block';
+        if (quizHeader) quizHeader.style.display = 'block';
+        const card = document.getElementById('quizCard');
+        const streak = document.getElementById('streakProgress');
+        const exitBtn = document.getElementById('exitQuizBtn');
+        const feedback = document.getElementById('quizResultFeedback');
+        const options = document.getElementById('quizOptionsContainer');
+        if (card) card.style.display = 'flex';
+        if (streak) streak.style.display = 'block';
+        if (exitBtn) exitBtn.style.display = 'block';
+        if (feedback) feedback.style.display = 'none';
+        if (options) options.style.display = 'none';
+        showRandomCard();
+      } else if (currentGameType === 'listening') {
+        const opts = document.getElementById('listeningOptions');
+        const fb = document.getElementById('listeningFeedback');
+        if (opts) opts.style.display = 'grid';
+        if (fb) fb.style.display = 'none';
+        showNextListeningWord();
+      } else if (currentGameType === 'speaking') {
+        const section = document.getElementById('talkingPracticeSection');
+        const recordBtn = document.getElementById('talkingRecordBtn');
+        const skipBtn = document.getElementById('talkingSkipBtn');
+        const playBtn = document.getElementById('talkingPlayBtn');
+        if (section) section.style.display = 'block';
+        if (recordBtn) recordBtn.style.display = 'inline-block';
+        if (skipBtn) skipBtn.style.display = 'inline-block';
+        if (playBtn) playBtn.style.display = 'inline-block';
+        // Reset speaking practice state
+        practiceTalkingState.currentIndex = 0;
+        practiceTalkingState.score = 0;
+        practiceTalkingState.total = 0;
+        showNextWord();
+      } else if (currentGameType === 'drawing') {
+        const section = document.getElementById('drawingPracticeSection');
+        if (section) section.style.display = 'block';
+        // Reset drawing practice state
+        drawingPracticeState.currentIndex = 0;
+        drawingPracticeState.score = 0;
+        drawingPracticeState.total = 0;
+        showNextDrawingWord();
+      }
+    });
+  }
+  
+  const gameExitBtn = document.getElementById('gameExitBtn');
+  if (gameExitBtn) {
+    gameExitBtn.addEventListener('click', () => {
+      // Exit based on game type
+      if (currentGameType === 'words') {
+        if (quizContainer) quizContainer.style.display = 'none';
+        if (quizHeader) quizHeader.style.display = 'none';
+        if (mainControls) mainControls.style.display = 'block';
+        if (grid) grid.style.display = 'grid';
+      } else if (currentGameType === 'listening') {
+        closePracticeModal();
+      } else if (currentGameType === 'speaking') {
+        closePracticeTalkingModal();
+      } else if (currentGameType === 'drawing') {
+        closePracticeDrawingModal();
+      }
+      const page = document.getElementById('gameCompletionPage');
+      if (page) page.style.display = 'none';
+    });
+  }
   
   // Practice Modal Functions
   function closePracticeModal() {
@@ -2435,17 +2472,23 @@
     // Show next button
     document.getElementById('listeningNextBtn').style.display = 'inline-block';
   }
-
   function nextListeningWord() {
     listeningState.currentIndex++;
     showNextListeningWord();
   }
 
-  // Event listeners for Listening practice
-  document.getElementById('startPracticeListening').addEventListener('click', startListeningPractice);
-  document.getElementById('listeningPlayBtn').addEventListener('click', playListeningAudio);
-  document.getElementById('listeningNextBtn').addEventListener('click', nextListeningWord);
-  document.getElementById('listeningExitBtn').addEventListener('click', closePracticeModal);
+  // Event listeners for Listening practice (with safety checks)
+  const startPracListening = document.getElementById('startPracticeListening');
+  if (startPracListening) startPracListening.addEventListener('click', startListeningPractice);
+  
+  const listeningPlayBtn = document.getElementById('listeningPlayBtn');
+  if (listeningPlayBtn) listeningPlayBtn.addEventListener('click', playListeningAudio);
+  
+  const listeningNextBtn = document.getElementById('listeningNextBtn');
+  if (listeningNextBtn) listeningNextBtn.addEventListener('click', nextListeningWord);
+  
+  const listeningExitBtn = document.getElementById('listeningExitBtn');
+  if (listeningExitBtn) listeningExitBtn.addEventListener('click', closePracticeModal);
 
   function speakText(text, lang) {
     return new Promise((resolve, reject) => {
@@ -2990,12 +3033,21 @@
   
   // saveSpeakingScore removed - now uses unified savePracticeScore()
 
-  // Event listeners for Practice Talking
-  document.getElementById('startPracticeTalking').addEventListener('click', startPracticeTalkingSession);
-  document.getElementById('talkingPlayBtn').addEventListener('click', playCurrentWord);
-  document.getElementById('talkingRecordBtn').addEventListener('click', startRecording);
-  document.getElementById('talkingSkipBtn').addEventListener('click', skipCurrentWord);
-  document.getElementById('talkingExitBtn').addEventListener('click', closePracticeTalkingModal);
+  // Event listeners for Practice Talking (with safety checks)
+  const startPracTalking = document.getElementById('startPracticeTalking');
+  if (startPracTalking) startPracTalking.addEventListener('click', startPracticeTalkingSession);
+  
+  const talkingPlayBtn2 = document.getElementById('talkingPlayBtn');
+  if (talkingPlayBtn2) talkingPlayBtn2.addEventListener('click', playCurrentWord);
+  
+  const talkingRecordBtn = document.getElementById('talkingRecordBtn');
+  if (talkingRecordBtn) talkingRecordBtn.addEventListener('click', startRecording);
+  
+  const talkingSkipBtn = document.getElementById('talkingSkipBtn');
+  if (talkingSkipBtn) talkingSkipBtn.addEventListener('click', skipCurrentWord);
+  
+  const talkingExitBtn2 = document.getElementById('talkingExitBtn');
+  if (talkingExitBtn2) talkingExitBtn2.addEventListener('click', closePracticeTalkingModal);
 
   // ==================== DRAWING PRACTICE MODAL ====================
   
@@ -3250,9 +3302,15 @@
   }
 
   // Event listeners for Drawing practice
-  document.getElementById('startPracticeDrawing').addEventListener('click', startDrawingPractice);
-  document.getElementById('drawingSkipBtn').addEventListener('click', skipDrawingWord);
-  document.getElementById('drawingExitBtn').addEventListener('click', closePracticeDrawingModal);
+  // Event listeners for Drawing practice (with safety checks)
+  const startPracDrawing = document.getElementById('startPracticeDrawing');
+  if (startPracDrawing) startPracDrawing.addEventListener('click', startDrawingPractice);
+  
+  const drawingSkipBtn = document.getElementById('drawingSkipBtn');
+  if (drawingSkipBtn) drawingSkipBtn.addEventListener('click', skipDrawingWord);
+  
+  const drawingExitBtn = document.getElementById('drawingExitBtn');
+  if (drawingExitBtn) drawingExitBtn.addEventListener('click', closePracticeDrawingModal);
 
   // ==================== MY SCORES MODAL ====================
   
