@@ -1124,26 +1124,6 @@
                             <button type="button" class="btn btn-primary" onclick="saveUserLanguages(${userId})">Save Languages</button>
                         </form>
                     </div>
-        // Save user languages (AJAX stub)
-        async function saveUserLanguages(userId) {
-            const form = document.getElementById('userLangForm');
-            const langs = Array.from(form.querySelectorAll('input[name="userLang"]:checked')).map(cb => cb.value);
-            // TODO: Implement backend endpoint to update user languages
-            // Example POST request:
-            try {
-                const response = await fetch(`/api/admin/user/${userId}/languages`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({languages: langs})
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to update languages');
-                }
-                alert('Languages updated!');
-            } catch (e) {
-                alert('Error updating languages: ' + e.message);
-            }
-        }
 
                     <div class="detail-section">
                         <h3 style="margin-top: 0;">📚 Vocabulary Stats</h3>
@@ -1224,6 +1204,26 @@
             } catch (error) {
                 console.error('Error loading user stats:', error);
                 document.getElementById('detailPanel').innerHTML = `<div class="error-message">Error loading user details: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Save user languages (AJAX stub)
+        async function saveUserLanguages(userId) {
+            const form = document.getElementById('userLangForm');
+            const langs = Array.from(form.querySelectorAll('input[name="userLang"]:checked')).map(cb => cb.value);
+            // TODO: Implement backend endpoint to update user languages
+            try {
+                const response = await fetch(`/api/admin/user/${userId}/languages`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({languages: langs})
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to update languages');
+                }
+                alert('Languages updated!');
+            } catch (e) {
+                alert('Error updating languages: ' + e.message);
             }
         }
 
