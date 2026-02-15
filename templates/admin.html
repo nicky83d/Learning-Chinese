@@ -481,6 +481,9 @@
         let allLogs = [];
         let currentFilter = 'all';
         let selectedLogId = null;
+        let allUsers = [];
+        let currentPanel = 'logs';
+        let selectedUserId = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             // Ensure correct initial panel state
@@ -973,9 +976,6 @@
         }
 
         // ===== PANEL SWITCHING =====
-        let allUsers = [];
-        let currentPanel = 'logs';
-        let selectedUserId = null;
 
         function setupPanelTabs() {
             document.querySelectorAll('.panel-tab').forEach(tab => {
