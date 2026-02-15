@@ -868,6 +868,31 @@
             Score: <span id="talkingScore">0</span> / <span id="talkingTotal">0</span>
           </div>
         </div>
+        
+        <!-- Speaking Results Section -->
+        <div id="talkingResultsSection" style="display:none;">
+          <div style="text-align:center; margin-bottom:30px;">
+            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0;">
+              <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
+                <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Score</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary);" id="talkingResultsScore">0/0</div>
+              </div>
+              <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
+                <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Accuracy</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary);" id="talkingResultsAccuracy">0%</div>
+              </div>
+            </div>
+          </div>
+          <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">📋 Game Review</h2>
+            <div id="talkingResultsReview" style="max-height: 300px; overflow-y: auto;"></div>
+          </div>
+          <div style="text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button class="primary" onclick="resetSpeakingPractice()" style="padding: 12px 24px; font-size: 1.05em;">🔄 Play Again</button>
+            <button class="secondary" onclick="closePracticeTalkingModal()" style="padding: 12px 24px; font-size: 1.05em;">← Back</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -918,6 +943,31 @@
           </div>
           <div id="drawingProgress" style="margin-top:12px; text-align:center; color:var(--text-muted); font-size:0.9em;">
             Progress: <span id="drawingCurrent">1</span> / <span id="drawingTotal">10</span> | Score: <span id="drawingScore">0</span>
+          </div>
+        </div>
+        
+        <!-- Drawing Results Section -->
+        <div id="drawingResultsSection" style="display:none;">
+          <div style="text-align:center; margin-bottom:30px;">
+            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0;">
+              <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
+                <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Score</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary);" id="drawingResultsScore">0/0</div>
+              </div>
+              <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
+                <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Accuracy</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary);" id="drawingResultsAccuracy">0%</div>
+              </div>
+            </div>
+          </div>
+          <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">📋 Game Review</h2>
+            <div id="drawingResultsReview" style="max-height: 300px; overflow-y: auto;"></div>
+          </div>
+          <div style="text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button class="primary" onclick="resetDrawingPractice()" style="padding: 12px 24px; font-size: 1.05em;">🔄 Play Again</button>
+            <button class="secondary" onclick="closePracticeDrawingModal()" style="padding: 12px 24px; font-size: 1.05em;">← Back</button>
           </div>
         </div>
       </div>
@@ -3083,24 +3133,85 @@
   }
 
   function showCompletionMessage() {
-    const score = practiceTalkingState.score;
-    const total = practiceTalkingState.total;
-    
-    // Sync with session tracking before saving
-    sessionScore = score;
-    sessionTotal = total;
+    const score = sessionScore;
+    const total = sessionTotal;
+    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
     
     // Save speaking practice score using unified system
     savePracticeScore();
 
-    // Hide speaking practice UI
-    document.getElementById('talkingPracticeSection').style.display = 'none';
-    document.getElementById('talkingRecordBtn').style.display = 'none';
-    document.getElementById('talkingSkipBtn').style.display = 'none';
-    document.getElementById('talkingPlayBtn').style.display = 'none';
+    // Hide practice section, show results section
+    const practiceSection = document.getElementById('talkingPracticeSection');
+    const resultsSection = document.getElementById('talkingResultsSection');
+    if (practiceSection) practiceSection.style.display = 'none';
+    if (resultsSection) {
+      resultsSection.style.display = 'block';
+      
+      // Hide individual buttons
+      const recordBtn = document.getElementById('talkingRecordBtn');
+      const skipBtn = document.getElementById('talkingSkipBtn');
+      const playBtn = document.getElementById('talkingPlayBtn');
+      if (recordBtn) recordBtn.style.display = 'none';
+      if (skipBtn) skipBtn.style.display = 'none';
+      if (playBtn) playBtn.style.display = 'none';
+      
+      // Update score and accuracy displays
+      const scoreEl = document.getElementById('talkingResultsScore');
+      const accuracyEl = document.getElementById('talkingResultsAccuracy');
+      if (scoreEl) scoreEl.textContent = `${score}/${total}`;
+      if (accuracyEl) accuracyEl.textContent = `${percentage}%`;
+      
+      // Build review from sessionResults
+      const reviewEl = document.getElementById('talkingResultsReview');
+      if (reviewEl) {
+        let reviewHtml = '';
+        if (sessionResults && sessionResults.length > 0) {
+          sessionResults.forEach((result, idx) => {
+            const isCorrect = result.isCorrect ? '✅' : '❌';
+            reviewHtml += `
+              <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid ${result.isCorrect ? '#4CAF50' : '#f44336'};">
+                <strong>${isCorrect} Round ${idx + 1}</strong><br>
+                <small>Prompt: <strong>${result.prompt || 'N/A'}</strong></small><br>
+                <small style="color: var(--text-muted);">${result.score || 0}/100</small>
+              </div>
+            `;
+          });
+        } else {
+          reviewHtml = '<div style="text-align: center; color: var(--text-muted);">No results recorded</div>';
+        }
+        reviewEl.innerHTML = reviewHtml;
+      }
+    }
+  }
+
+  function resetSpeakingPractice() {
+    practiceTalkingState.words = [];
+    practiceTalkingState.currentIndex = 0;
+    practiceTalkingState.score = 0;
+    practiceTalkingState.total = 0;
+    practiceTalkingState.currentWord = null;
+    practiceTalkingState.attempts = [];
     
-    // Show unified game completion page
-    showGameCompletion();
+    // Reset session tracking
+    sessionResults = [];
+    sessionScore = 0;
+    sessionTotal = 0;
+    
+    // Show config, hide practice and results
+    const configSection = document.getElementById('talkingConfigSection');
+    const practiceSection = document.getElementById('talkingPracticeSection');
+    const resultsSection = document.getElementById('talkingResultsSection');
+    if (configSection) configSection.style.display = 'block';
+    if (practiceSection) practiceSection.style.display = 'none';
+    if (resultsSection) resultsSection.style.display = 'none';
+    
+    // Hide practice buttons
+    const recordBtn = document.getElementById('talkingRecordBtn');
+    const skipBtn = document.getElementById('talkingSkipBtn');
+    const playBtn = document.getElementById('talkingPlayBtn');
+    if (recordBtn) recordBtn.style.display = 'block';  // Show again for next round
+    if (skipBtn) skipBtn.style.display = 'block';
+    if (playBtn) playBtn.style.display = 'block';
   }
   
   // saveSpeakingScore removed - now uses unified savePracticeScore()
@@ -3173,8 +3284,17 @@
     drawingPracticeState.currentCharIndex = 0;
     drawingPracticeState.charMistakes = 0;
     drawingPracticeState.currentWriter = null;
+    
+    // Reset session tracking
+    sessionResults = [];
+    sessionScore = 0;
+    sessionTotal = 0;
+    
+    // Show config, hide practice and results
     document.getElementById('drawingConfigSection').style.display = 'block';
     document.getElementById('drawingPracticeSection').style.display = 'none';
+    const resultsSection = document.getElementById('drawingResultsSection');
+    if (resultsSection) resultsSection.style.display = 'none';
     document.getElementById('drawingCanvasContainer').innerHTML = '';
   }
 
@@ -3357,20 +3477,46 @@
   }
 
   function showDrawingCompletion() {
-    const score = drawingPracticeState.score;
-    const total = drawingPracticeState.total;
+    const score = sessionScore;
+    const total = sessionTotal;
+    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
     
-    // Sync with session tracking before saving
-    sessionScore = score;
-    sessionTotal = total;
+    // Save practice score
     savePracticeScore();
 
-    // Hide drawing practice UI
-    document.getElementById('drawingPracticeSection').style.display = 'none';
-    document.getElementById('drawingCanvasContainer').innerHTML = '';
-    
-    // Show unified game completion page
-    showGameCompletion();
+    // Hide practice section, show results section
+    const practiceSection = document.getElementById('drawingPracticeSection');
+    const resultsSection = document.getElementById('drawingResultsSection');
+    if (practiceSection) practiceSection.style.display = 'none';
+    if (resultsSection) {
+      resultsSection.style.display = 'block';
+      
+      // Update score and accuracy displays
+      const scoreEl = document.getElementById('drawingResultsScore');
+      const accuracyEl = document.getElementById('drawingResultsAccuracy');
+      if (scoreEl) scoreEl.textContent = `${score}/${total}`;
+      if (accuracyEl) accuracyEl.textContent = `${percentage}%`;
+      
+      // Build review from sessionResults
+      const reviewEl = document.getElementById('drawingResultsReview');
+      if (reviewEl) {
+        let reviewHtml = '';
+        if (sessionResults && sessionResults.length > 0) {
+          sessionResults.forEach((result, idx) => {
+            const isCorrect = result.isCorrect ? '✅' : '❌';
+            reviewHtml += `
+              <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid ${result.isCorrect ? '#4CAF50' : '#f44336'};">
+                <strong>${isCorrect} Round ${idx + 1}</strong><br>
+                <small>Draw: <strong>${result.character || 'N/A'}</strong></small><br>
+              </div>
+            `;
+          });
+        } else {
+          reviewHtml = '<div style="text-align: center; color: var(--text-muted);">No results recorded</div>';
+        }
+        reviewEl.innerHTML = reviewHtml;
+      }
+    }
   }
 
   // Event listeners for Drawing practice
