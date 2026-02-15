@@ -3175,6 +3175,21 @@
               sessionScore = drawingPracticeState.score;
             }
             
+            // Track result for this character
+            const word = drawingPracticeState.currentWord || {};
+            addSessionResult({
+              vocabulary_id: word.id || null,
+              word_hanzi: word.hanzi || char,
+              word_pinyin: word.pinyin || '',
+              word_english: word.english || '',
+              word_french: word.french || '',
+              question_type: 'drawing',
+              question_text: `Draw: ${char} (${word.pinyin || ''})`,
+              user_answer: isCorrect ? 'Drawn correctly' : `${drawingPracticeState.charMistakes} mistakes`,
+              correct_answer: `Draw: ${char}`,
+              is_correct: isCorrect
+            });
+            
             // Update score display
             document.getElementById('drawingScore').textContent = drawingPracticeState.score;
             
@@ -3199,7 +3214,22 @@
     if (word) {
       const characters = drawingPracticeState.characters;
       for (let i = drawingPracticeState.currentCharIndex; i < characters.length; i++) {
+        const char = characters[i];
         drawingPracticeState.total++;
+        
+        // Track skipped character as incorrect
+        addSessionResult({
+          vocabulary_id: word.id || null,
+          word_hanzi: word.hanzi || char,
+          word_pinyin: word.pinyin || '',
+          word_english: word.english || '',
+          word_french: word.french || '',
+          question_type: 'drawing',
+          question_text: `Draw: ${char} (${word.pinyin || ''})`,
+          user_answer: '(skipped)',
+          correct_answer: `Draw: ${char}`,
+          is_correct: false
+        });
       }
       sessionTotal = drawingPracticeState.total;
     }
