@@ -3175,16 +3175,23 @@
       if (reviewEl) {
         let reviewHtml = '';
         if (sessionResults && sessionResults.length > 0) {
-          sessionResults.forEach((result, idx) => {
-            const isCorrect = result.isCorrect ? '✅' : '❌';
-            reviewHtml += `
-              <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid ${result.isCorrect ? '#4CAF50' : '#f44336'};">
-                <strong>${isCorrect} Round ${idx + 1}</strong><br>
-                <small>Prompt: <strong>${result.prompt || 'N/A'}</strong></small><br>
-                <small style="color: var(--text-muted);">${result.score || 0}/100</small>
+          reviewHtml = sessionResults.map((result, idx) => {
+            const isCorrect = result.is_correct;
+            const statusIcon = isCorrect ? '✅' : '❌';
+            const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
+            const scoreDisplay = result.score || 0;
+            
+            return `
+              <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: ${isCorrect ? '#f0fdf4' : '#fef2f2'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-weight: bold;">${idx + 1}. ${statusIcon}</span>
+                  <span style="color: ${statusColor}; font-weight: bold;">${scoreDisplay}%</span>
+                </div>
+                <div style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 4px;">Asked: <strong>${result.question_text || 'N/A'}</strong></div>
+                <div style="font-size: 0.85em; color: var(--text-muted);">You said: <strong>${result.user_answer || '(no response)'}</strong></div>
               </div>
             `;
-          });
+          }).join('');
         } else {
           reviewHtml = '<div style="text-align: center; color: var(--text-muted);">No results recorded</div>';
         }
@@ -3513,15 +3520,22 @@
       if (reviewEl) {
         let reviewHtml = '';
         if (sessionResults && sessionResults.length > 0) {
-          sessionResults.forEach((result, idx) => {
-            const isCorrect = result.isCorrect ? '✅' : '❌';
-            reviewHtml += `
-              <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid ${result.isCorrect ? '#4CAF50' : '#f44336'};">
-                <strong>${isCorrect} Round ${idx + 1}</strong><br>
-                <small>Draw: <strong>${result.character || 'N/A'}</strong></small><br>
+          reviewHtml = sessionResults.map((result, idx) => {
+            const isCorrect = result.is_correct;
+            const statusIcon = isCorrect ? '✅' : '❌';
+            const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
+            const scoreDisplay = result.score || 0;
+            
+            return `
+              <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: ${isCorrect ? '#f0fdf4' : '#fef2f2'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-weight: bold;">${idx + 1}. ${statusIcon}</span>
+                  <span style="color: ${statusColor}; font-weight: bold;">${scoreDisplay}%</span>
+                </div>
+                <div style="font-size: 0.85em; color: var(--text-muted);">Draw: <strong>${result.question_text || 'N/A'}</strong></div>
               </div>
             `;
-          });
+          }).join('');
         } else {
           reviewHtml = '<div style="text-align: center; color: var(--text-muted);">No results recorded</div>';
         }
