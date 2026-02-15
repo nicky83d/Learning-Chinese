@@ -403,10 +403,22 @@
       <div id="trophyQuality" style="font-size:1.2em; color:#555; margin-top:10px;"></div>
       <button id="resetTrophyBtn" class="secondary" style="margin-top:20px; padding:10px 20px;">Celebrate & Continue</button>
     </div>
-    
+
+    <!-- Quiz Results Page -->
+    <div id="quizResultsPage" style="display:none; text-align:center; padding:40px 20px; background:var(--card-bg); border-radius:16px; margin-top:20px;">
+      <h2 style="font-size:1.8em; color:var(--primary); margin-bottom:20px;">📊 Practice Complete!</h2>
+      <div style="font-size:2.5em; font-weight:bold; margin-bottom:10px;">
+        <span id="quizFinalScore">0</span>/<span id="quizFinalTotal">0</span>
+      </div>
+      <div style="font-size:1.3em; color:var(--text-muted); margin-bottom:30px;">
+        <span id="quizFinalPercentage">0</span>%
+      </div>
+      <button id="quizPlayAgainBtn" class="primary" style="padding:12px 30px; font-size:1.1em; margin-right:10px;">Play Again</button>
+      <button id="quizExitBtn" class="secondary" style="padding:12px 30px; font-size:1.1em;">Back to Vocabulary</button>
+    </div>
     
     <div style="text-align:center; margin-top:20px;">
-      <!-- Exit Quiz button removed -->
+      <button id="exitQuizBtn" class="secondary" style="padding:10px 20px; font-size:1em;" onclick="endQuizSession()">Exit Quiz</button>
     </div>
   </div>
 
@@ -1361,14 +1373,36 @@
   }
 
   function exitQuiz() {
-    // Save practice score before exiting
-    savePracticeScore();
-    
+    // Just hide the quiz UI, don't show results yet
     quizContainer.style.display = 'none';
     quizHeader.style.display = 'none';
-
     mainControls.style.display = 'block';
     grid.style.display = 'grid';
+  }
+
+  function endQuizSession() {
+    // Save the current score and show results
+    savePracticeScore();
+    
+    // Hide quiz UI elements
+    document.getElementById('quizCard').style.display = 'none';
+    document.getElementById('quizOptionsContainer').style.display = 'none';
+    document.getElementById('quizResultFeedback').style.display = 'none';
+    document.getElementById('streakProgress').style.display = 'none';
+    document.getElementById('trophyDisplay').style.display = 'none';
+    document.getElementById('exitQuizBtn').style.display = 'none';
+    
+    // Calculate and display results
+    const score = sessionScore;
+    const total = sessionTotal;
+    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    
+    document.getElementById('quizFinalScore').textContent = score;
+    document.getElementById('quizFinalTotal').textContent = total;
+    document.getElementById('quizFinalPercentage').textContent = pct;
+    
+    // Show results page
+    document.getElementById('quizResultsPage').style.display = 'block';
   }
 
   function showRandomCard() {
@@ -1973,6 +2007,29 @@
     document.getElementById('trophyDisplay').style.display = 'none';
     resetQuizWins();
     showRandomCard();
+  });
+  
+  // Results page event listeners
+  document.getElementById('quizPlayAgainBtn').addEventListener('click', () => {
+    // Reset quiz and start fresh with same words
+    document.getElementById('quizResultsPage').style.display = 'none';
+    document.getElementById('quizCard').style.display = 'flex';
+    document.getElementById('streakProgress').style.display = 'block';
+    document.getElementById('exitQuizBtn').style.display = 'block';
+    sessionScore = 0;
+    sessionTotal = 0;
+    sessionResults = [];
+    showRandomCard();
+  });
+  
+  document.getElementById('quizExitBtn').addEventListener('click', () => {
+    // Exit back to vocabulary grid
+    quizContainer.style.display = 'none';
+    quizHeader.style.display = 'none';
+    mainControls.style.display = 'block';
+    grid.style.display = 'grid';
+    currentQuizMode = null;
+    currentWords = [];
   });
   
   // Practice Modal Functions
