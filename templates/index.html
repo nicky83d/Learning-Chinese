@@ -1310,7 +1310,8 @@
       question_text: result.question_text || '',
       user_answer: result.user_answer || '',
       correct_answer: result.correct_answer || '',
-      is_correct: result.is_correct || false
+      is_correct: result.is_correct || false,
+      score: result.score || 0
     });
   }
   
@@ -1812,7 +1813,8 @@
         question_text: currentQuizMode === 'chinese' ? correctWord.pinyin : correctWord.french,
         user_answer: selectedOption ? (currentQuizMode === 'chinese' ? selectedOption.hanzi : selectedOption.english) : '',
         correct_answer: currentQuizMode === 'chinese' ? correctWord.hanzi : correctWord.english,
-        is_correct: isCorrect
+        is_correct: isCorrect,
+        score: isCorrect ? 100 : 0
       });
       
       // Show result
@@ -2551,7 +2553,8 @@
       question_text: `Identify: "${targetWord}"`,
       user_answer: selected,
       correct_answer: correct,
-      is_correct: isCorrect
+      is_correct: isCorrect,
+      score: isCorrect ? 100 : 0
     });
 
     // Mark all buttons
@@ -3029,6 +3032,7 @@
       practiceTalkingState.total++;
       addQuizAttempt();
       // Track as incorrect for custom messages (warnings)
+      const confidenceScore = Math.round((confidence || 0) * 100);
       addSessionResult({
         vocabulary_id: currentWord?.id,
         word_hanzi: currentWord?.hanzi || '',
@@ -3039,7 +3043,8 @@
         question_text: expectedText,
         user_answer: recognized || 'No response',
         correct_answer: expectedText,
-        is_correct: false
+        is_correct: false,
+        score: confidenceScore
       });
     } else if (isCorrect) {
       feedback.style.background = 'rgba(40, 167, 69, 0.1)';
@@ -3061,7 +3066,8 @@
         question_text: expectedText,
         user_answer: recognized || '',
         correct_answer: expectedText,
-        is_correct: true
+        is_correct: true,
+        score: 100
       });
       
       // Auto-advance after 1.5 seconds
@@ -3077,6 +3083,7 @@
       
       practiceTalkingState.total++;
       addQuizAttempt();
+      const confidenceScore = Math.round((confidence || 0) * 100);
       addSessionResult({
         vocabulary_id: currentWord?.id,
         word_hanzi: currentWord?.hanzi || '',
@@ -3087,7 +3094,8 @@
         question_text: expectedText,
         user_answer: recognized || '',
         correct_answer: expectedText,
-        is_correct: false
+        is_correct: false,
+        score: confidenceScore
       });
     }
 
@@ -3125,7 +3133,8 @@
       question_text: expectedText,
       user_answer: '(skipped)',
       correct_answer: expectedText,
-      is_correct: false
+      is_correct: false,
+      score: 0
     });
     
     practiceTalkingState.currentIndex++;
@@ -3425,7 +3434,8 @@
               question_text: `Draw: ${char} (${word.pinyin || ''})`,
               user_answer: isCorrect ? 'Drawn correctly' : `${drawingPracticeState.charMistakes} mistakes`,
               correct_answer: `Draw: ${char}`,
-              is_correct: isCorrect
+              is_correct: isCorrect,
+              score: isCorrect ? 100 : 0
             });
             
             // Update score display
@@ -3466,7 +3476,8 @@
           question_text: `Draw: ${char} (${word.pinyin || ''})`,
           user_answer: '(skipped)',
           correct_answer: `Draw: ${char}`,
-          is_correct: false
+          is_correct: false,
+          score: 0
         });
       }
       sessionTotal = drawingPracticeState.total;
