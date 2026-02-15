@@ -2001,7 +2001,10 @@ Explanation:"""
 @app.route('/quiz/options', methods=['POST'])
 def get_quiz_options():
     """
-    Given a correct word ID, return it along with 3 similar distractor options.
+    Given a correct word ID, return it along with distractor options.
+    - If 3+ words available: return 4 options total (correct + 3 distractors)
+    - If ≤3 words available: return only as many as exist
+    
     Response format: {
         "correct_id": int,
         "correct_word": {...},
@@ -2023,23 +2026,33 @@ def get_quiz_options():
         if not correct:
             return jsonify({"error": "Word not found"}), 404
         
-        # Get 3 similar words as distractors
-        similar_ids = _get_similar_options(word_id, max_options=3)
-        if len(similar_ids) < 3:
-            # Fallback: add random words to reach 3 options
-            all_ids = [w.id for w in Vocabulary.query.filter_by(is_approved=True).all() if w.id != word_id]
-            import random
-            while len(similar_ids) < 3 and all_ids:
-                idx = random.randint(0, len(all_ids) - 1)
-                if all_ids[idx] not in similar_ids:
-                    similar_ids.append(all_ids[idx])
-                all_ids.pop(idx)
+        # Get all approved words except the correct one
+        all_approved = Vocabulary.query.filter_by(is_approved=True).all()
+        all_ids = [w.id for w in all_approved if w.id != word_id]
         
-        similar_ids = similar_ids[:3]
-        distractors = [db.session.get(Vocabulary, wid) for wid in similar_ids]
-        distractors = [w for w in distractors if w]
+        # Determine how many distractors we need
+        num_distractors = min(3, len(all_ids))  # Max 3 distractors, but limited by available words
         
-        # Shuffle options (including the correct answer)
+        if num_distractors == 0:
+            # Only one word in the database, return just the correct answer
+            distractors = []
+        else:
+            # Get similar words as distractors
+            similar_ids = _get_similar_options(word_id, max_options=num_distractors)
+            
+            # If we don't have enough similar words, add random ones to fill
+            if len(similar_ids) < num_distractors:
+                random_ids = [wid for wid in all_ids if wid not in similar_ids]
+                import random
+                random.shuffle(random_ids)
+                similar_ids.extend(random_ids[:num_distractors - len(similar_ids)])
+            
+            # Take only what we need and ensure uniqueness
+            similar_ids = list(set(similar_ids))[:num_distractors]
+            distractors = [db.session.get(Vocabulary, wid) for wid in similar_ids]
+            distractors = [w for w in distractors if w and w.id != correct.id]  # Ensure no duplicates or correct word
+        
+        # Build final options list: correct word + distractors, then shuffle
         import random
         options = [correct] + distractors
         random.shuffle(options)
