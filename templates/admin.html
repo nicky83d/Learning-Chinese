@@ -486,30 +486,37 @@
         let selectedUserId = null;
 
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('Admin panel: DOMContentLoaded fired');
             // Ensure correct initial panel state
             document.getElementById('logList').style.display = 'block';
             document.getElementById('userList').style.display = 'none';
             
+            console.log('Admin panel: Starting to load logs...');
             loadLogs();
             setupFilterTabs();
             setupMobileDrawer();
             setupPanelTabs();
+            console.log('Admin panel: Setup complete');
         });
 
         async function loadLogs() {
+            console.log('loadLogs: Starting fetch to /admin/logs');
             try {
                 const response = await fetch('/admin/logs');
+                console.log('loadLogs: Fetch response received', response.status, response.ok);
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Failed to load logs:', response.status, errorText);
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const data = await response.json();
+                console.log('loadLogs: Data received, count:', data.length);
                 allLogs = data;
                 renderLogList();
+                console.log('loadLogs: Render complete');
             } catch (error) {
                 console.error('Error loading logs:', error);
-                document.getElementById('logList').innerHTML = '<li class="error-message">Failed to load logs</li>';
+                document.getElementById('logList').innerHTML = '<li class="error-message">Failed to load logs: ' + error.message + '</li>';
             }
         }
 
@@ -987,6 +994,7 @@
         }
 
         function switchPanel(panel) {
+            console.log('switchPanel: Switching to', panel);
             currentPanel = panel;
             
             // Update tab buttons
@@ -1027,16 +1035,20 @@
         }
 
         async function loadUsers() {
+            console.log('loadUsers: Starting fetch to /api/admin/users');
             try {
                 const response = await fetch('/api/admin/users');
+                console.log('loadUsers: Fetch response received', response.status, response.ok);
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Failed to load users:', response.status, errorText);
                     throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
                 const data = await response.json();
+                console.log('loadUsers: Data received, count:', data.length);
                 allUsers = data;
                 renderUserList();
+                console.log('loadUsers: Render complete');
             } catch (error) {
                 console.error('Error loading users:', error);
                 document.getElementById('userList').innerHTML = '<li class="error-message">Failed to load users: ' + error.message + '</li>';
