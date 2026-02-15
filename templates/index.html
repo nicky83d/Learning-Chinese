@@ -611,6 +611,31 @@
             Progress: <span id="listeningCurrent">1</span> / <span id="listeningTotal">10</span> | Score: <span id="listeningScore">0</span>
           </div>
         </div>
+        
+        <!-- Listening Results Section -->
+        <div id="listeningResultsSection" style="display:none;">
+          <div style="text-align:center; margin-bottom:30px;">
+            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0;">
+              <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
+                <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Score</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary);" id="listeningResultsScore">0/0</div>
+              </div>
+              <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
+                <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Accuracy</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary);" id="listeningResultsAccuracy">0%</div>
+              </div>
+            </div>
+          </div>
+          <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">📋 Game Review</h2>
+            <div id="listeningResultsReview" style="max-height: 400px; overflow-y: auto;"></div>
+          </div>
+          <div style="text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button class="primary" onclick="resetListeningPractice()" style="padding: 12px 24px; font-size: 1.05em;">🔄 Play Again</button>
+            <button class="secondary" onclick="closePracticeModal()" style="padding: 12px 24px; font-size: 1.05em;">← Back</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1494,9 +1519,52 @@
   }
 
   function showListeningCompletion() {
-    sessionScore = listeningState.score;
-    sessionTotal = listeningState.total;
-    showGameCompletion();
+    const score = listeningState.score;
+    const total = listeningState.total;
+    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    
+    // Save score
+    sessionScore = score;
+    sessionTotal = total;
+    savePracticeScore();
+
+    // Hide practice section, show results
+    const practiceSection = document.getElementById('listeningPracticeSection');
+    const resultsSection = document.getElementById('listeningResultsSection');
+    if (practiceSection) practiceSection.style.display = 'none';
+    if (resultsSection) {
+      resultsSection.style.display = 'block';
+      
+      // Update stats
+      const scoreEl = document.getElementById('listeningResultsScore');
+      const accEl = document.getElementById('listeningResultsAccuracy');
+      if (scoreEl) scoreEl.textContent = `${score}/${total}`;
+      if (accEl) accEl.textContent = `${pct}%`;
+      
+      // Build review
+      let reviewHtml = '';
+      if (sessionResults && sessionResults.length > 0) {
+        reviewHtml = sessionResults.map((result, idx) => {
+          const isCorrect = result.is_correct;
+          const statusIcon = isCorrect ? '✅' : '❌';
+          const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
+          
+          return `
+            <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: ${isCorrect ? '#f0fdf4' : '#fef2f2'};">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold;">${idx + 1}. ${statusIcon}</span>
+                <span style="color: ${statusColor}; font-weight: bold;">${isCorrect ? 'Correct' : 'Incorrect'}</span>
+              </div>
+              <div style="font-size: 0.9em; color: var(--text-muted);">Your answer: <strong>${result.user_answer || 'N/A'}</strong></div>
+              ${!isCorrect ? `<div style="font-size: 0.9em; color: #51cf66;">Correct: <strong>${result.correct_answer || 'N/A'}</strong></div>` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+      
+      const reviewEl = document.getElementById('listeningResultsReview');
+      if (reviewEl) reviewEl.innerHTML = reviewHtml;
+    }
   }
 
   function showRandomCard() {
@@ -2244,8 +2312,16 @@
     listeningState.total = 0;
     listeningState.currentWord = null;
     listeningState.answered = false;
-    document.getElementById('listeningConfigSection').style.display = 'block';
-    document.getElementById('listeningPracticeSection').style.display = 'none';
+    sessionResults = [];
+    sessionScore = 0;
+    sessionTotal = 0;
+    
+    const configSection = document.getElementById('listeningConfigSection');
+    const practiceSection = document.getElementById('listeningPracticeSection');
+    const resultsSection = document.getElementById('listeningResultsSection');
+    if (configSection) configSection.style.display = 'block';
+    if (practiceSection) practiceSection.style.display = 'none';
+    if (resultsSection) resultsSection.style.display = 'none';
   }
 
   function openPracticeListeningModal() {
