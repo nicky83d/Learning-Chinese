@@ -1562,9 +1562,6 @@
       // Show options container, hide result
       document.getElementById('quizOptionsContainer').style.display = 'block';
       document.getElementById('quizResultFeedback').style.display = 'none';
-      document.getElementById('quizValidateBtn').disabled = true;
-      document.getElementById('quizValidateBtn').style.display = 'inline-block';
-      document.getElementById('nextQuizCardAlt').style.display = 'none';
     })
     .catch(err => {
       console.error('Error fetching quiz options:', err);
