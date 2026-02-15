@@ -383,17 +383,13 @@
       <div id="quizOptions" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:20px;">
         <!-- 4 option buttons will be generated here -->
       </div>
-      <div style="text-align:center;">
-        <button id="quizValidateBtn" style="padding:12px 30px; font-size:1.1em; margin-right:10px;" class="primary" disabled>Check Answer</button>
-        <button id="nextQuizCardAlt" style="padding:12px 30px; font-size:1.1em; display:none;" class="primary">Next →</button>
-      </div>
     </div>
 
     <!-- Quiz Result Feedback -->
     <div id="quizResultFeedback" style="display:none; margin-top:30px; padding:20px; background:var(--card-bg); border-radius:12px; border:2px solid var(--border-color);">
       <div id="resultStatus" style="font-size:1.3em; font-weight:bold; margin-bottom:10px;"></div>
       <div id="resultExplanation" style="font-size:1em; line-height:1.6; margin-bottom:15px;"></div>
-      <button id="continueQuizBtn" class="primary" style="padding:10px 20px; font-size:1em;">Continue →</button>
+      <button id="continueQuizBtn" class="primary" style="padding:10px 20px; font-size:1em;">Next →</button>
     </div>
 
     <!-- Trophy Display (5 wins) -->
@@ -1627,6 +1623,9 @@
   }
   
   function selectQuizOption(optionId, btnElement, optionData) {
+    // If we've already answered, ignore
+    if (currentQuizState === 'showing-result') return;
+    
     // Deselect previous
     if (selectedOptionId !== null) {
       document.querySelectorAll('.quiz-option-btn').forEach(b => {
@@ -1642,6 +1641,12 @@
     btnElement.style.borderColor = '#40c057';
     btnElement.style.color = 'white';
     
+    // Disable all buttons to prevent further clicks
+    document.querySelectorAll('.quiz-option-btn').forEach(b => {
+      b.style.cursor = 'not-allowed';
+      b.style.opacity = '0.7';
+    });
+    
     // Play selected word
     if (currentQuizMode === 'chinese') {
       playChinese(optionData.hanzi || optionData.pinyin);
@@ -1649,8 +1654,8 @@
       playFrench(optionData.french);
     }
     
-    // Enable validate button
-    document.getElementById('quizValidateBtn').disabled = false;
+    // IMMEDIATE VALIDATION - click is final answer
+    validateQuizAnswer();
   }
   
   function validateQuizAnswer() {
