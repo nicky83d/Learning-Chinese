@@ -2441,29 +2441,6 @@
     showNextListeningWord();
   }
 
-  function showListeningCompletion() {
-    const score = listeningState.score;
-    const total = listeningState.total;
-    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-    
-    // Save score
-    sessionScore = score;
-    sessionTotal = total;
-    savePracticeScore();
-
-    const optionsContainer = document.getElementById('listeningOptions');
-    optionsContainer.innerHTML = `
-      <div style="text-align:center; padding:20px;">
-        <h3 style="color:var(--primary); margin-bottom:10px;">🎉 Practice Complete!</h3>
-        <p style="font-size:1.2em;">Score: <strong>${score}/${total}</strong> (${pct}%)</p>
-        <button class="primary" onclick="resetListeningPractice()" style="margin-top:15px; padding:12px 24px;">Play Again</button>
-      </div>
-    `;
-    document.getElementById('listeningFeedback').style.display = 'none';
-    document.getElementById('listeningNextBtn').style.display = 'none';
-    document.getElementById('listeningPlayBtn').style.display = 'none';
-  }
-
   // Event listeners for Listening practice
   document.getElementById('startPracticeListening').addEventListener('click', startListeningPractice);
   document.getElementById('listeningPlayBtn').addEventListener('click', playListeningAudio);
