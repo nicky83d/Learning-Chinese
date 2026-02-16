@@ -340,16 +340,34 @@
     })();
 
     // Language Settings Functions
-    function loadLanguageSettings() {
-      const settings = JSON.parse(localStorage.getItem('languageSettings') || '{}');
+    async function loadLanguageSettings() {
+      let settings = JSON.parse(localStorage.getItem('languageSettings') || '{}');
+      try {
+        const response = await fetch('/api/user/languages');
+        if (response.ok) {
+          const data = await response.json();
+          const langs = Array.isArray(data.languages) ? data.languages : [];
+          settings = {
+            chinese: langs.includes('chinese'),
+            japanese: langs.includes('japanese'),
+            french: langs.includes('french')
+          };
+          localStorage.setItem('languageSettings', JSON.stringify(settings));
+          const enabledLangs = langs.length ? langs : ['chinese'];
+          localStorage.setItem('enabledLangs', JSON.stringify(enabledLangs));
+        }
+      } catch (error) {
+        console.warn('Language settings sync failed:', error);
+      }
+
       // Default: Chinese is on, Japanese and French are off
       document.getElementById('langChinese').checked = settings.chinese !== false;
       document.getElementById('langJapanese').checked = settings.japanese === true;
       document.getElementById('langFrench').checked = settings.french === true;
     }
 
-    function showLanguageModal() {
-      loadLanguageSettings();
+    async function showLanguageModal() {
+      await loadLanguageSettings();
       document.getElementById('languageModal').style.display = 'flex';
     }
 
@@ -357,20 +375,43 @@
       document.getElementById('languageModal').style.display = 'none';
     }
 
-    function saveLanguageSettings() {
+    async function saveLanguageSettings() {
       const settings = {
         chinese: document.getElementById('langChinese').checked,
         japanese: document.getElementById('langJapanese').checked,
         french: document.getElementById('langFrench').checked
       };
-      localStorage.setItem('languageSettings', JSON.stringify(settings));
-      // Update enabledLangs for practice modals (non-English only)
       const enabledLangs = [];
       if (settings.chinese) enabledLangs.push('chinese');
       if (settings.japanese) enabledLangs.push('japanese');
       if (settings.french) enabledLangs.push('french');
-      localStorage.setItem('enabledLangs', JSON.stringify(enabledLangs));
-      showToast('✅ Language settings saved!', 'success');
+
+      try {
+        const response = await fetch('/api/user/languages', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ languages: enabledLangs })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const savedLangs = Array.isArray(data.languages) ? data.languages : enabledLangs;
+          const nextSettings = {
+            chinese: savedLangs.includes('chinese'),
+            japanese: savedLangs.includes('japanese'),
+            french: savedLangs.includes('french')
+          };
+          localStorage.setItem('languageSettings', JSON.stringify(nextSettings));
+          localStorage.setItem('enabledLangs', JSON.stringify(savedLangs));
+          showToast('✅ Language settings saved!', 'success');
+        } else {
+          const errorText = await response.text();
+          console.error('Language settings save failed:', errorText);
+          showToast('Error saving language settings', 'error');
+        }
+      } catch (error) {
+        console.error('Language settings save error:', error);
+        showToast('Error saving language settings', 'error');
+      }
       closeLanguageModal();
     }
 

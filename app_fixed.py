@@ -2388,6 +2388,43 @@ def check_user_auth():
     })
 
 
+@app.route('/api/user/languages')
+def get_user_languages():
+    """Get the current user's language preferences"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify({"languages": _parse_user_languages(user.languages)})
+
+
+@app.route('/api/user/languages', methods=['POST'])
+def update_user_languages():
+    """Update the current user's language preferences"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    languages = payload.get("languages", [])
+    normalized = _normalize_language_list(languages)
+    if normalized is None:
+        return jsonify({"error": "Invalid languages payload"}), 400
+
+    user.languages = json.dumps(normalized)
+    db.session.commit()
+
+    return jsonify({"success": True, "languages": normalized})
+
+
 @app.route('/api/user/sections')
 def get_available_sections():
     """Get all available sections for onboarding"""

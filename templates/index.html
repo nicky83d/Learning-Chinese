@@ -1243,6 +1243,28 @@
     };
   }
   let langSettings = getLanguageSettings();
+
+  async function syncLanguageSettingsFromServer() {
+    try {
+      const response = await fetch('/api/user/languages');
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json();
+      const langs = Array.isArray(data.languages) ? data.languages : [];
+      const nextSettings = {
+        chinese: langs.includes('chinese'),
+        japanese: langs.includes('japanese'),
+        french: langs.includes('french')
+      };
+      localStorage.setItem('languageSettings', JSON.stringify(nextSettings));
+      localStorage.setItem('enabledLangs', JSON.stringify(langs.length ? langs : ['chinese']));
+      langSettings = getLanguageSettings();
+      performSearch();
+    } catch (error) {
+      console.warn('Language settings sync failed:', error);
+    }
+  }
   
   // Listen for language settings changes from preferences page
   window.addEventListener('storage', (e) => {
@@ -3915,6 +3937,8 @@
         if (data.is_admin) {
           document.getElementById('adminLink').style.display = 'inline-block';
         }
+
+        await syncLanguageSettingsFromServer();
         
         // Show onboarding modal if not onboarded
         const urlParams = new URLSearchParams(window.location.search);
@@ -4043,13 +4067,12 @@
 
   // Example: get enabled languages from user preferences (replace with real logic)
   function getEnabledLanguages() {
-    // This should return an array of enabled non-English languages, e.g. ['chinese'], ['chinese','japanese']
-    // For demo, try to read from localStorage or fallback to ['chinese']
-    try {
-      const langs = JSON.parse(localStorage.getItem('enabledLangs'));
-      if (Array.isArray(langs) && langs.length > 0) return langs;
-    } catch(e) {}
-    return ['chinese'];
+    // Return the enabled languages based on current settings
+    const enabled = [];
+    if (langSettings.chinese) enabled.push('chinese');
+    if (langSettings.japanese) enabled.push('japanese');
+    if (langSettings.french) enabled.push('french');
+    return enabled.length ? enabled : ['chinese'];
   }
 
   document.getElementById('menuPracticeWords').addEventListener('click', () => {
