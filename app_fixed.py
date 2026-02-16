@@ -2036,6 +2036,49 @@ def admin_db():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/admin/db/update', methods=['POST'])
+@admin_required
+def admin_db_update():
+    """Update a cell value in the database."""
+    try:
+        data = request.get_json()
+        table = data.get('table')
+        row_id = data.get('row_id')
+        column = data.get('column')
+        value = data.get('value')
+        
+        if not all([table, row_id, column]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+        
+        # Whitelist of allowed tables for editing
+        allowed_tables = ['vocabulary', 'photo_log', 'user', 'practice_score', 'ai_feedback']
+        if table not in allowed_tables:
+            return jsonify({"success": False, "error": f"Table '{table}' is not allowed for editing"}), 403
+        
+        # Get database URL to check if PostgreSQL or SQLite
+        db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        is_postgres = 'postgresql' in db_url or 'postgres' in db_url
+        
+        # Quote table name for PostgreSQL
+        quoted_table = f'"{table}"' if is_postgres else table
+        
+        # Update the cell
+        try:
+            update_query = f"UPDATE {quoted_table} SET \"{column}\" = :value WHERE id = :row_id"
+            db.session.execute(text(update_query), {"value": value, "row_id": int(row_id)})
+            db.session.commit()
+            
+            return jsonify({"success": True, "message": f"Updated {table}.{column} for row {row_id}"})
+        except Exception as db_error:
+            db.session.rollback()
+            logger.error(f"Database update error: {db_error}")
+            return jsonify({"success": False, "error": f"Database error: {str(db_error)}"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating DB cell: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/admin/image/<int:log_id>')
 def get_log_image(log_id):
     """Serve the uploaded image for a specific log entry."""

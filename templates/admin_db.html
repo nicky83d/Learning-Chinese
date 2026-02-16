@@ -51,6 +51,26 @@
         .empty { padding: 2rem; text-align: center; color: #7f8c8d; background: white; border: 1px solid #e1e4e8; }
         .notice { background: #fffbe6; border: 1px solid #ffe58f; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; color: #8c6d1f; }
         .filter-count { font-size: 0.85rem; color: #7f8c8d; margin-left: 0.5rem; }
+        /* Editable cell styles */
+        td.editable { cursor: pointer; position: relative; }
+        td.editable:hover { background-color: #fff9e6; }
+        td.editing { padding: 0 !important; }
+        td.editing input, td.editing textarea { 
+            width: 100%; 
+            height: 100%; 
+            padding: 0.55rem 0.65rem;
+            border: none;
+            border-radius: 0;
+            font-family: inherit;
+            font-size: inherit;
+            resize: none;
+            margin: 0;
+            box-sizing: border-box;
+            background: #fff;
+            border: 2px solid #3498db;
+        }
+        td.editing textarea { min-height: 80px; }
+        .edit-hint { position: absolute; bottom: 2px; right: 4px; font-size: 0.7rem; color: #bbb; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -108,9 +128,9 @@
                             </thead>
                             <tbody id="tableBody">
                                 {% for row in rows %}
-                                    <tr>
+                                    <tr data-row-id="{{ row.get('id', '') }}">
                                         {% for col in columns %}
-                                            <td class="col-{{ col }}" data-col="{{ col }}" title="{{ row[col] }}">{{ row[col] }}</td>
+                                            <td class="col-{{ col }} editable" data-col="{{ col }}" data-original="{{ row[col] }}" title="{{ row[col] }}" ondblclick="makeEditable(this)" onkeydown="handleKeyDown(event, this)">{{ row[col] }}</td>
                                         {% endfor %}
                                     </tr>
                                 {% endfor %}
@@ -143,6 +163,8 @@
     </div>
 
     <script>
+        const selectedTable = '{{ selected_table }}';
+
         function filterTable() {
             const input = document.getElementById('filterInput');
             const filter = input.value.toLowerCase();
@@ -178,6 +200,124 @@
                 countEl.textContent = `(${visibleCount} of ${totalCount})`;
             } else {
                 countEl.textContent = '';
+            }
+        }
+
+        function makeEditable(cell) {
+            if (cell.classList.contains('editing')) return;
+            
+            const content = cell.textContent.trim();
+            const isLongContent = content.length > 100;
+            const fieldType = isLongContent ? 'textarea' : 'input';
+            
+            cell.classList.add('editing');
+            cell.innerHTML = '';
+            
+            const field = document.createElement(fieldType);
+            field.value = content;
+            field.style.fontFamily = 'inherit';
+            
+            cell.appendChild(field);
+            
+            // Add hint text
+            const hint = document.createElement('div');
+            hint.className = 'edit-hint';
+            hint.textContent = 'Enter/Esc';
+            if (fieldType === 'input') {
+                cell.style.position = 'relative';
+                cell.appendChild(hint);
+            }
+            
+            field.focus();
+            field.select();
+            
+            field.onblur = () => saveEdit(cell);
+            field.onkeydown = (e) => handleKeyDown(e, cell, field);
+        }
+
+        function handleKeyDown(e, cell, field) {
+            if (!field && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+                return;
+            }
+            
+            field = field || e.target;
+            
+            if (e.key === 'Enter' && e.ctrlKey) {
+                // Ctrl+Enter to save (useful for textarea)
+                saveEdit(cell || field.parentElement);
+            } else if (e.key === 'Enter' && !(e.target instanceof HTMLTextAreaElement)) {
+                // Enter to save (but not in textarea)
+                e.preventDefault();
+                saveEdit(cell || field.parentElement);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit(cell || field.parentElement);
+            }
+        }
+
+        function cancelEdit(cell) {
+            if (!cell.classList.contains('editing')) return;
+            
+            const originalValue = cell.dataset.original;
+            cell.classList.remove('editing');
+            cell.textContent = originalValue;
+        }
+
+        async function saveEdit(cell) {
+            if (!cell.classList.contains('editing')) return;
+            
+            const field = cell.querySelector('input, textarea');
+            if (!field) return;
+            
+            const newValue = field.value;
+            const originalValue = cell.dataset.original;
+            
+            // If value didn't change, just cancel
+            if (newValue === originalValue) {
+                cancelEdit(cell);
+                return;
+            }
+            
+            const row = cell.closest('tr');
+            const rowId = row.dataset.rowId;
+            const colName = cell.dataset.col;
+            
+            if (!rowId) {
+                alert('Cannot determine row ID');
+                cancelEdit(cell);
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/db/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        table: selectedTable,
+                        row_id: rowId,
+                        column: colName,
+                        value: newValue
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    cell.classList.remove('editing');
+                    cell.textContent = newValue;
+                    cell.dataset.original = newValue;
+                    cell.style.backgroundColor = '#e8f5e9';
+                    setTimeout(() => {
+                        cell.style.backgroundColor = '';
+                    }, 1500);
+                } else {
+                    alert('Error updating: ' + (data.error || 'Unknown error'));
+                    cancelEdit(cell);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to save: ' + error.message);
+                cancelEdit(cell);
             }
         }
     </script>
