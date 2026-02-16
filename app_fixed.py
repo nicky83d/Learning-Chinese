@@ -858,9 +858,19 @@ def delete_word():
     if not vocab:
         return jsonify({"ok": False, "error": "Word not found"}), 404
 
-    db.session.delete(vocab)
-    db.session.commit()
-    return jsonify({"ok": True, "status": "deleted"})
+    # Use the new global hide logic instead of hard delete
+    try:
+        # Remove from all users' vocabularies (global hide)
+        UserVocabulary.query.filter_by(vocabulary_id=word_id).delete(synchronize_session=False)
+        
+        # Mark as hidden globally (admins can still see it)
+        vocab.is_hidden = True
+        
+        db.session.commit()
+        return jsonify({"ok": True, "status": "deleted"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Database error: {str(e)}"}), 500
 
 
 @app.route('/add_word', methods=['POST'])
