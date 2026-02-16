@@ -74,6 +74,7 @@ class User(db.Model):
     first_name = db.Column(db.String(100), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
     is_onboarded = db.Column(db.Boolean, default=False)  # Track if user completed initial setup
+    languages = db.Column(db.Text, nullable=True)  # JSON list of enabled languages
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, default=datetime.utcnow)
 

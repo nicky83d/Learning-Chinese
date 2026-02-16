@@ -166,6 +166,37 @@ def fold_text(text: str) -> str:
     s = s.casefold()
     return ''.join(ch for ch in s if unicodedata.category(ch) != 'Mn')
 
+ALLOWED_LANGUAGES = {"chinese", "japanese", "french"}
+
+def _normalize_language_list(langs):
+    if not isinstance(langs, list):
+        return None
+    cleaned = []
+    for item in langs:
+        if not isinstance(item, str):
+            continue
+        key = item.strip().lower()
+        if key in ALLOWED_LANGUAGES and key not in cleaned:
+            cleaned.append(key)
+    if not cleaned:
+        cleaned = ["chinese"]
+    return cleaned
+
+def _parse_user_languages(value):
+    if not value:
+        return ["chinese"]
+    if isinstance(value, list):
+        normalized = _normalize_language_list(value)
+        return normalized if normalized else ["chinese"]
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except Exception:
+            return ["chinese"]
+        normalized = _normalize_language_list(parsed)
+        return normalized if normalized else ["chinese"]
+    return ["chinese"]
+
 def create_tables_and_populate():
     global _db_populated
     if _db_populated:
@@ -413,6 +444,40 @@ def create_tables_and_populate():
                 db.session.rollback()
                 if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
                     logger.warning(f"Could not add user_id column: {e}")
+
+            # Add languages column to user table if it doesn't exist
+            try:
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE "user"
+                        ADD COLUMN languages TEXT
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE "user"
+                        ADD COLUMN IF NOT EXISTS languages TEXT
+                    """))
+                db.session.commit()
+                logger.info("User: languages column ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.warning(f"Could not add languages column: {e}")
+
+            # Backfill default language for existing users
+            try:
+                db.session.execute(
+                    text("""
+                        UPDATE "user"
+                        SET languages = :langs
+                        WHERE languages IS NULL
+                    """),
+                    {"langs": json.dumps(["chinese"])}
+                )
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.debug(f"Could not backfill user languages: {e}")
             
             # Add image_data column to photo_log if it doesn't exist
             try:
@@ -1523,7 +1588,8 @@ def google_auth_callback():
             name=full_name,
             first_name=given_name,
             is_admin=is_admin,
-            is_onboarded=False
+            is_onboarded=False,
+            languages=json.dumps(["chinese"])
         )
         db.session.add(user)
     else:
@@ -2886,6 +2952,7 @@ def get_admin_users():
                 "upload_count": upload_count,
                 "successful_uploads": successful_uploads,
                 "pending_uploads": pending_uploads,
+                "languages": _parse_user_languages(user.languages),
                 "is_banned": False  # Placeholder for future banning feature
             })
         
@@ -2975,6 +3042,7 @@ def get_user_stats(user_id):
             "successful_uploads": successful_uploads,
             "pending_uploads": pending_uploads,
             "rejected_uploads": rejected_uploads,
+            "languages": _parse_user_languages(user.languages),
             "practice_stats": practice_stats
         })
     except Exception as e:
@@ -3007,6 +3075,31 @@ def admin_reset_user_scores(user_id):
         return jsonify({"success": True, "deleted_count": deleted_count})
     except Exception as e:
         logger.error(f"Error resetting user scores: {e}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/admin/user/<int:user_id>/languages', methods=['POST'])
+@admin_required
+def admin_update_user_languages(user_id):
+    """Admin endpoint to update a user's language preferences"""
+    try:
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        payload = request.get_json(silent=True) or {}
+        languages = payload.get("languages", [])
+        normalized = _normalize_language_list(languages)
+        if normalized is None:
+            return jsonify({"error": "Invalid languages payload"}), 400
+
+        user.languages = json.dumps(normalized)
+        db.session.commit()
+
+        return jsonify({"success": True, "languages": normalized})
+    except Exception as e:
+        logger.error(f"Error updating languages for user {user_id}: {e}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
