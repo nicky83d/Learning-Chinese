@@ -33,6 +33,8 @@ class Vocabulary(db.Model):
     
     # Visibility/approval status - hide until admin approves
     is_approved = db.Column(db.Boolean, nullable=False, default=False)
+    # Global hide flag when a user deletes a word (admin still sees it)
+    is_hidden = db.Column(db.Boolean, nullable=False, default=False)
 
 
 class PhotoLog(db.Model):

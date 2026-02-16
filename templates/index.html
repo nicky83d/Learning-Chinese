@@ -1209,6 +1209,9 @@
   let currentGameType = null; // 'listening', 'words', 'speaking', 'drawing'
   let sessionResults = []; // Detailed results for each question
   let sessionTargetRounds = 0; // Target number of rounds for current game
+  let practiceSaveToken = 0;
+  let practiceSaveInFlight = null;
+  let practiceSavedToken = null;
 
   // Theme Logic
   const themeBtn = document.getElementById('themeBtn');
@@ -1318,6 +1321,9 @@
     sessionStartTime = Date.now();
     currentGameType = gameType;
     sessionResults = []; // Reset detailed results
+    practiceSaveToken += 1;
+    practiceSaveInFlight = null;
+    practiceSavedToken = null;
   }
   
   function addSessionResult(result) {
@@ -1343,6 +1349,13 @@
       console.log('Skipping save - no game type or zero total');
       return null;
     }
+    if (practiceSavedToken === practiceSaveToken) {
+      console.log('Skipping save - already saved for this session');
+      return null;
+    }
+    if (practiceSaveInFlight) {
+      return practiceSaveInFlight;
+    }
     const duration = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
     try {
       const payload = {
@@ -1353,18 +1366,29 @@
         results: sessionResults
       };
       console.log('Saving practice score:', payload);
-      const response = await fetch('/api/user/practice/save', {
+      practiceSaveInFlight = fetch('/api/user/practice/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      if (data.error) {
-        console.error('Server error saving score:', data.error);
-        return null;
-      }
-      console.log('Practice score saved successfully, id:', data.id);
-      return data.id;
+      })
+        .then(async (response) => {
+          const data = await response.json();
+          if (data.error) {
+            console.error('Server error saving score:', data.error);
+            return null;
+          }
+          console.log('Practice score saved successfully, id:', data.id);
+          practiceSavedToken = practiceSaveToken;
+          return data.id;
+        })
+        .catch((error) => {
+          console.error('Could not save practice score:', error);
+          return null;
+        })
+        .finally(() => {
+          practiceSaveInFlight = null;
+        });
+      return await practiceSaveInFlight;
     } catch (e) {
       console.error('Could not save practice score:', e);
       return null;

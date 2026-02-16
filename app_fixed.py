@@ -378,6 +378,37 @@ def create_tables_and_populate():
                 db.session.rollback()
                 if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
                     logger.debug(f"sent_japanese_romaji column might already exist: {e}")
+
+            # Add global hide flag to vocabulary table
+            try:
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN is_hidden BOOLEAN DEFAULT 0
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE vocabulary
+                        ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE
+                    """))
+                db.session.commit()
+                logger.info("Added is_hidden column to vocabulary")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.debug(f"is_hidden column might already exist: {e}")
+
+            # Backfill is_hidden to false where missing
+            try:
+                db.session.execute(text("""
+                    UPDATE vocabulary
+                    SET is_hidden = 0
+                    WHERE is_hidden IS NULL
+                """))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.debug(f"Could not backfill is_hidden: {e}")
             
             # Add missing Japanese columns to practice_result table
             try:
@@ -581,11 +612,15 @@ def search():
             all_entries = []
         else:
             all_entries = Vocabulary.query.filter(
-                Vocabulary.id.in_(vocab_ids)
+                Vocabulary.id.in_(vocab_ids),
+                Vocabulary.is_hidden != True
             ).all()
     else:
         # User not logged in - show all approved vocabulary
-        all_entries = Vocabulary.query.filter_by(is_approved=True).all()
+        all_entries = Vocabulary.query.filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        ).all()
     
     # Filter in Python with accent-insensitive comparison
     results = []
@@ -656,11 +691,15 @@ def get_sections():
             return jsonify([])
         
         sections = db.session.query(Vocabulary.section).filter(
-            Vocabulary.id.in_(vocab_ids)
+            Vocabulary.id.in_(vocab_ids),
+            Vocabulary.is_hidden != True
         ).distinct().all()
     else:
         # User not logged in - show all sections
-        sections = db.session.query(Vocabulary.section).distinct().all()
+        sections = db.session.query(Vocabulary.section).filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        ).distinct().all()
     
     # Flatten the list of tuples and remove None/Empty values
     return jsonify(sorted([s[0] for s in sections if s[0]]))
@@ -683,11 +722,15 @@ def random_word():
             return jsonify({"error": "No words in your vocabulary"}), 404
         
         word = db.session.query(Vocabulary).filter(
-            Vocabulary.id.in_(vocab_ids)
+            Vocabulary.id.in_(vocab_ids),
+            Vocabulary.is_hidden != True
         ).order_by(func.random()).first()
     else:
         # User not logged in - get from all approved vocabulary
-        word = db.session.query(Vocabulary).filter_by(is_approved=True).order_by(func.random()).first()
+        word = db.session.query(Vocabulary).filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        ).order_by(func.random()).first()
     
     if not word:
         return jsonify({"error": "No words found"}), 404
@@ -729,11 +772,15 @@ def random_words():
             return jsonify({"error": "No words in your vocabulary"}), 404
         
         query = db.session.query(Vocabulary).filter(
-            Vocabulary.id.in_(vocab_ids)
+            Vocabulary.id.in_(vocab_ids),
+            Vocabulary.is_hidden != True
         )
     else:
         # User not logged in - start with approved words query
-        query = db.session.query(Vocabulary).filter_by(is_approved=True)
+        query = db.session.query(Vocabulary).filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        )
     
     # Filter by section if not 'all'
     if section and section != 'all':
@@ -917,7 +964,10 @@ def _get_best_category_for_word(hanzi: str, english: str, french: str) -> str:
     """Use LLM to determine the most appropriate category for a word."""
     try:
         # Get existing categories
-        sections = db.session.query(Vocabulary.section).filter_by(is_approved=True).distinct().all()
+        sections = db.session.query(Vocabulary.section).filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        ).distinct().all()
         category_list = [s[0] for s in sections if s[0]]
         
         if not category_list:
@@ -1118,7 +1168,10 @@ def _find_existing_vocab(entry: dict, approved_only: bool = False):
 
     q = Vocabulary.query
     if approved_only:
-        q = q.filter(Vocabulary.is_approved == True)
+        q = q.filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        )
     
     if hanzi:
         hit = q.filter(Vocabulary.hanzi == hanzi).first()
@@ -2021,7 +2074,10 @@ def _get_similar_options(correct_word_id: int, max_options: int = 3) -> list:
         if not correct:
             return []
         
-        all_words = Vocabulary.query.filter_by(is_approved=True).all()
+        all_words = Vocabulary.query.filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        ).all()
         candidates = [(w, _calculate_string_similarity(correct.pinyin, w.pinyin)) 
                       for w in all_words if w.id != correct_word_id and w.pinyin]
         candidates.sort(key=lambda x: x[1], reverse=True)
@@ -2093,7 +2149,10 @@ def get_quiz_options():
             return jsonify({"error": "Word not found"}), 404
         
         # Get all approved words except the correct one
-        all_approved = Vocabulary.query.filter_by(is_approved=True).all()
+        all_approved = Vocabulary.query.filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        ).all()
         all_ids = [w.id for w in all_approved if w.id != word_id]
         
         # Determine how many distractors we need
@@ -2428,8 +2487,18 @@ def update_user_languages():
 @app.route('/api/user/sections')
 def get_available_sections():
     """Get all available sections for onboarding"""
-    sections = db.session.query(Vocabulary.section).filter_by(is_approved=True).distinct().all()
-    return jsonify([{"name": s[0], "count": Vocabulary.query.filter_by(section=s[0], is_approved=True).count()} for s in sections if s[0]])
+    sections = db.session.query(Vocabulary.section).filter(
+        Vocabulary.is_approved == True,
+        Vocabulary.is_hidden != True
+    ).distinct().all()
+    return jsonify([
+        {"name": s[0], "count": Vocabulary.query.filter(
+            Vocabulary.section == s[0],
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        ).count()}
+        for s in sections if s[0]
+    ])
 
 
 @app.route('/api/user/onboard', methods=['POST'])
@@ -2451,7 +2520,8 @@ def user_onboard():
     if selected_sections:
         vocab_items = Vocabulary.query.filter(
             Vocabulary.section.in_(selected_sections),
-            Vocabulary.is_approved == True
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
         ).all()
         
         for vocab in vocab_items:
@@ -2491,7 +2561,10 @@ def get_user_vocabulary():
         return jsonify([])
     
     # Get the actual vocabulary items
-    vocab_items = Vocabulary.query.filter(Vocabulary.id.in_(vocab_ids)).all()
+    vocab_items = Vocabulary.query.filter(
+        Vocabulary.id.in_(vocab_ids),
+        Vocabulary.is_hidden != True
+    ).all()
     
     return jsonify([{
         "id": v.id,
@@ -2530,7 +2603,8 @@ def update_user_preferences():
         # Add vocabulary from selected sections
         vocab_items = Vocabulary.query.filter(
             Vocabulary.section.in_(sections),
-            Vocabulary.is_approved == True
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
         ).all()
         
         added_count = 0
@@ -2551,7 +2625,8 @@ def update_user_preferences():
         # Remove vocabulary from selected sections
         vocab_items = Vocabulary.query.filter(
             Vocabulary.section.in_(sections),
-            Vocabulary.is_approved == True
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
         ).all()
         vocab_ids = [v.id for v in vocab_items]
         
@@ -2582,7 +2657,8 @@ def get_user_imported_sections():
     
     # Get unique sections
     sections = db.session.query(Vocabulary.section).filter(
-        Vocabulary.id.in_(vocab_ids)
+        Vocabulary.id.in_(vocab_ids),
+        Vocabulary.is_hidden != True
     ).distinct().all()
     
     return jsonify([s[0] for s in sections if s[0]])
@@ -2603,7 +2679,10 @@ def get_deletable_words():
         return jsonify({"categories": {}, "total": 0})
     
     # Get vocabulary items organized by section
-    vocab_items = Vocabulary.query.filter(Vocabulary.id.in_(vocab_ids)).all()
+    vocab_items = Vocabulary.query.filter(
+        Vocabulary.id.in_(vocab_ids),
+        Vocabulary.is_hidden != True
+    ).all()
     
     # Organize by category
     by_category = {}
@@ -2632,14 +2711,8 @@ def delete_user_word(vocab_id):
     if not user:
         return jsonify({"error": "User not found"}), 404
     
-    # Remove from UserVocabulary
-    user_vocab = UserVocabulary.query.filter_by(
-        user_id=user_id,
-        vocabulary_id=vocab_id
-    ).first()
-    
-    if user_vocab:
-        db.session.delete(user_vocab)
+    # Remove from all users' vocabularies (global hide)
+    UserVocabulary.query.filter_by(vocabulary_id=vocab_id).delete(synchronize_session=False)
     
     # Add to UserDeletedWord to track deletion
     deleted = UserDeletedWord.query.filter_by(
@@ -2650,6 +2723,11 @@ def delete_user_word(vocab_id):
     if not deleted:
         deleted = UserDeletedWord(user_id=user_id, vocabulary_id=vocab_id)
         db.session.add(deleted)
+
+    # Hide globally (admin can still see in DB)
+    vocab = db.session.get(Vocabulary, vocab_id)
+    if vocab:
+        vocab.is_hidden = True
     
     db.session.commit()
     return jsonify({"success": True, "message": "Word deleted"})
