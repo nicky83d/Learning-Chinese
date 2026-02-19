@@ -3380,6 +3380,117 @@ def reset_my_scores():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/admin/backfill-japanese', methods=['POST'])
+@admin_required
+def backfill_japanese_endpoint():
+    """Admin endpoint to trigger Japanese backfill directly"""
+    try:
+        mode = request.json.get('mode', 'count-only')  # count-only, dry-run, or live
+        limit = request.json.get('limit', 1000)
+        only_approved = request.json.get('only_approved', True)
+        
+        # Import backfill functions
+        import re
+        import json
+        from sqlalchemy import or_, and_
+        
+        def _has_japanese_value(value):
+            return bool((value or "").strip())
+        
+        def _extract_json_payload(text):
+            text = (text or "").strip()
+            if not text:
+                return None
+            try:
+                data = json.loads(text)
+                if isinstance(data, dict):
+                    return data
+            except:
+                pass
+            match = re.search(r"\{[\s\S]*\}", text)
+            if not match:
+                return None
+            try:
+                data = json.loads(match.group(0))
+                return data if isinstance(data, dict) else None
+            except:
+                return None
+        
+        # Build query for missing Japanese
+        query = db.session.query(Vocabulary)
+        
+        if only_approved:
+            query = query.filter_by(is_approved=True)
+        
+        # Filter rows with missing Japanese
+        missing = []
+        for vocab in query.all():
+            has_kanji = _has_japanese_value(vocab.japanese_kanji)
+            has_romaji = _has_japanese_value(vocab.japanese_romaji)
+            has_sent_jp = _has_japanese_value(vocab.sent_japanese) if hasattr(vocab, 'sent_japanese') else False
+            
+            if not (has_kanji and has_romaji and has_sent_jp):
+                missing.append(vocab)
+        
+        total_missing = len(missing)
+        
+        if mode == 'count-only':
+            return jsonify({
+                "status": "success",
+                "mode": "count-only",
+                "rows_with_missing_japanese": total_missing
+            })
+        
+        if mode == 'dry-run' or mode == 'live':
+            processed = 0
+            changes = []
+            
+            for vocab in missing[:limit]:
+                if vocab.hanzi and not _has_japanese_value(vocab.japanese_kanji):
+                    try:
+                        # Call OpenAI to get Japanese translation
+                        response = openai.ChatCompletion.create(
+                            model="gpt-4o-mini",
+                            messages=[{
+                                "role": "user",
+                                "content": f"Translate this Chinese word to natural Japanese (in kanji and hiragana romaji). Return JSON: {{\"kanji\": \"...\", \"romaji\": \"...\"}}\n\n{vocab.hanzi}"
+                            }],
+                            temperature=0.3,
+                            max_tokens=100
+                        )
+                        payload = _extract_json_payload(response.choices[0].message.content)
+                        if payload:
+                            kanji = (payload.get('kanji') or '').strip()
+                            romaji = (payload.get('romaji') or '').strip()
+                            if kanji and romaji:
+                                if mode == 'live':
+                                    vocab.japanese_kanji = kanji
+                                    vocab.japanese_romaji = romaji
+                                changes.append({"id": vocab.id, "hanzi": vocab.hanzi, "kanji": kanji, "romaji": romaji})
+                                processed += 1
+                    except Exception as e:
+                        logger.warning(f"Error translating {vocab.hanzi}: {e}")
+                    
+                    time.sleep(0.5)  # Rate limit
+            
+            if mode == 'live' and changes:
+                db.session.commit()
+                logger.info(f"Backfill complete: Updated {processed} rows")
+            
+            return jsonify({
+                "status": "success",
+                "mode": mode,
+                "rows_processed": processed,
+                "changes": changes
+            })
+        
+        return jsonify({"error": "Invalid mode"}), 400
+        
+    except Exception as e:
+        logger.error(f"Error in backfill endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     create_tables_and_populate()
     # Use config-based debug mode
