@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file, session, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
-from models import db, Vocabulary, PhotoLog, User, UserVocabulary, UserDeletedWord, PracticeScore, PracticeResult, AIFeedback
+from models import db, Vocabulary, PhotoLog, User, UserDeletedWord, PracticeScore, PracticeResult, AIFeedback
 from extract_data import extract_all_rows
 from config import get_config
 import unicodedata
@@ -16,7 +16,7 @@ import time
 import logging
 from datetime import datetime
 from math import ceil
-from sqlalchemy import text
+from sqlalchemy import text, and_, or_
 from io import BytesIO
 from PIL import Image, ImageOps
 from functools import wraps
@@ -167,6 +167,8 @@ def fold_text(text: str) -> str:
     return ''.join(ch for ch in s if unicodedata.category(ch) != 'Mn')
 
 ALLOWED_LANGUAGES = {"chinese", "japanese", "french"}
+SYSTEM_OWNER_USER_ID = 0
+SYSTEM_OWNER_EMAIL = "deleted-words-owner@local.invalid"
 
 def _normalize_language_list(langs):
     if not isinstance(langs, list):
@@ -196,6 +198,129 @@ def _parse_user_languages(value):
         normalized = _normalize_language_list(parsed)
         return normalized if normalized else ["chinese"]
     return ["chinese"]
+
+def _normalize_section_list(sections):
+    if not isinstance(sections, list):
+        return None
+    cleaned = []
+    seen = set()
+    for section in sections:
+        if not isinstance(section, str):
+            continue
+        name = section.strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(name[:100])
+    return cleaned
+
+def _parse_user_visible_sections(value):
+    """
+    Parse stored user visible sections.
+    Returns:
+      - None for legacy users (treat as "all approved sections")
+      - [] for explicit "only my words"
+      - [section names] for explicit category visibility
+    """
+    if value is None:
+        return None
+    if isinstance(value, list):
+        normalized = _normalize_section_list(value)
+        return normalized if normalized is not None else None
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            return None
+        normalized = _normalize_section_list(parsed)
+        return normalized if normalized is not None else None
+    return None
+
+def _get_all_visible_sections():
+    rows = db.session.query(Vocabulary.section).filter(
+        Vocabulary.is_approved == True,
+        Vocabulary.is_hidden != True
+    ).distinct().all()
+    return [row[0] for row in rows if row[0]]
+
+def _get_effective_user_sections(user: User):
+    parsed = _parse_user_visible_sections(getattr(user, "visible_sections", None))
+    if parsed is None:
+        return _get_all_visible_sections(), True
+    return parsed, False
+
+def _get_user_visible_vocab_query(user_id: int | None):
+    if not user_id:
+        return Vocabulary.query.filter(
+            Vocabulary.is_approved == True,
+            Vocabulary.is_hidden != True
+        )
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return Vocabulary.query.filter(Vocabulary.id == -1)
+
+    visible_sections, _legacy_all = _get_effective_user_sections(user)
+    visibility_conditions = [Vocabulary.added_by_user_id == user_id]
+
+    if visible_sections:
+        visibility_conditions.append(
+            and_(
+                Vocabulary.is_approved == True,
+                Vocabulary.section.in_(visible_sections)
+            )
+        )
+
+    deleted_subquery = db.session.query(UserDeletedWord.vocabulary_id).filter(
+        UserDeletedWord.user_id == user_id
+    )
+
+    return Vocabulary.query.filter(
+        Vocabulary.is_hidden != True,
+        or_(*visibility_conditions),
+        ~Vocabulary.id.in_(deleted_subquery)
+    )
+
+def _ensure_system_owner_user():
+    """Ensure user id=0 exists as a system bucket owner for deleted words."""
+    try:
+        existing = db.session.get(User, SYSTEM_OWNER_USER_ID)
+        if existing:
+            return True
+
+        email_hit = User.query.filter_by(email=SYSTEM_OWNER_EMAIL).first()
+        if email_hit and email_hit.id != SYSTEM_OWNER_USER_ID:
+            logger.warning(
+                "System owner email already exists on a different user id; cannot enforce user 0 bucket"
+            )
+            return False
+
+        bucket_user = User(
+            id=SYSTEM_OWNER_USER_ID,
+            email=SYSTEM_OWNER_EMAIL,
+            name="System Owner",
+            first_name="System",
+            is_admin=True,
+            is_onboarded=True,
+            languages=json.dumps(["chinese"]),
+            visible_sections=json.dumps([]),
+            created_at=datetime.utcnow(),
+            last_login=datetime.utcnow(),
+        )
+        db.session.add(bucket_user)
+        db.session.commit()
+        logger.info("System owner user ensured with id=0")
+        return True
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"Could not ensure system owner user: {e}")
+        return False
 
 def create_tables_and_populate():
     global _db_populated
@@ -495,6 +620,25 @@ def create_tables_and_populate():
                 if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
                     logger.warning(f"Could not add languages column: {e}")
 
+            # Add visible_sections column to user table if it doesn't exist
+            try:
+                if is_sqlite:
+                    db.session.execute(text("""
+                        ALTER TABLE "user"
+                        ADD COLUMN visible_sections TEXT
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE "user"
+                        ADD COLUMN IF NOT EXISTS visible_sections TEXT
+                    """))
+                db.session.commit()
+                logger.info("User: visible_sections column ensured")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    logger.warning(f"Could not add visible_sections column: {e}")
+
             # Backfill default language for existing users
             try:
                 db.session.execute(
@@ -528,6 +672,9 @@ def create_tables_and_populate():
                 db.session.rollback()
                 if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
                     logger.warning(f"Could not add image_data column: {e}")
+
+            # Ensure system owner bucket user (id=0) exists for deleted word reassignment
+            _ensure_system_owner_user()
         except Exception as e:
             logger.warning(f"Migration check failed: {e}")
             db.session.rollback()
@@ -603,24 +750,7 @@ def search():
     # Check if user is logged in
     user_id = session.get('user_id')
     
-    if user_id:
-        # User is logged in - only show their vocabulary
-        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
-        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
-        
-        if not vocab_ids:
-            all_entries = []
-        else:
-            all_entries = Vocabulary.query.filter(
-                Vocabulary.id.in_(vocab_ids),
-                Vocabulary.is_hidden != True
-            ).all()
-    else:
-        # User not logged in - show all approved vocabulary
-        all_entries = Vocabulary.query.filter(
-            Vocabulary.is_approved == True,
-            Vocabulary.is_hidden != True
-        ).all()
+    all_entries = _get_user_visible_vocab_query(user_id).all()
     
     # Filter in Python with accent-insensitive comparison
     results = []
@@ -682,24 +812,7 @@ def get_sections():
     # Check if user is logged in
     user_id = session.get('user_id')
     
-    if user_id:
-        # User is logged in - only show sections from their vocabulary
-        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
-        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
-        
-        if not vocab_ids:
-            return jsonify([])
-        
-        sections = db.session.query(Vocabulary.section).filter(
-            Vocabulary.id.in_(vocab_ids),
-            Vocabulary.is_hidden != True
-        ).distinct().all()
-    else:
-        # User not logged in - show all sections
-        sections = db.session.query(Vocabulary.section).filter(
-            Vocabulary.is_approved == True,
-            Vocabulary.is_hidden != True
-        ).distinct().all()
+    sections = _get_user_visible_vocab_query(user_id).with_entities(Vocabulary.section).distinct().all()
     
     # Flatten the list of tuples and remove None/Empty values
     return jsonify(sorted([s[0] for s in sections if s[0]]))
@@ -713,24 +826,7 @@ def random_word():
     # Check if user is logged in
     user_id = session.get('user_id')
     
-    if user_id:
-        # User is logged in - only get from their vocabulary
-        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
-        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
-        
-        if not vocab_ids:
-            return jsonify({"error": "No words in your vocabulary"}), 404
-        
-        word = db.session.query(Vocabulary).filter(
-            Vocabulary.id.in_(vocab_ids),
-            Vocabulary.is_hidden != True
-        ).order_by(func.random()).first()
-    else:
-        # User not logged in - get from all approved vocabulary
-        word = db.session.query(Vocabulary).filter(
-            Vocabulary.is_approved == True,
-            Vocabulary.is_hidden != True
-        ).order_by(func.random()).first()
+    word = _get_user_visible_vocab_query(user_id).order_by(func.random()).first()
     
     if not word:
         return jsonify({"error": "No words found"}), 404
@@ -763,24 +859,7 @@ def random_words():
     # Check if user is logged in
     user_id = session.get('user_id')
     
-    if user_id:
-        # User is logged in - only get from their vocabulary
-        user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
-        vocab_ids = [uv.vocabulary_id for uv in user_vocab]
-        
-        if not vocab_ids:
-            return jsonify({"error": "No words in your vocabulary"}), 404
-        
-        query = db.session.query(Vocabulary).filter(
-            Vocabulary.id.in_(vocab_ids),
-            Vocabulary.is_hidden != True
-        )
-    else:
-        # User not logged in - start with approved words query
-        query = db.session.query(Vocabulary).filter(
-            Vocabulary.is_approved == True,
-            Vocabulary.is_hidden != True
-        )
+    query = _get_user_visible_vocab_query(user_id)
     
     # Filter by section if not 'all'
     if section and section != 'all':
@@ -860,10 +939,11 @@ def delete_word():
 
     # Use the new global hide logic instead of hard delete
     try:
-        # Remove from all users' vocabularies (global hide)
-        UserVocabulary.query.filter_by(vocabulary_id=word_id).delete(synchronize_session=False)
-        
+        if not _ensure_system_owner_user():
+            return jsonify({"ok": False, "error": "System owner user (id=0) is required for deletion workflow"}), 500
+
         # Mark as hidden globally (admins can still see it)
+        vocab.added_by_user_id = SYSTEM_OWNER_USER_ID
         vocab.is_hidden = True
         
         db.session.commit()
@@ -1034,10 +1114,14 @@ Each entry must be a JSON object with these exact keys (all strings, all require
 - "pinyin": correct tone-marked pinyin (spaces between words for phrases)
 - "english": English translation
 - "french": French translation (translate from English if missing)
+- "japanese_kanji": Japanese translation (kanji/kana)
+- "japanese_romaji": Romanized Japanese translation
 - "sent_hanzi": short natural example sentence using the word
 - "sent_pinyin": pinyin for the example sentence
 - "sent_english": English translation of the example sentence
 - "sent_french": French translation of the example sentence
+- "sent_japanese_kanji": Japanese translation of the example sentence (kanji/kana)
+- "sent_japanese_romaji": Romanized Japanese translation of the example sentence
 
 Rules:
 - Produce ONE entry per individual word. If a line has multiple words (e.g., "书房 比 卧室 大"), split it into separate entries for every word (书房, 比, 卧室, 大) with their own translations and example sentences. Do NOT return the whole multi-word phrase as a single entry unless it is a fixed expression.
@@ -1053,7 +1137,7 @@ OCR lines:
 Return ONLY the JSON array. Start directly with [.
 
 Example of correct output:
-[{{"hanzi": "头", "pinyin": "tóu", "english": "head", "french": "tête", "sent_hanzi": "我的头疼。", "sent_pinyin": "Wǒ de tóu téng.", "sent_english": "My head hurts.", "sent_french": "J'ai mal à la tête."}}]"""
+[{{"hanzi": "头", "pinyin": "tóu", "english": "head", "french": "tête", "japanese_kanji": "頭", "japanese_romaji": "atama", "sent_hanzi": "我的头疼。", "sent_pinyin": "Wǒ de tóu téng.", "sent_english": "My head hurts.", "sent_french": "J'ai mal à la tête.", "sent_japanese_kanji": "頭が痛いです。", "sent_japanese_romaji": "atama ga itai desu."}}]"""
         if lang == 'french':
             return f"""You are an expert at cleaning messy OCR output from French-Chinese vocabulary lists.
 
@@ -1064,10 +1148,14 @@ Each entry must have:
 - "english": English translation
 - "hanzi": Chinese translation (must contain Han characters)
 - "pinyin": tone-marked pinyin
+- "japanese_kanji": Japanese translation (kanji/kana)
+- "japanese_romaji": Romanized Japanese translation
 - "sent_french": example sentence in French
 - "sent_english": English translation of sentence
 - "sent_hanzi": Chinese sentence
 - "sent_pinyin": pinyin for Chinese sentence
+- "sent_japanese_kanji": Japanese translation of sentence (kanji/kana)
+- "sent_japanese_romaji": Romanized Japanese translation of sentence
 
 Merge related lines, fix OCR errors, generate missing parts, no duplicates.
 
@@ -1144,10 +1232,14 @@ Return ONLY the JSON array starting with [."""
             "pinyin": _clip(_normalize_ws(e.get("pinyin", "")), 100),
             "english": _clip(_normalize_ws(e.get("english", "")), 200),
             "french": _clip(_normalize_ws(e.get("french", "")), 200),
+            "japanese_kanji": _clip(_normalize_ws(e.get("japanese_kanji", "")), 200),
+            "japanese_romaji": _clip(_normalize_ws(e.get("japanese_romaji", "")), 200),
             "sent_hanzi": _clip(_normalize_ws(e.get("sent_hanzi", "")), 100),
             "sent_pinyin": _clip(_normalize_ws(e.get("sent_pinyin", "")), 150),
             "sent_english": _clip(_normalize_ws(e.get("sent_english", "")), 200),
             "sent_french": _clip(_normalize_ws(e.get("sent_french", "")), 200),
+            "sent_japanese_kanji": _clip(_normalize_ws(e.get("sent_japanese_kanji", "")), 200),
+            "sent_japanese_romaji": _clip(_normalize_ws(e.get("sent_japanese_romaji", "")), 200),
         }
         # Require core fields
         if all(item.values()):
@@ -1216,7 +1308,9 @@ def _upsert_full_entry(section: str, entry: dict, user_id: int = None):
 
     for field, maxlen in [
         ("hanzi", 50), ("pinyin", 100), ("english", 200), ("french", 200),
+        ("japanese_kanji", 200), ("japanese_romaji", 200),
         ("sent_hanzi", 100), ("sent_pinyin", 150), ("sent_english", 200), ("sent_french", 200),
+        ("sent_japanese_kanji", 200), ("sent_japanese_romaji", 200),
     ]:
         new_val = (entry.get(field) or "").strip()
         if new_val and not (getattr(row, field) or "").strip():
@@ -2117,7 +2211,7 @@ def _calculate_string_similarity(s1: str, s2: str) -> float:
     common = sum(1 for c in s1_lower if c in s2_lower)
     return common / max(len(s1_lower), len(s2_lower)) if max(len(s1_lower), len(s2_lower)) > 0 else 0.0
 
-def _get_similar_options(correct_word_id: int, max_options: int = 3) -> list:
+def _get_similar_options(correct_word_id: int, max_options: int = 3, candidate_words: list | None = None) -> list:
     """
     Fetch similar words from the database (by sound/appearance similarity).
     Returns list of word IDs (not including the correct word).
@@ -2127,7 +2221,7 @@ def _get_similar_options(correct_word_id: int, max_options: int = 3) -> list:
         if not correct:
             return []
         
-        all_words = Vocabulary.query.filter(
+        all_words = candidate_words if candidate_words is not None else Vocabulary.query.filter(
             Vocabulary.is_approved == True,
             Vocabulary.is_hidden != True
         ).all()
@@ -2201,12 +2295,8 @@ def get_quiz_options():
         if not correct:
             return jsonify({"error": "Word not found"}), 404
         
-        # Get all approved words except the correct one
-        all_approved = Vocabulary.query.filter(
-            Vocabulary.is_approved == True,
-            Vocabulary.is_hidden != True
-        ).all()
-        all_ids = [w.id for w in all_approved if w.id != word_id]
+        all_visible = _get_user_visible_vocab_query(session.get('user_id')).all()
+        all_ids = [w.id for w in all_visible if w.id != word_id]
         
         # Determine how many distractors we need
         num_distractors = min(3, len(all_ids))  # Max 3 distractors, but limited by available words
@@ -2216,7 +2306,7 @@ def get_quiz_options():
             distractors = []
         else:
             # Get similar words as distractors
-            similar_ids = _get_similar_options(word_id, max_options=num_distractors)
+            similar_ids = _get_similar_options(word_id, max_options=num_distractors, candidate_words=all_visible)
             
             # If we don't have enough similar words, add random ones to fill
             if len(similar_ids) < num_distractors:
@@ -2556,7 +2646,7 @@ def get_available_sections():
 
 @app.route('/api/user/onboard', methods=['POST'])
 def user_onboard():
-    """Complete user onboarding and import selected categories"""
+    """Complete user onboarding and set visible categories"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2566,27 +2656,19 @@ def user_onboard():
         return jsonify({"error": "User not found"}), 404
     
     data = request.get_json() or {}
-    selected_sections = data.get('sections', [])  # List of section names
-    
-    # Import vocabulary from selected sections
+    selected_sections = _normalize_section_list(data.get('sections', []))
+    if selected_sections is None:
+        return jsonify({"error": "Invalid sections payload"}), 400
+
     imported_count = 0
     if selected_sections:
-        vocab_items = Vocabulary.query.filter(
+        imported_count = Vocabulary.query.filter(
             Vocabulary.section.in_(selected_sections),
             Vocabulary.is_approved == True,
             Vocabulary.is_hidden != True
-        ).all()
-        
-        for vocab in vocab_items:
-            # Check if already added
-            existing = UserVocabulary.query.filter_by(
-                user_id=user.id,
-                vocabulary_id=vocab.id
-            ).first()
-            if not existing:
-                user_vocab = UserVocabulary(user_id=user.id, vocabulary_id=vocab.id)
-                db.session.add(user_vocab)
-                imported_count += 1
+        ).count()
+
+    user.visible_sections = json.dumps(selected_sections)
     
     # Mark user as onboarded
     user.is_onboarded = True
@@ -2595,7 +2677,7 @@ def user_onboard():
     return jsonify({
         "success": True,
         "imported_count": imported_count,
-        "message": f"Successfully imported {imported_count} words!"
+        "message": f"Visibility updated for {imported_count} words!"
     })
 
 
@@ -2606,18 +2688,7 @@ def get_user_vocabulary():
     if not user_id:
         return jsonify([])  # Return empty for non-authenticated users
     
-    # Get user's vocabulary IDs
-    user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
-    vocab_ids = [uv.vocabulary_id for uv in user_vocab]
-    
-    if not vocab_ids:
-        return jsonify([])
-    
-    # Get the actual vocabulary items
-    vocab_items = Vocabulary.query.filter(
-        Vocabulary.id.in_(vocab_ids),
-        Vocabulary.is_hidden != True
-    ).all()
+    vocab_items = _get_user_visible_vocab_query(user_id).all()
     
     return jsonify([{
         "id": v.id,
@@ -2639,7 +2710,7 @@ def get_user_vocabulary():
 
 @app.route('/api/user/preferences', methods=['POST'])
 def update_user_preferences():
-    """Update user vocabulary preferences (add/remove categories)"""
+    """Update user visible category preferences (add/remove categories)"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2652,44 +2723,55 @@ def update_user_preferences():
     action = data.get('action')  # 'add' or 'remove'
     sections = data.get('sections', [])
     
+    normalized_sections = _normalize_section_list(sections)
+    if normalized_sections is None:
+        return jsonify({"error": "Invalid sections payload"}), 400
+
+    current_sections = _parse_user_visible_sections(user.visible_sections)
+    if current_sections is None:
+        current_sections = _get_all_visible_sections()
+
+    current_set = {s.lower(): s for s in current_sections}
+
     if action == 'add':
-        # Add vocabulary from selected sections
-        vocab_items = Vocabulary.query.filter(
-            Vocabulary.section.in_(sections),
-            Vocabulary.is_approved == True,
-            Vocabulary.is_hidden != True
-        ).all()
-        
+        added_sections = []
+        for section in normalized_sections:
+            key = section.lower()
+            if key not in current_set:
+                current_set[key] = section
+                added_sections.append(section)
+
+        user.visible_sections = json.dumps(list(current_set.values()))
+        db.session.commit()
+
         added_count = 0
-        for vocab in vocab_items:
-            existing = UserVocabulary.query.filter_by(
-                user_id=user.id,
-                vocabulary_id=vocab.id
-            ).first()
-            if not existing:
-                user_vocab = UserVocabulary(user_id=user.id, vocabulary_id=vocab.id)
-                db.session.add(user_vocab)
-                added_count += 1
-        
-        db.session.commit()
-        return jsonify({"success": True, "added": added_count, "message": f"Added {added_count} words"})
-    
+        if added_sections:
+            added_count = Vocabulary.query.filter(
+                Vocabulary.section.in_(added_sections),
+                Vocabulary.is_approved == True,
+                Vocabulary.is_hidden != True
+            ).count()
+        return jsonify({"success": True, "added": added_count, "message": f"Enabled {added_count} words"})
+
     elif action == 'remove':
-        # Remove vocabulary from selected sections
-        vocab_items = Vocabulary.query.filter(
-            Vocabulary.section.in_(sections),
-            Vocabulary.is_approved == True,
-            Vocabulary.is_hidden != True
-        ).all()
-        vocab_ids = [v.id for v in vocab_items]
-        
-        removed_count = UserVocabulary.query.filter(
-            UserVocabulary.user_id == user.id,
-            UserVocabulary.vocabulary_id.in_(vocab_ids)
-        ).delete(synchronize_session=False)
-        
+        removed_sections = []
+        for section in normalized_sections:
+            key = section.lower()
+            if key in current_set:
+                removed_sections.append(current_set[key])
+                current_set.pop(key)
+
+        user.visible_sections = json.dumps(list(current_set.values()))
         db.session.commit()
-        return jsonify({"success": True, "removed": removed_count, "message": f"Removed {removed_count} words"})
+
+        removed_count = 0
+        if removed_sections:
+            removed_count = Vocabulary.query.filter(
+                Vocabulary.section.in_(removed_sections),
+                Vocabulary.is_approved == True,
+                Vocabulary.is_hidden != True
+            ).count()
+        return jsonify({"success": True, "removed": removed_count, "message": f"Hidden {removed_count} words"})
     
     return jsonify({"error": "Invalid action"}), 400
 
@@ -2701,20 +2783,12 @@ def get_user_imported_sections():
     if not user_id:
         return jsonify([])
     
-    # Get all vocabulary IDs the user has
-    user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
-    vocab_ids = [uv.vocabulary_id for uv in user_vocab]
-    
-    if not vocab_ids:
+    user = db.session.get(User, user_id)
+    if not user:
         return jsonify([])
-    
-    # Get unique sections
-    sections = db.session.query(Vocabulary.section).filter(
-        Vocabulary.id.in_(vocab_ids),
-        Vocabulary.is_hidden != True
-    ).distinct().all()
-    
-    return jsonify([s[0] for s in sections if s[0]])
+
+    sections, _legacy_all = _get_effective_user_sections(user)
+    return jsonify(sections)
 
 
 @app.route('/api/user/deletable-words')
@@ -2724,18 +2798,18 @@ def get_deletable_words():
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
     
-    # Get user's vocabulary (excluding already deleted)
-    user_vocab = UserVocabulary.query.filter_by(user_id=user_id).all()
-    vocab_ids = [uv.vocabulary_id for uv in user_vocab]
-    
-    if not vocab_ids:
-        return jsonify({"categories": {}, "total": 0})
-    
-    # Get vocabulary items organized by section
+    deleted_subquery = db.session.query(UserDeletedWord.vocabulary_id).filter(
+        UserDeletedWord.user_id == user_id
+    )
+
     vocab_items = Vocabulary.query.filter(
-        Vocabulary.id.in_(vocab_ids),
-        Vocabulary.is_hidden != True
+        Vocabulary.added_by_user_id == user_id,
+        Vocabulary.is_hidden != True,
+        ~Vocabulary.id.in_(deleted_subquery)
     ).all()
+
+    if not vocab_items:
+        return jsonify({"categories": {}, "total": 0})
     
     # Organize by category
     by_category = {}
@@ -2763,9 +2837,9 @@ def delete_user_word(vocab_id):
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
-    
-    # Remove from all users' vocabularies (global hide)
-    UserVocabulary.query.filter_by(vocabulary_id=vocab_id).delete(synchronize_session=False)
+
+    if not _ensure_system_owner_user():
+        return jsonify({"error": "System owner user (id=0) is required for deletion workflow"}), 500
     
     # Add to UserDeletedWord to track deletion
     deleted = UserDeletedWord.query.filter_by(
@@ -2777,10 +2851,10 @@ def delete_user_word(vocab_id):
         deleted = UserDeletedWord(user_id=user_id, vocabulary_id=vocab_id)
         db.session.add(deleted)
 
-    # Hide globally (admin can still see in DB)
+    # Reassign ownership to admin bucket user_id=0 so admin can review
     vocab = db.session.get(Vocabulary, vocab_id)
     if vocab:
-        vocab.is_hidden = True
+        vocab.added_by_user_id = SYSTEM_OWNER_USER_ID
     
     db.session.commit()
     return jsonify({"success": True, "message": "Word deleted"})
@@ -3094,7 +3168,10 @@ def get_admin_users():
         user_list = []
         for user in users:
             # Vocabulary stats
-            vocab_count = UserVocabulary.query.filter_by(user_id=user.id).count()
+            vocab_count = Vocabulary.query.filter(
+                Vocabulary.added_by_user_id == user.id,
+                Vocabulary.is_hidden != True
+            ).count()
             deleted_count = UserDeletedWord.query.filter_by(user_id=user.id).count()
             
             # Upload stats from PhotoLog
@@ -3142,7 +3219,10 @@ def get_user_stats(user_id):
         
         # Get vocabulary stats - with fallback for missing tables
         try:
-            vocab_count = UserVocabulary.query.filter_by(user_id=user_id).count()
+            vocab_count = Vocabulary.query.filter(
+                Vocabulary.added_by_user_id == user_id,
+                Vocabulary.is_hidden != True
+            ).count()
         except Exception as e:
             logger.warning(f"Could not get vocab count: {e}")
             db.session.rollback()

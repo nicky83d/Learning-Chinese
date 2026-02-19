@@ -218,7 +218,7 @@
     
     <div class="pref-header">
       <h1>⚙️ Preferences</h1>
-      <p>Manage your vocabulary categories. Add or remove categories to customize your learning experience.</p>
+      <p>Manage which shared categories are visible, while always keeping your own added words available.</p>
     </div>
 
     <div class="section-group">
@@ -234,17 +234,17 @@
     <div class="section-group">
       <h2>📚 Word Selection</h2>
       <p style="color: var(--text-muted); margin-bottom: 16px;">
-        Select categories to add words to your vocabulary, or uncheck to remove them.
+        Choose which approved categories are visible in your app (your own added words always stay visible).
       </p>
       <button class="btn btn-primary" onclick="showWordSelectionModal()">
-        📚 Manage Word Categories
+        📚 Manage Visible Categories
       </button>
     </div>
 
     <div class="section-group">
       <h2>🗑️ Delete Words</h2>
       <p style="color: var(--text-muted); margin-bottom: 16px;">
-          Remove words from your vocabulary. They stay in the database, but will be hidden from all learners (admins can still view them).
+          Remove words from your personal view. The word is reassigned to admin review (owner user 0) and won’t show for you anymore.
       </p>
       <button class="btn btn-danger" id="deleteWordsBtn" onclick="showDeleteWordsModal()">
         🗑️ Delete Words (<span id="deletableCount">0</span>)
@@ -311,9 +311,9 @@
   <!-- Word Selection Modal -->
   <div id="wordSelectionModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
     <div style="background: var(--card-bg); border-radius: 16px; max-width: 800px; width: 95%; max-height: 85vh; overflow-y: auto; padding: 32px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
-      <h2 style="margin-bottom: 24px; color: var(--primary);">📚 Word Categories</h2>
+      <h2 style="margin-bottom: 24px; color: var(--primary);">📚 Visible Categories</h2>
       <p style="color: var(--text-muted); margin-bottom: 16px;">
-        Select categories to add words to your vocabulary.
+        Select approved categories you want to see in addition to your own words.
       </p>
       
       <div class="select-controls">
@@ -426,7 +426,7 @@
     }
 
     let allCategories = [];
-    let importedSections = [];
+    let visibleSections = [];
 
     async function loadCategories() {
       try {
@@ -434,9 +434,9 @@
         const sectionsResponse = await fetch('/api/user/sections');
         allCategories = await sectionsResponse.json();
 
-        // Load user's imported sections
+        // Load user's visible sections
         const importedResponse = await fetch('/api/user/imported-sections');
-        importedSections = await importedResponse.json();
+        visibleSections = await importedResponse.json();
 
         // Render categories
         const grid = document.getElementById('categoryGrid');
@@ -446,7 +446,7 @@
         }
 
         grid.innerHTML = allCategories.map(cat => {
-          const isChecked = importedSections.includes(cat.name);
+          const isChecked = visibleSections.includes(cat.name);
           return `
             <label class="category-item">
               <input type="checkbox" value="${cat.name}" ${isChecked ? 'checked' : ''} data-initial="${isChecked}">
@@ -522,8 +522,8 @@
         }
 
         let message = [];
-        if (totalAdded > 0) message.push(`Added ${totalAdded} words`);
-        if (totalRemoved > 0) message.push(`Removed ${totalRemoved} words`);
+        if (totalAdded > 0) message.push(`Enabled ${totalAdded} words`);
+        if (totalRemoved > 0) message.push(`Hidden ${totalRemoved} words`);
         
         showToast('✅ ' + message.join(', '), 'success');
         closeWordSelectionModal();

@@ -267,21 +267,21 @@
       <h2 style="margin-bottom: 16px; color: var(--primary);">🎉 Welcome to Vocab Lab!</h2>
       <p style="margin-bottom: 24px; color: var(--text-main); line-height: 1.6;">
         Start your Chinese learning journey! You can either:<br>
-        <strong>1.</strong> Start fresh with no words (add your own as you learn)<br>
-        <strong>2.</strong> Import existing vocabulary from our database
+        <strong>1.</strong> Start fresh with only your own words (add as you learn)<br>
+        <strong>2.</strong> Show shared approved categories from our database
       </p>
       
       <div style="margin-bottom: 24px;">
         <button id="startFreshBtn" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">
-          ✨ Start Fresh (No Words)
+          ✨ Start Fresh (Only My Words)
         </button>
         <button id="showImportBtn" style="width: 100%; padding: 16px; background: var(--secondary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
-          📚 Import Existing Words
+          📚 Choose Shared Categories
         </button>
       </div>
       
       <div id="importSection" style="display: none;">
-        <h3 style="margin-bottom: 16px; color: var(--text-main);">Select Categories to Import:</h3>
+        <h3 style="margin-bottom: 16px; color: var(--text-main);">Select Shared Categories to Show:</h3>
         <div style="margin-bottom: 12px;">
           <button id="selectAllBtn" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 8px;">✅ Select All</button>
           <button id="deselectAllBtn" style="padding: 8px 16px; background: var(--text-muted); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">❌ Deselect All</button>
@@ -290,7 +290,7 @@
           <p style="text-align: center; color: var(--text-muted);">Loading categories...</p>
         </div>
         <button id="importSelectedBtn" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px;">
-          ✅ Import Selected Categories
+          ✅ Save Visible Categories
         </button>
       </div>
     </div>
@@ -4080,7 +4080,7 @@
       }
     } catch (error) {
       console.error('Error:', error);
-      showToast('Error importing words', 'error');
+      showToast('Error saving visible categories', 'error');
     }
   });
 
