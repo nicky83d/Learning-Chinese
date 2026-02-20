@@ -1,4 +1,4 @@
-﻿// ===== Hamburger Menu & Photo Upload =====
+// ===== Hamburger Menu & Photo Upload =====
   // Hamburger menu functionality
   const hamburgerBtn = document.getElementById('hamburgerBtn');
   const hamburgerMenu = document.getElementById('hamburgerMenu');
@@ -117,7 +117,7 @@
     const selectedSection = (sectionSelect && sectionSelect.value && sectionSelect.value !== 'all') ? sectionSelect.value : '';
 
     const uploadOne = (file, index) => {
-      showToast(`â³ OCR scanning... (${index + 1}/${total})`, 'info', true);
+      showToast(`⏳ OCR scanning... (${index + 1}/${total})`, 'info', true);
       const formData = new FormData();
       formData.append('photo', file);
       if (selectedSection) formData.append('section', selectedSection);
@@ -128,9 +128,9 @@
       .then(pre => {
         if (pre && !pre.error) {
           const linesPre = [
-            `ðŸ“„ OCR: ${pre.ocr_excerpt || file.name}`,
-            `ðŸŒ Language: <strong>${pre.detected_language || 'unknown'}</strong>`,
-            `â³ Processing content...`
+            `📄 OCR: ${pre.ocr_excerpt || file.name}`,
+            `🌐 Language: <strong>${pre.detected_language || 'unknown'}</strong>`,
+            `⏳ Processing content...`
           ];
           showToast(linesPre.join('<br>'), 'info', true);
         }
@@ -143,7 +143,7 @@
       .then(r => r.json())
       .then(data => {
         if (data.error) {
-          showToast(`âŒ Error (${file.name}): ${data.error}`, 'error', true);
+          showToast(`❌ Error (${file.name}): ${data.error}`, 'error', true);
           return;
         }
         const preview = Array.isArray(data.entries_preview) ? data.entries_preview : [];
@@ -163,14 +163,14 @@
         const totalEntries = data.total_entries ?? (created + duplicates);
 
         const lines = [
-          `ðŸ“„ OCR: ${ocrLine}`,
-          `ðŸŒ Language: <strong>${lang}</strong>`,
-          `â³ Processing content...`,
-          `âœ… New: <strong>${created}</strong> &nbsp; | &nbsp; ðŸ” Duplicates: <strong>${duplicates}</strong> &nbsp; | &nbsp; Total: ${totalEntries}`
+          `📄 OCR: ${ocrLine}`,
+          `🌐 Language: <strong>${lang}</strong>`,
+          `⏳ Processing content...`,
+          `✅ New: <strong>${created}</strong> &nbsp; | &nbsp; 🔁 Duplicates: <strong>${duplicates}</strong> &nbsp; | &nbsp; Total: ${totalEntries}`
         ];
 
         if (list.length) {
-          lines.push(`<div style="margin-top:8px; font-weight:600;">Top new words:</div>${list.map(w => `â€¢ ${w}`).join('<br>')}`);
+          lines.push(`<div style="margin-top:8px; font-weight:600;">Top new words:</div>${list.map(w => `• ${w}`).join('<br>')}`);
         }
 
         const html = lines.join('<br>');
@@ -179,7 +179,7 @@
         loadSections();
       })
       .catch(err => {
-        showToast(`âŒ Upload failed for ${file.name}`, 'error', true);
+        showToast(`❌ Upload failed for ${file.name}`, 'error', true);
         console.error(err);
       });
     };
@@ -241,9 +241,9 @@
   
   function updateThemeButton(theme) {
     if (theme === 'dark') {
-      themeBtn.textContent = 'â˜€ï¸ Light Mode';
+      themeBtn.textContent = '☀️ Light Mode';
     } else {
-      themeBtn.textContent = 'ðŸŒ“ Dark Mode';
+      themeBtn.textContent = '🌓 Dark Mode';
     }
   }
   
@@ -474,7 +474,7 @@
             cardHtml += `
               <div class="hanzi-cell" style="margin-bottom:3px;">${hanziText}</div>
               <div style="position:relative; margin:3px -12px; width:calc(100% + 24px); box-sizing:border-box;">
-                <button class="speak-btn" onclick="event.stopPropagation(); playChinese('${hanziEsc}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">ðŸ‡¨ðŸ‡³</button>
+                <button class="speak-btn" onclick="event.stopPropagation(); playChinese('${hanziEsc}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇨🇳</button>
                 <div class="pinyin-text" onclick="event.stopPropagation(); playChinese('${hanziEsc}')" style="text-align:left; width:100%; cursor:pointer; padding-left:47px; padding-right:12px;">${row.pinyin || ''}</div>
               </div>`;
           }
@@ -483,7 +483,7 @@
           if (langSettings.japanese && (row.japanese_kanji || row.japanese_romaji)) {
             cardHtml += `
               <div style="position:relative; margin:2px -12px; width:calc(100% + 24px); box-sizing:border-box;">
-                <button class="speak-btn" onclick="event.stopPropagation(); playJapanese('${(row.japanese_kanji || '').replace(/'/g, "\\'")}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">ðŸ‡¯ðŸ‡µ</button>
+                <button class="speak-btn" onclick="event.stopPropagation(); playJapanese('${(row.japanese_kanji || '').replace(/'/g, "\\'")}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇯🇵</button>
                 <div class="pinyin-text" style="text-align:left; width:100%; padding-left:47px; padding-right:12px;">${row.japanese_kanji || ''} ${row.japanese_romaji ? '(' + row.japanese_romaji + ')' : ''}</div>
               </div>`;
           }
@@ -492,7 +492,7 @@
           if (langSettings.french) {
             cardHtml += `
               <div style="position:relative; margin:2px -12px; width:calc(100% + 24px); box-sizing:border-box;">
-                <button class="speak-btn" onclick="event.stopPropagation(); playFrench('${(row.french || '').replace(/'/g, "\\'")}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">ðŸ‡«ðŸ‡·</button>
+                <button class="speak-btn" onclick="event.stopPropagation(); playFrench('${(row.french || '').replace(/'/g, "\\'")}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇫🇷</button>
                 <div class="pinyin-text" onclick="event.stopPropagation(); playFrench('${(row.french || '').replace(/'/g, "\\'")}')" style="text-align:left; width:100%; cursor:pointer; padding-left:47px; padding-right:12px;">${row.french || ''}</div>
               </div>`;
           }
@@ -506,7 +506,7 @@
         });
 
         if (quizContainer.style.display !== 'none') {
-          const modeText = currentQuizMode === 'chinese' ? 'Chinese â†’ Translations' : 'FranÃ§ais â†’ Translations';
+          const modeText = currentQuizMode === 'chinese' ? 'Chinese → Translations' : 'Français → Translations';
           quizCounter.textContent = `Words in quiz: ${filtered.length} (${modeText})`;
           if (filtered.length === 0) {
             quizCard.innerHTML = '<p>No words match current filters.</p>';
@@ -539,11 +539,11 @@
 
     let modeText;
     if (mode === 'chinese') {
-      modeText = 'Chinese â†’ Translations';
+      modeText = 'Chinese → Translations';
     } else if (mode === 'japanese') {
-      modeText = 'Japanese â†’ Translations';
+      modeText = 'Japanese → Translations';
     } else {
-      modeText = 'FranÃ§ais â†’ Translations';
+      modeText = 'Français → Translations';
     }
     quizCounter.textContent = `Words in quiz: ${currentWords.length} (${modeText})`;
     showRandomCard();
@@ -591,7 +591,7 @@
     if (sessionResults && sessionResults.length > 0) {
       reviewHtml = sessionResults.map((result, idx) => {
         const isCorrect = result.is_correct;
-        const statusIcon = isCorrect ? 'âœ…' : 'âŒ';
+        const statusIcon = isCorrect ? '✅' : '❌';
         const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
         const isDrawing = result.question_type === 'drawing';
         
@@ -666,7 +666,7 @@
       if (sessionResults && sessionResults.length > 0) {
         reviewHtml = sessionResults.map((result, idx) => {
           const isCorrect = result.is_correct;
-          const statusIcon = isCorrect ? 'âœ…' : 'âŒ';
+          const statusIcon = isCorrect ? '✅' : '❌';
           const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
           
           return `
@@ -732,7 +732,7 @@
       
       quizCard.innerHTML = `
         <div style="font-size:2.6em; margin-bottom:20px; line-height:1.2;">${wordText || ''}</div>
-        <button style="background:none; border:none; cursor:pointer; font-size:2.2em; padding:0; line-height:1;" onclick="event.stopPropagation(); ${speakerLang}('${wordEsc}')">ðŸ”Š</button>
+        <button style="background:none; border:none; cursor:pointer; font-size:2.2em; padding:0; line-height:1;" onclick="event.stopPropagation(); ${speakerLang}('${wordEsc}')">🔊</button>
       `;
       
       // Auto-play word
@@ -894,11 +894,11 @@
       const resultExpl = document.getElementById('resultExplanation');
       
       if (isCorrect) {
-        resultStatus.innerHTML = 'âœ… Correct!';
+        resultStatus.innerHTML = '✅ Correct!';
         resultStatus.style.color = '#51cf66';
         addQuizWin();
       } else {
-        resultStatus.innerHTML = 'âŒ Incorrect';
+        resultStatus.innerHTML = '❌ Incorrect';
         resultStatus.style.color = '#ff6b6b';
         resetQuizWins();
       }
@@ -914,7 +914,7 @@
       if (currentLangSettings.chinese && correctWord.sent_hanzi) {
         const hanziText = correctWord.sent_hanzi.replace(/'/g, "\\'");
         sentenceLines.push(`<div style="margin-bottom:8px;">
-          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${hanziText}', 'zh-CN');">ðŸ‡¨ðŸ‡³</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${hanziText}', 'zh-CN');">🇨🇳</button>
           <span style="font-size:0.95em; color:var(--text-muted);">${correctWord.sent_hanzi}</span>
         </div>`);
         if (correctWord.sent_pinyin) {
@@ -926,7 +926,7 @@
       if (currentLangSettings.japanese && correctWord.sent_japanese_kanji) {
         const jpText = correctWord.sent_japanese_kanji.replace(/'/g, "\\'");
         sentenceLines.push(`<div style="margin-bottom:8px; margin-top:10px;">
-          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${jpText}', 'ja-JP');">ðŸ‡¯ðŸ‡µ</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${jpText}', 'ja-JP');">🇯🇵</button>
           <span style="font-size:0.95em; color:var(--text-muted);">${correctWord.sent_japanese_kanji}</span>
         </div>`);
         if (correctWord.sent_japanese_romaji) {
@@ -938,7 +938,7 @@
       if (currentLangSettings.french && correctWord.sent_french) {
         const frText = correctWord.sent_french.replace(/'/g, "\\'");
         sentenceLines.push(`<div style="margin-bottom:8px; margin-top:10px;">
-          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${frText}', 'fr-FR');">ðŸ‡«ðŸ‡·</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; margin-right:8px; line-height:1;" onclick="event.stopPropagation(); speak('${frText}', 'fr-FR');">🇫🇷</button>
           <span style="font-size:0.95em; color:var(--text-muted);">${correctWord.sent_french}</span>
         </div>`);
       }
@@ -1652,10 +1652,10 @@
       display = word.french;
     }
     if (isCorrect) {
-      feedback.innerHTML = `âœ… Correct! <strong>${display}</strong> = ${correct}`;
+      feedback.innerHTML = `✅ Correct! <strong>${display}</strong> = ${correct}`;
       feedback.style.background = 'rgba(76, 175, 80, 0.2)';
     } else {
-      feedback.innerHTML = `âŒ Wrong! <strong>${display}</strong> = ${correct}`;
+      feedback.innerHTML = `❌ Wrong! <strong>${display}</strong> = ${correct}`;
       feedback.style.background = 'rgba(244, 67, 54, 0.2)';
     }
     feedback.style.display = 'block';
@@ -1830,7 +1830,7 @@
     practiceTalkingState.isRecording = false;
     const recordBtn = document.getElementById('talkingRecordBtn');
     if (recordBtn) {
-      recordBtn.textContent = 'ðŸŽ¤ Record';
+      recordBtn.textContent = '🎤 Record';
       recordBtn.classList.remove('recording');
     }
   }
@@ -1969,7 +1969,7 @@
     }
 
     const recordBtn = document.getElementById('talkingRecordBtn');
-    recordBtn.textContent = 'â¹ï¸ Stop';
+    recordBtn.textContent = '⏹️ Stop';
     recordBtn.classList.add('recording');
     practiceTalkingState.isRecording = true;
 
@@ -2069,7 +2069,7 @@
     practiceTalkingState.isRecording = false;
     const recordBtn = document.getElementById('talkingRecordBtn');
     if (recordBtn) {
-      recordBtn.textContent = 'ðŸŽ¤ Record';
+      recordBtn.textContent = '🎤 Record';
       recordBtn.classList.remove('recording');
     }
   }
@@ -2095,7 +2095,7 @@
     if (customMessage) {
       feedback.style.background = 'rgba(255, 193, 7, 0.1)';
       feedback.style.border = '2px solid #ffc107';
-      feedbackText.innerHTML = 'âš ï¸ ' + customMessage;
+      feedbackText.innerHTML = '⚠️ ' + customMessage;
       feedbackText.style.color = '#ffc107';
       recognizedText.textContent = recognized ? `You said: "${recognized}"` : '';
       practiceTalkingState.total++;
@@ -2118,7 +2118,7 @@
     } else if (isCorrect) {
       feedback.style.background = 'rgba(40, 167, 69, 0.1)';
       feedback.style.border = '2px solid #28a745';
-      feedbackText.innerHTML = 'âœ… <strong>Correct!</strong> Great pronunciation!';
+      feedbackText.innerHTML = '✅ <strong>Correct!</strong> Great pronunciation!';
       feedbackText.style.color = '#28a745';
       
       practiceTalkingState.score++;
@@ -2147,7 +2147,7 @@
     } else {
       feedback.style.background = 'rgba(220, 53, 69, 0.1)';
       feedback.style.border = '2px solid #dc3545';
-      feedbackText.innerHTML = 'âŒ <strong>Try again!</strong> Listen and repeat.';
+      feedbackText.innerHTML = '❌ <strong>Try again!</strong> Listen and repeat.';
       feedbackText.style.color = '#dc3545';
       
       practiceTalkingState.total++;
@@ -2246,7 +2246,7 @@
         if (sessionResults && sessionResults.length > 0) {
           reviewHtml = sessionResults.map((result, idx) => {
             const isCorrect = result.is_correct;
-            const statusIcon = isCorrect ? 'âœ…' : 'âŒ';
+            const statusIcon = isCorrect ? '✅' : '❌';
             const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
             const scoreDisplay = result.score || 0;
             
@@ -2591,7 +2591,7 @@
         if (sessionResults && sessionResults.length > 0) {
           reviewHtml = sessionResults.map((result, idx) => {
             const isCorrect = result.is_correct;
-            const statusIcon = isCorrect ? 'âœ…' : 'âŒ';
+            const statusIcon = isCorrect ? '✅' : '❌';
             const statusColor = isCorrect ? '#51cf66' : '#ff6b6b';
             const scoreDisplay = result.score || 0;
             
@@ -2652,7 +2652,7 @@
       }
       
       const result = await response.json();
-      alert(`âœ… Reset complete! Deleted ${result.deleted_count} practice scores.`);
+      alert(`✅ Reset complete! Deleted ${result.deleted_count} practice scores.`);
       
       // Reload the scores display
       loadScores();
@@ -2708,25 +2708,25 @@
       const statsBody = document.getElementById('scoresStatsBody');
       statsBody.innerHTML = `
         <tr>
-          <td style="padding: 10px; border: 1px solid var(--border-color);">ðŸ‘‚ Listening</td>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">👂 Listening</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.listening?.total_games || 0}</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.listening?.average_percentage || 0}%</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.listening?.best_score || 0}%</td>
         </tr>
         <tr>
-          <td style="padding: 10px; border: 1px solid var(--border-color);">ðŸ“ Words</td>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">📝 Words</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.words?.total_games || 0}</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.words?.average_percentage || 0}%</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.words?.best_score || 0}%</td>
         </tr>
         <tr>
-          <td style="padding: 10px; border: 1px solid var(--border-color);">ðŸŽ¤ Speaking</td>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">🎤 Speaking</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.total_games || 0}</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.average_percentage || 0}%</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.speaking?.best_score || 0}%</td>
         </tr>
         <tr>
-          <td style="padding: 10px; border: 1px solid var(--border-color);">âœï¸ Drawing</td>
+          <td style="padding: 10px; border: 1px solid var(--border-color);">✍️ Drawing</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.drawing?.total_games || 0}</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.drawing?.average_percentage || 0}%</td>
           <td style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">${stats.drawing?.best_score || 0}%</td>
@@ -2739,9 +2739,9 @@
         recentList.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No recent games</p>';
       } else {
         recentList.innerHTML = history.map(game => {
-          const gameIcon = game.game_type === 'words' ? 'ðŸ“' : 
-                          game.game_type === 'speaking' ? 'ðŸŽ¤' : 
-                          game.game_type === 'drawing' ? 'âœï¸' : 'ðŸ‘‚';
+          const gameIcon = game.game_type === 'words' ? '📝' : 
+                          game.game_type === 'speaking' ? '🎤' : 
+                          game.game_type === 'drawing' ? '✍️' : '👂';
           const gameLabel = game.game_type.charAt(0).toUpperCase() + game.game_type.slice(1);
           const date = game.played_at ? new Date(game.played_at).toLocaleDateString() : 'Unknown';
           const time = game.played_at ? new Date(game.played_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
@@ -2757,7 +2757,7 @@
               <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
                 <span style="font-weight: 600; color: ${scoreColor};">${game.percentage || 0}%</span>
                 <span style="color: var(--text-muted); font-size: 0.85em;">(${game.score}/${game.total_questions})</span>
-                <span style="color: var(--text-muted); font-size: 0.9em;">â†’</span>
+                <span style="color: var(--text-muted); font-size: 0.9em;">→</span>
               </div>
             </div>
           `;
@@ -2804,9 +2804,9 @@
       
       const data = await response.json();
       
-      const gameIcon = data.game_type === 'words' ? 'ðŸ“' : 
-                      data.game_type === 'speaking' ? 'ðŸŽ¤' : 
-                      data.game_type === 'drawing' ? 'âœï¸' : 'ðŸ‘‚';
+      const gameIcon = data.game_type === 'words' ? '📝' : 
+                      data.game_type === 'speaking' ? '🎤' : 
+                      data.game_type === 'drawing' ? '✍️' : '👂';
       const gameLabel = data.game_type.charAt(0).toUpperCase() + data.game_type.slice(1);
       const date = data.played_at ? new Date(data.played_at).toLocaleDateString() : 'Unknown';
       const time = data.played_at ? new Date(data.played_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
@@ -2836,7 +2836,7 @@
         empty.style.display = 'none';
         
         resultsList.innerHTML = data.results.map((r, idx) => {
-          const statusIcon = r.is_correct ? 'âœ…' : 'âŒ';
+          const statusIcon = r.is_correct ? '✅' : '❌';
           const statusColor = r.is_correct ? '#51cf66' : '#ff6b6b';
           
           return `
@@ -2860,12 +2860,12 @@
                   </div>
                   ${r.feedback ? `
                     <div style="margin-top: 8px; padding: 10px; background: rgba(255, 193, 7, 0.1); border-radius: 6px; font-size: 0.9em;">
-                      <div style="font-weight: 600; margin-bottom: 4px;">ðŸ’¡ AI Tip:</div>
+                      <div style="font-weight: 600; margin-bottom: 4px;">💡 AI Tip:</div>
                       ${r.feedback}
                     </div>
                   ` : `
                     <button onclick="requestFeedback(${gameId}, ${r.question_number}, this)" class="secondary" style="padding: 6px 12px; font-size: 0.85em; margin-top: 4px;">
-                      ðŸ’¡ Get AI Tips
+                      💡 Get AI Tips
                     </button>
                   `}
                 </div>
@@ -2893,7 +2893,7 @@
   
   async function requestFeedback(gameId, questionNumber, buttonEl) {
     buttonEl.disabled = true;
-    buttonEl.textContent = 'â³ Loading...';
+    buttonEl.textContent = '⏳ Loading...';
     
     try {
       // First get the details to find this question
@@ -2902,7 +2902,7 @@
       
       const question = details.results.find(r => r.question_number === questionNumber);
       if (!question) {
-        buttonEl.textContent = 'âŒ Error';
+        buttonEl.textContent = '❌ Error';
         return;
       }
       
@@ -2927,18 +2927,18 @@
         // Replace button with feedback
         const feedbackHtml = `
           <div style="margin-top: 8px; padding: 10px; background: rgba(255, 193, 7, 0.1); border-radius: 6px; font-size: 0.9em;">
-            <div style="font-weight: 600; margin-bottom: 4px;">ðŸ’¡ AI Tip: ${data.cached ? '(cached)' : ''}</div>
+            <div style="font-weight: 600; margin-bottom: 4px;">💡 AI Tip: ${data.cached ? '(cached)' : ''}</div>
             ${data.feedback}
           </div>
         `;
         buttonEl.outerHTML = feedbackHtml;
       } else {
-        buttonEl.textContent = 'âŒ No tips available';
+        buttonEl.textContent = '❌ No tips available';
       }
       
     } catch (error) {
       console.error('Error requesting feedback:', error);
-      buttonEl.textContent = 'âŒ Error';
+      buttonEl.textContent = '❌ Error';
       buttonEl.disabled = false;
     }
   }
@@ -3049,7 +3049,7 @@
       
       if (data.success) {
         document.getElementById('onboardingModal').style.display = 'none';
-        showToast('ðŸŽ‰ Welcome! Start adding your first words!', 'success');
+        showToast('🎉 Welcome! Start adding your first words!', 'success');
         setTimeout(() => {
           window.location.href = '/';
         }, 1000);

@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Vocab Lab{% endblock %}
 
 {% block extra_head %}
@@ -13,13 +13,13 @@
   <!-- Toast Notification -->
   <div id="uploadToast">
     <div class="toast-content" id="toastContent"></div>
-    <button class="toast-close" onclick="document.getElementById('uploadToast').classList.remove('show')">Ã—</button>
+    <button class="toast-close" onclick="document.getElementById('uploadToast').classList.remove('show')">×</button>
   </div>
 
   <!-- Onboarding Modal -->
   <div id="onboardingModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
     <div style="background: var(--card-bg); border-radius: 16px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 32px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
-      <h2 style="margin-bottom: 16px; color: var(--primary);">ðŸŽ‰ Welcome to Vocab Lab!</h2>
+      <h2 style="margin-bottom: 16px; color: var(--primary);">🎉 Welcome to Vocab Lab!</h2>
       <p style="margin-bottom: 24px; color: var(--text-main); line-height: 1.6;">
         Start your Chinese learning journey! You can either:<br>
         <strong>1.</strong> Start fresh with only your own words (add as you learn)<br>
@@ -28,63 +28,63 @@
       
       <div style="margin-bottom: 24px;">
         <button id="startFreshBtn" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">
-          âœ¨ Start Fresh (Only My Words)
+          ✨ Start Fresh (Only My Words)
         </button>
         <button id="showImportBtn" style="width: 100%; padding: 16px; background: var(--secondary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
-          ðŸ“š Choose Shared Categories
+          📚 Choose Shared Categories
         </button>
       </div>
       
       <div id="importSection" style="display: none;">
         <h3 style="margin-bottom: 16px; color: var(--text-main);">Select Shared Categories to Show:</h3>
         <div style="margin-bottom: 12px;">
-          <button id="selectAllBtn" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 8px;">âœ… Select All</button>
-          <button id="deselectAllBtn" style="padding: 8px 16px; background: var(--text-muted); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">âŒ Deselect All</button>
+          <button id="selectAllBtn" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 8px;">✅ Select All</button>
+          <button id="deselectAllBtn" style="padding: 8px 16px; background: var(--text-muted); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">❌ Deselect All</button>
         </div>
         <div id="categoryList" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--bg);">
           <p style="text-align: center; color: var(--text-muted);">Loading categories...</p>
         </div>
         <button id="importSelectedBtn" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px;">
-          âœ… Save Visible Categories
+          ✅ Save Visible Categories
         </button>
       </div>
     </div>
   </div>
 
   <header class="topbar">
-    <h1>æˆ‘åœ¨å­¦ä¸­æ–‡</h1>
+    <h1>我在学中文</h1>
     <div class="menu-container top-menu">
-      <button id="hamburgerBtn">â˜°</button>
+      <button id="hamburgerBtn">☰</button>
       <div id="hamburgerMenu">
         <div id="userGreeting" style="display: none; padding: 12px; background: rgba(0,0,0,0.1); border-radius: 6px; margin-bottom: 8px; font-weight: 600;">
-          ðŸ‘‹ Hi, <span id="userFirstName">User</span>
+          👋 Hi, <span id="userFirstName">User</span>
         </div>
         <div class="menu-has-sub">
-          <button id="menuPractice">â—‚  ðŸŽ¯ Practice</button>
+          <button id="menuPractice">◂  🎯 Practice</button>
           <div id="practiceSubmenu">
-            <button id="menuPracticeListening">ðŸ‘‚ Listening</button>
-            <button id="menuPracticeWords">ðŸ“ Words</button>
+            <button id="menuPracticeListening">👂 Listening</button>
+            <button id="menuPracticeWords">📝 Words</button>
             <div class="menu-disabled-wrapper" id="speakingWrapper" onclick="handleDisabledClick(event, this)">
-              <button id="menuPracticeTalking">ðŸŽ¤ Speaking</button>
+              <button id="menuPracticeTalking">🎤 Speaking</button>
             </div>
-            <button id="menuPracticeDrawing">âœï¸ Drawing</button>
+            <button id="menuPracticeDrawing">✍️ Drawing</button>
           </div>
         </div>
         <div class="menu-has-sub menu-disabled-wrapper" id="addWordsWrapper" onclick="handleDisabledClick(event, this)">
-          <button id="menuAddWords">â—‚  âž• Add Words</button>
+          <button id="menuAddWords">◂  ➕ Add Words</button>
           <div id="addWordsSubmenu">
-            <button id="menuAddWord">âœï¸ Manually</button>
-            <button id="menuUploadCamera">ðŸ“· Camera</button>
-            <button id="menuUploadLibrary">ðŸ–¼ï¸ Picture</button>
+            <button id="menuAddWord">✏️ Manually</button>
+            <button id="menuUploadCamera">📷 Camera</button>
+            <button id="menuUploadLibrary">🖼️ Picture</button>
           </div>
         </div>
-        <button id="themeBtn">ðŸŒ“ Dark Mode</button>
+        <button id="themeBtn">🌓 Dark Mode</button>
         <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.2);"></div>
-        <a href="/admin/login" id="loginLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">ðŸ”‘ Login</a>
-        <a href="/admin" id="adminLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">ðŸ” Admin</a>
-        <a href="/preferences" id="preferencesLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">âš™ï¸ Preferences</a>
-        <a href="#" id="myScoresLink" onclick="openScoresModal(); return false;" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">ðŸ† My Scores</a>
-        <a href="/logout" id="logoutLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">ðŸšª Logout</a>
+        <a href="/admin/login" id="loginLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔑 Login</a>
+        <a href="/admin" id="adminLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🔐 Admin</a>
+        <a href="/preferences" id="preferencesLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">⚙️ Preferences</a>
+        <a href="#" id="myScoresLink" onclick="openScoresModal(); return false;" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🏆 My Scores</a>
+        <a href="/logout" id="logoutLink" style="color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.1); transition: all 0.2s; display: none;" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">🚪 Logout</a>
       </div>
     </div>
   </header>
@@ -128,7 +128,7 @@
   <div id="quizContainer" style="display:none; max-width:700px; margin:40px auto;">
     <!-- Streak Progress -->
     <div id="streakProgress" style="text-align:center; margin-bottom:15px; font-size:0.95em; color:var(--text-muted);">
-      Streak: <span id="streakCount">0</span>/5 ðŸ”¥
+      Streak: <span id="streakCount">0</span>/5 🔥
     </div>
     <div id="quizCard" class="vocab-card" style="cursor:pointer; min-height:200px; display:flex; flex-direction:column; justify-content:center; align-items:center; font-size:1.5em;">
     </div>
@@ -144,12 +144,12 @@
     <div id="quizResultFeedback" style="display:none; margin-top:30px; padding:20px; background:var(--card-bg); border-radius:12px; border:2px solid var(--border-color);">
       <div id="resultStatus" style="font-size:1.3em; font-weight:bold; margin-bottom:10px;"></div>
       <div id="resultExplanation" style="font-size:1em; line-height:1.6; margin-bottom:15px;"></div>
-      <button id="continueQuizBtn" class="primary" style="padding:10px 20px; font-size:1em;">Next â†’</button>
+      <button id="continueQuizBtn" class="primary" style="padding:10px 20px; font-size:1em;">Next →</button>
     </div>
 
     <!-- Trophy Display (5 wins) -->
     <div id="trophyDisplay" style="display:none; text-align:center; margin-top:40px; padding:30px; background:linear-gradient(135deg, #ffd700, #ffed4e); border-radius:16px; box-shadow:0 8px 20px rgba(0,0,0,0.2);">
-      <div style="font-size:4em; margin-bottom:10px;">ðŸ†</div>
+      <div style="font-size:4em; margin-bottom:10px;">🏆</div>
       <div style="font-size:1.5em; font-weight:bold; color:#333;">5-Win Streak!</div>
       <div id="trophyQuality" style="font-size:1.2em; color:#555; margin-top:10px;"></div>
       <button id="resetTrophyBtn" class="secondary" style="margin-top:20px; padding:10px 20px;">Celebrate & Continue</button>
@@ -157,7 +157,7 @@
 
     <!-- Quiz Results Page -->
     <div id="quizResultsPage" style="display:none; text-align:center; padding:40px 20px; background:var(--card-bg); border-radius:16px; margin-top:20px;">
-      <h2 style="font-size:1.8em; color:var(--primary); margin-bottom:20px;">ðŸ“Š Practice Complete!</h2>
+      <h2 style="font-size:1.8em; color:var(--primary); margin-bottom:20px;">📊 Practice Complete!</h2>
       <div style="font-size:2.5em; font-weight:bold; margin-bottom:10px;">
         <span id="quizFinalScore">0</span>/<span id="quizFinalTotal">0</span>
       </div>
@@ -171,7 +171,7 @@
     <!-- Unified Game Completion Page -->
     <div id="gameCompletionPage" style="display:none; padding:30px 20px; max-width:900px; margin:0 auto;">
       <div style="text-align:center; margin-bottom:40px;">
-        <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">ðŸŽ‰ Great Job!</h1>
+        <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin: 30px 0;">
           <div style="background: var(--card-bg); padding: 20px; border-radius: 12px;">
             <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Score</div>
@@ -190,7 +190,7 @@
 
       <!-- Game Review Section -->
       <div style="background: var(--card-bg); border-radius: 12px; padding: 30px; margin-bottom: 30px;">
-        <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 1.5em;">ðŸ“‹ Game Review</h2>
+        <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 1.5em;">📋 Game Review</h2>
         <div id="gameReviewContent" style="max-height: 500px; overflow-y: auto;">
           <!-- Individual results will be inserted here -->
         </div>
@@ -198,8 +198,8 @@
 
       <!-- Action Buttons -->
       <div style="text-align: center; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-        <button id="gamePlayAgainBtn" class="primary" style="padding: 12px 30px; font-size: 1.1em;">ðŸ”„ Play Again</button>
-        <button id="gameExitBtn" class="secondary" style="padding: 12px 30px; font-size: 1.1em;">â† Back</button>
+        <button id="gamePlayAgainBtn" class="primary" style="padding: 12px 30px; font-size: 1.1em;">🔄 Play Again</button>
+        <button id="gameExitBtn" class="secondary" style="padding: 12px 30px; font-size: 1.1em;">← Back</button>
       </div>
     </div>
     
@@ -236,14 +236,14 @@
         <div id="modal_chinese_section">
           <div class="form-group" style="display:flex; align-items:center; gap:10px;">
             <span style="width:1.5em; text-align:center;"></span>
-            <input type="text" id="mw_hanzi" placeholder="Hanzi (e.g. ä½ å¥½)" style="flex:1;">
+            <input type="text" id="mw_hanzi" placeholder="Hanzi (e.g. 你好)" style="flex:1;">
             <input type="text" id="mw_sent_hanzi" placeholder="Chinese sentence" style="flex:2;">
           </div>
 
           <!-- Pinyin line -->
           <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-            <button class="speak-btn" onclick="playChinese(document.getElementById('mw_sent_hanzi').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">ðŸ‡¨ðŸ‡³</button>
-            <input type="text" id="mw_pinyin" placeholder="Pinyin (e.g. nÇ hÇŽo)" style="flex:1;">
+            <button class="speak-btn" onclick="playChinese(document.getElementById('mw_sent_hanzi').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇨🇳</button>
+            <input type="text" id="mw_pinyin" placeholder="Pinyin (e.g. nǐ hǎo)" style="flex:1;">
             <input type="text" id="mw_sent_pinyin" placeholder="Pinyin sentence" style="flex:2;">
           </div>
         </div>
@@ -253,13 +253,13 @@
           <!-- Japanese Kanji line -->
           <div class="form-group" style="display:flex; align-items:center; gap:10px;">
             <span style="width:1.5em; text-align:center;"></span>
-            <input type="text" id="mw_japanese_kanji" placeholder="Japanese Kanji (e.g. ã“ã‚“ã«ã¡ã¯)" style="flex:1;">
+            <input type="text" id="mw_japanese_kanji" placeholder="Japanese Kanji (e.g. こんにちは)" style="flex:1;">
             <input type="text" id="mw_sent_japanese_kanji" placeholder="Japanese sentence" style="flex:2;">
           </div>
 
           <!-- Japanese Romaji line -->
           <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-            <button class="speak-btn" onclick="playJapanese(document.getElementById('mw_sent_japanese_kanji').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">ðŸ‡¯ðŸ‡µ</button>
+            <button class="speak-btn" onclick="playJapanese(document.getElementById('mw_sent_japanese_kanji').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇯🇵</button>
             <input type="text" id="mw_japanese_romaji" placeholder="Romaji (e.g. konnichiwa)" style="flex:1;">
             <input type="text" id="mw_sent_japanese_romaji" placeholder="Romaji sentence" style="flex:2;">
           </div>
@@ -268,7 +268,7 @@
         <!-- French section -->
         <div id="modal_french_section">
           <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-            <button class="speak-btn" onclick="playFrench(document.getElementById('mw_sent_french').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">ðŸ‡«ðŸ‡·</button>
+            <button class="speak-btn" onclick="playFrench(document.getElementById('mw_sent_french').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇫🇷</button>
             <input type="text" id="mw_french" placeholder="French (e.g. Bonjour)" style="flex:1;">
             <input type="text" id="mw_sent_french" placeholder="French sentence" style="flex:2;">
           </div>
@@ -276,7 +276,7 @@
 
         <!-- English line -->
         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-          <button class="speak-btn" onclick="playEnglish(document.getElementById('mw_sent_english').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">ðŸ‡¬ðŸ‡§</button>
+          <button class="speak-btn" onclick="playEnglish(document.getElementById('mw_sent_english').value)" style="background:none; border:none; cursor:pointer; font-size:1.5em;">🇬🇧</button>
           <input type="text" id="mw_english" placeholder="English (e.g. Hello)" style="flex:1;">
           <input type="text" id="mw_sent_english" placeholder="English sentence" style="flex:2;">
         </div>
@@ -308,7 +308,7 @@
     <div class="modal-backdrop" onclick="closePracticeModal()"></div>
     <div class="modal-card" style="max-width: 500px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2>ðŸ‘‚ Practice Listening</h2>
+        <h2>👂 Practice Listening</h2>
         <button onclick="closePracticeModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
@@ -325,15 +325,15 @@
             <div id="pl_lang_options" style="display:flex; gap:12px; flex-wrap:wrap;">
               <label id="pl_lang_chinese" style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pl_lang" value="chinese" checked>
-                ðŸ‡¨ðŸ‡³ Chinese
+                🇨🇳 Chinese
               </label>
               <label id="pl_lang_japanese" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pl_lang" value="japanese">
-                ðŸ‡¯ðŸ‡µ Japanese
+                🇯🇵 Japanese
               </label>
               <label id="pl_lang_french" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pl_lang" value="french">
-                ðŸ‡«ðŸ‡· French
+                🇫🇷 French
               </label>
             </div>
           </div>
@@ -354,13 +354,13 @@
         <div id="listeningPracticeSection" style="display:none;">
           <div style="text-align:center; padding:20px; background:var(--card-bg); border-radius:8px; border:1px solid var(--border-color);">
             <p style="margin-bottom:15px; color:var(--text-muted);">Listen and choose the correct English meaning:</p>
-            <button id="listeningPlayBtn" class="primary" style="padding:15px 30px; font-size:1.2em;">ðŸ”Š Play Sound</button>
+            <button id="listeningPlayBtn" class="primary" style="padding:15px 30px; font-size:1.2em;">🔊 Play Sound</button>
             <div id="listeningOptions" style="display:flex; flex-direction:column; gap:10px; margin-top:20px;"></div>
             <div id="listeningFeedback" style="margin-top:15px; padding:12px; border-radius:8px; display:none;"></div>
           </div>
           <div style="display:flex; gap:12px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
-            <button id="listeningNextBtn" class="primary" style="padding:12px 24px; display:none;">Next â†’</button>
-            <button id="listeningExitBtn" class="danger" style="padding:12px 24px;">âŒ Exit</button>
+            <button id="listeningNextBtn" class="primary" style="padding:12px 24px; display:none;">Next →</button>
+            <button id="listeningExitBtn" class="danger" style="padding:12px 24px;">❌ Exit</button>
           </div>
           <div id="listeningProgress" style="margin-top:12px; text-align:center; color:var(--text-muted); font-size:0.9em;">
             Progress: <span id="listeningCurrent">1</span> / <span id="listeningTotal">10</span> | Score: <span id="listeningScore">0</span>
@@ -370,7 +370,7 @@
         <!-- Listening Results Section -->
         <div id="listeningResultsSection" style="display:none;">
           <div style="text-align:center; margin-bottom:30px;">
-            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">ðŸŽ‰ Great Job!</h1>
+            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0;">
               <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
                 <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Score</div>
@@ -383,12 +383,12 @@
             </div>
           </div>
           <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">ðŸ“‹ Game Review</h2>
+            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">📋 Game Review</h2>
             <div id="listeningResultsReview" style="max-height: 400px; overflow-y: auto;"></div>
           </div>
           <div style="text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button class="primary" onclick="resetListeningPractice()" style="padding: 12px 24px; font-size: 1.05em;">ðŸ”„ Play Again</button>
-            <button class="secondary" onclick="closePracticeModal()" style="padding: 12px 24px; font-size: 1.05em;">â† Back</button>
+            <button class="primary" onclick="resetListeningPractice()" style="padding: 12px 24px; font-size: 1.05em;">🔄 Play Again</button>
+            <button class="secondary" onclick="closePracticeModal()" style="padding: 12px 24px; font-size: 1.05em;">← Back</button>
           </div>
         </div>
       </div>
@@ -400,7 +400,7 @@
     <div class="modal-backdrop" onclick="closePracticeWordsModal()"></div>
     <div class="modal-card" style="max-width: 520px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2>ðŸ“ Practice Words</h2>
+        <h2>📝 Practice Words</h2>
         <button onclick="closePracticeWordsModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
@@ -415,15 +415,15 @@
           <div id="pw_lang_options" style="display:flex; gap:12px; flex-wrap:wrap;">
             <label id="pw_lang_chinese" style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
               <input type="radio" name="pw_lang" value="chinese" checked>
-              ðŸ‡¨ðŸ‡³ Chinese
+              🇨🇳 Chinese
             </label>
             <label id="pw_lang_japanese" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
               <input type="radio" name="pw_lang" value="japanese">
-              ðŸ‡¯ðŸ‡µ Japanese
+              🇯🇵 Japanese
             </label>
             <label id="pw_lang_french" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
               <input type="radio" name="pw_lang" value="french">
-              ðŸ‡«ðŸ‡· French
+              🇫🇷 French
             </label>
           </div>
         </div>
@@ -446,12 +446,12 @@
   <div id="practiceWordsEndModal" class="modal">
     <div class="modal-backdrop" onclick="closePracticeWordsEndModal()"></div>
     <div class="modal-card" style="max-width: 520px; text-align: center;">
-      <div style="font-size: 4em; margin-bottom: 10px;">ðŸ†</div>
+      <div style="font-size: 4em; margin-bottom: 10px;">🏆</div>
       <h2 style="margin-bottom: 10px; color: var(--primary);">Practice Complete!</h2>
       <div id="practiceWordsEndStats" style="margin-bottom: 16px; color: var(--text-main); font-size: 1.1em;"></div>
       <div id="practiceWordsEndTips" style="margin-bottom: 18px; color: var(--text-muted); font-size: 1em;"></div>
       <div style="margin-bottom: 18px;">
-        <span style="font-weight: 600; color: var(--primary);">ðŸ“ <a href="#" id="practiceWordsEndDetailLink" onclick="openGameDetailsFromEndModal(); return false;">Practice Words</a></span>
+        <span style="font-weight: 600; color: var(--primary);">📝 <a href="#" id="practiceWordsEndDetailLink" onclick="openGameDetailsFromEndModal(); return false;">Practice Words</a></span>
       </div>
       <button onclick="closePracticeWordsEndModal()" class="primary" style="padding: 12px 28px; font-size: 1.1em;">Close</button>
     </div>
@@ -462,7 +462,7 @@
     <div class="modal-backdrop" onclick="closeScoresModal()"></div>
     <div class="modal-card" style="max-width: 550px; max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2>ðŸ† My Scores</h2>
+        <h2>🏆 My Scores</h2>
         <button onclick="closeScoresModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
       <div class="modal-body" style="flex: 1; overflow-y: auto;">
@@ -470,13 +470,13 @@
         <div style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <p style="margin: 0; font-weight: 600; color: var(--text-main);">Start a Practice Game:</p>
-            <button id="resetScoresBtn" onclick="resetMyScores()" class="secondary" style="padding: 6px 12px; font-size: 0.85em; color: #e74c3c; border-color: #e74c3c; display: none;">ðŸ—‘ï¸ Reset Scores</button>
+            <button id="resetScoresBtn" onclick="resetMyScores()" class="secondary" style="padding: 6px 12px; font-size: 0.85em; color: #e74c3c; border-color: #e74c3c; display: none;">🗑️ Reset Scores</button>
           </div>
           <div class="scores-empty-buttons">
-            <button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">ðŸ‘‚ Listening</button>
-            <button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">ðŸ“ Words</button>
-            <button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">ðŸŽ¤ Speaking</button>
-            <button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">âœï¸ Drawing</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeListeningModal();">👂 Listening</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeWordsModal();">📝 Words</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeTalkingModal();">🎤 Speaking</button>
+            <button class="primary" onclick="closeScoresModal(); openPracticeDrawingModal();">✍️ Drawing</button>
           </div>
         </div>
         
@@ -485,7 +485,7 @@
           
           <!-- Summary Stats -->
           <div style="margin-bottom: 20px;">
-            <h3 style="margin-bottom: 12px; font-size: 1.1em;">ðŸ“Š Overall Stats</h3>
+            <h3 style="margin-bottom: 12px; font-size: 1.1em;">📊 Overall Stats</h3>
             <table id="scoresStatsTable" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="background: var(--card-bg);">
@@ -501,7 +501,7 @@
           
           <!-- Recent Scores -->
           <div>
-            <h3 style="margin-bottom: 12px; font-size: 1.1em;">ðŸ“… Recent Games</h3>
+            <h3 style="margin-bottom: 12px; font-size: 1.1em;">📅 Recent Games</h3>
             <div id="scoresRecentList" style="max-height: 250px; overflow-y: auto;"></div>
           </div>
         </div>
@@ -518,7 +518,7 @@
     <div class="modal-backdrop" onclick="closeGameDetailsModal()"></div>
     <div class="modal-card" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2 id="gameDetailsTitle">ðŸ“Š Game Results</h2>
+        <h2 id="gameDetailsTitle">📊 Game Results</h2>
         <button onclick="closeGameDetailsModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
       <div class="modal-body" style="flex: 1; overflow-y: auto;">
@@ -529,7 +529,7 @@
           
           <!-- Question by question results -->
           <div id="gameDetailsResults">
-            <h3 style="margin-bottom: 12px; font-size: 1.1em;">ðŸ“ Question Results</h3>
+            <h3 style="margin-bottom: 12px; font-size: 1.1em;">📝 Question Results</h3>
             <div id="gameDetailsResultsList"></div>
           </div>
           
@@ -547,7 +547,7 @@
     <div class="modal-backdrop" onclick="closePracticeTalkingModal()"></div>
     <div class="modal-card" style="max-width: 520px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2>ðŸŽ¤ Practice Speaking</h2>
+        <h2>🎤 Practice Speaking</h2>
         <button onclick="closePracticeTalkingModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
@@ -564,15 +564,15 @@
             <div id="pt_lang_options" style="display:flex; gap:12px; flex-wrap:wrap;">
               <label id="pt_lang_chinese" style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pt_lang" value="chinese" checked>
-                ðŸ‡¨ðŸ‡³ Chinese
+                🇨🇳 Chinese
               </label>
               <label id="pt_lang_japanese" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pt_lang" value="japanese">
-                ðŸ‡¯ðŸ‡µ Japanese
+                🇯🇵 Japanese
               </label>
               <label id="pt_lang_french" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pt_lang" value="french">
-                ðŸ‡«ðŸ‡· French
+                🇫🇷 French
               </label>
             </div>
           </div>
@@ -581,11 +581,11 @@
             <div style="display:flex; gap:12px; flex-wrap:wrap;">
               <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pt_mode" value="words" checked>
-                ðŸ“ Words only
+                📝 Words only
               </label>
               <label style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
                 <input type="radio" name="pt_mode" value="sentences">
-                ðŸ’¬ Example sentences
+                💬 Example sentences
               </label>
             </div>
           </div>
@@ -614,10 +614,10 @@
             </div>
           </div>
           <div style="display:flex; gap:12px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
-            <button id="talkingPlayBtn" class="secondary" style="padding:12px 24px; font-size:1.1em;">ðŸ”Š Play</button>
-            <button id="talkingRecordBtn" class="primary" style="padding:12px 24px; font-size:1.1em;">ðŸŽ¤ Record</button>
-            <button id="talkingSkipBtn" class="secondary" style="padding:12px 24px;">â­ï¸ Skip</button>
-            <button id="talkingExitBtn" class="danger" style="padding:12px 24px;">âŒ Exit</button>
+            <button id="talkingPlayBtn" class="secondary" style="padding:12px 24px; font-size:1.1em;">🔊 Play</button>
+            <button id="talkingRecordBtn" class="primary" style="padding:12px 24px; font-size:1.1em;">🎤 Record</button>
+            <button id="talkingSkipBtn" class="secondary" style="padding:12px 24px;">⏭️ Skip</button>
+            <button id="talkingExitBtn" class="danger" style="padding:12px 24px;">❌ Exit</button>
           </div>
           <div id="talkingProgress" style="margin-top:12px; text-align:center; color:var(--text-muted); font-size:0.9em;">
             Score: <span id="talkingScore">0</span> / <span id="talkingTotal">0</span>
@@ -627,7 +627,7 @@
         <!-- Speaking Results Section -->
         <div id="talkingResultsSection" style="display:none;">
           <div style="text-align:center; margin-bottom:30px;">
-            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">ðŸŽ‰ Great Job!</h1>
+            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0;">
               <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
                 <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Score</div>
@@ -640,12 +640,12 @@
             </div>
           </div>
           <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">ðŸ“‹ Game Review</h2>
+            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">📋 Game Review</h2>
             <div id="talkingResultsReview" style="max-height: 300px; overflow-y: auto;"></div>
           </div>
           <div style="text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button class="primary" onclick="resetSpeakingPractice()" style="padding: 12px 24px; font-size: 1.05em;">ðŸ”„ Play Again</button>
-            <button class="secondary" onclick="closePracticeTalkingModal()" style="padding: 12px 24px; font-size: 1.05em;">â† Back</button>
+            <button class="primary" onclick="resetSpeakingPractice()" style="padding: 12px 24px; font-size: 1.05em;">🔄 Play Again</button>
+            <button class="secondary" onclick="closePracticeTalkingModal()" style="padding: 12px 24px; font-size: 1.05em;">← Back</button>
           </div>
         </div>
       </div>
@@ -657,7 +657,7 @@
     <div class="modal-backdrop" onclick="closePracticeDrawingModal()"></div>
     <div class="modal-card" style="max-width: 550px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2>âœï¸ Practice Drawing</h2>
+        <h2>✍️ Practice Drawing</h2>
         <button onclick="closePracticeDrawingModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
@@ -693,8 +693,8 @@
             <!-- HanziWriter canvas will be injected here -->
           </div>
           <div style="display:flex; gap:12px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
-            <button id="drawingSkipBtn" class="secondary" style="padding:12px 24px;">â­ï¸ Skip</button>
-            <button id="drawingExitBtn" class="danger" style="padding:12px 24px;">âŒ Exit</button>
+            <button id="drawingSkipBtn" class="secondary" style="padding:12px 24px;">⏭️ Skip</button>
+            <button id="drawingExitBtn" class="danger" style="padding:12px 24px;">❌ Exit</button>
           </div>
           <div id="drawingProgress" style="margin-top:12px; text-align:center; color:var(--text-muted); font-size:0.9em;">
             Progress: <span id="drawingCurrent">1</span> / <span id="drawingTotal">10</span> | Score: <span id="drawingScore">0</span>
@@ -704,7 +704,7 @@
         <!-- Drawing Results Section -->
         <div id="drawingResultsSection" style="display:none;">
           <div style="text-align:center; margin-bottom:30px;">
-            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">ðŸŽ‰ Great Job!</h1>
+            <h1 style="font-size:2.5em; color:var(--primary); margin:0 0 20px 0;">🎉 Great Job!</h1>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0;">
               <div style="background: var(--card-bg); padding: 15px; border-radius: 12px;">
                 <div style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Score</div>
@@ -717,12 +717,12 @@
             </div>
           </div>
           <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">ðŸ“‹ Game Review</h2>
+            <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.3em;">📋 Game Review</h2>
             <div id="drawingResultsReview" style="max-height: 300px; overflow-y: auto;"></div>
           </div>
           <div style="text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button class="primary" onclick="resetDrawingPractice()" style="padding: 12px 24px; font-size: 1.05em;">ðŸ”„ Play Again</button>
-            <button class="secondary" onclick="closePracticeDrawingModal()" style="padding: 12px 24px; font-size: 1.05em;">â† Back</button>
+            <button class="primary" onclick="resetDrawingPractice()" style="padding: 12px 24px; font-size: 1.05em;">🔄 Play Again</button>
+            <button class="secondary" onclick="closePracticeDrawingModal()" style="padding: 12px 24px; font-size: 1.05em;">← Back</button>
           </div>
         </div>
       </div>
