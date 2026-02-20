@@ -143,7 +143,7 @@ body {
 .modal-body input { width: 100%; margin-bottom: 10px; padding: 12px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); border-radius: 8px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 button.primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
-button.danger { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+button.danger { background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
 
 button.secondary { background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; }
 
@@ -208,7 +208,7 @@ button.secondary { background: var(--bg-color); color: var(--text-main); border:
   transform: translateY(-2px);
 }
 
-/* Quiz option buttons: rectangular, responsive, thinner layout */
+/* Quiz option buttons */
 .quiz-option-btn {
   padding: 10px 8px;
   border: 2px solid var(--border-color);
@@ -216,53 +216,18 @@ button.secondary { background: var(--bg-color); color: var(--text-main); border:
   color: var(--text-main);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: 90px;
+  min-height: 100px;
+  font-family: inherit;
 }
 
 .quiz-option-btn .option-top { font-size: 1.1rem; font-weight: 700; }
 .quiz-option-btn .option-hanzi { font-size: 1.6rem; color: var(--text-muted); margin-top: 4px; }
-
-/* Adjust grid columns for quiz options: 2 columns on small screens, 4 on wide */
-#quizOptions {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, 1fr);
-}
-@media (min-width: 900px) {
-  #quizOptions { grid-template-columns: repeat(4, 1fr); }
-}
-
-/* Quiz Options Grid */
-#quizOptions {
-  display: grid !important;
-  gap: 12px;
-  width: 100%;
-  margin-bottom: 20px;
-}
-
-@media (max-width: 480px) {
-  #quizOptions {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
-@media (min-width: 481px) {
-  #quizOptions {
-    grid-template-columns: repeat(4, 1fr) !important;
-  }
-}
-
-.quiz-option-btn {
-  min-height: 100px;
-  font-family: inherit;
-  transition: all 0.2s ease;
-}
 
 .quiz-option-btn:hover {
   transform: translateY(-2px);
@@ -271,4 +236,19 @@ button.secondary { background: var(--bg-color); color: var(--text-main); border:
 
 .quiz-option-btn:active {
   transform: translateY(0);
+}
+
+/* Quiz options grid */
+#quizOptions {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 20px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 481px) {
+  #quizOptions {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }

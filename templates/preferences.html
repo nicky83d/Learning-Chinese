@@ -1,11 +1,7 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Preferences - Vocab Lab</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <style>
+{% extends "base.html" %}
+{% block title %}Preferences - Vocab Lab{% endblock %}
+
+{% block extra_css %}
     .preferences-container {
       max-width: 900px;
       margin: 40px auto;
@@ -208,9 +204,9 @@
       transform: translateY(-1px);
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
-  </style>
-</head>
-<body>
+{% endblock %}
+
+{% block body %}
   <div id="toast" class="toast"></div>
 
   <div class="preferences-container">
@@ -331,14 +327,10 @@
       </div>
     </div>
   </div>
+{% endblock %}
 
+{% block scripts %}
   <script>
-    // Load and apply saved theme on page load
-    (function() {
-      const savedTheme = localStorage.getItem('theme') || 'light';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    })();
-
     // Language Settings Functions
     async function loadLanguageSettings() {
       let settings = JSON.parse(localStorage.getItem('languageSettings') || '{}');
@@ -631,5 +623,4 @@
       }
     });
   </script>
-</body>
-</html>
+{% endblock %}

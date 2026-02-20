@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file, session, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
-from models import db, Vocabulary, PhotoLog, User, UserDeletedWord, PracticeScore, PracticeResult, AIFeedback
+from models import db, Vocabulary, PhotoLog, User, PracticeScore, PracticeResult, AIFeedback
 from extract_data import extract_all_rows
 from config import get_config
 import unicodedata
@@ -16,7 +16,8 @@ import time
 import logging
 from datetime import datetime
 from math import ceil
-from sqlalchemy import text, and_, or_
+from sqlalchemy import text, and_, or_, func
+import random
 from io import BytesIO
 from PIL import Image, ImageOps
 from functools import wraps
@@ -87,6 +88,29 @@ def has_chinese(s: str) -> bool:
     """True if string contains any CJK Han character."""
     return bool(_CHINESE_RE.search(s or ""))
 
+
+def _vocab_to_dict(v, include_section=True):
+    """Serialize a Vocabulary row to a JSON-friendly dict."""
+    d = {
+        "id": v.id,
+        "hanzi": v.hanzi,
+        "pinyin": v.pinyin,
+        "english": v.english,
+        "french": v.french,
+        "japanese_kanji": v.japanese_kanji,
+        "japanese_romaji": v.japanese_romaji,
+        "sent_hanzi": v.sent_hanzi,
+        "sent_pinyin": v.sent_pinyin,
+        "sent_english": v.sent_english,
+        "sent_french": v.sent_french,
+        "sent_japanese_kanji": v.sent_japanese_kanji,
+        "sent_japanese_romaji": v.sent_japanese_romaji,
+    }
+    if include_section:
+        d["section"] = v.section
+    return d
+
+
 # Authentication decorator
 def admin_required(f):
     @wraps(f)
@@ -125,38 +149,6 @@ def _get_google_redirect_uri() -> str:
     
     scheme = request.headers.get('X-Forwarded-Proto', request.scheme)
     return f"{scheme}://{host}/auth/google/callback"
-
-def fold_pinyin(text: str, umlaut_to: str = 'u') -> str:
-    if not text:
-        return ''
-    s = text.strip().lower()
-    s = s.replace('u:', 'ü')
-    if umlaut_to == 'u':
-        s = s.replace('v', 'u')
-    s = unicodedata.normalize('NFD', s)
-    out = []
-    i = 0
-    while i < len(s):
-        ch = s[i]
-        if ch == 'u' and i + 1 < len(s) and s[i + 1] == '\u0308':
-            out.append('v' if umlaut_to == 'v' else 'u')
-            i += 2
-            while i < len(s) and unicodedata.category(s[i]) == 'Mn':
-                i += 1
-            continue
-        if unicodedata.category(ch) == 'Mn':
-            i += 1
-            continue
-        out.append(ch)
-        i += 1
-    return ''.join(out)
-
-def pinyin_query_variants(query: str) -> tuple[str, str]:
-    q = (query or '').strip().casefold()
-    if not q:
-        return ('', '')
-    return (fold_pinyin(q, 'u'), fold_pinyin(q, 'v'))
-
 
 def fold_text(text: str) -> str:
     """Case- and accent-insensitive folding for search (é -> e, Ü -> u, ß -> ss)."""
@@ -277,14 +269,9 @@ def _get_user_visible_vocab_query(user_id: int | None):
             )
         )
 
-    deleted_subquery = db.session.query(UserDeletedWord.vocabulary_id).filter(
-        UserDeletedWord.user_id == user_id
-    )
-
     return Vocabulary.query.filter(
         Vocabulary.is_hidden != True,
-        or_(*visibility_conditions),
-        ~Vocabulary.id.in_(deleted_subquery)
+        or_(*visibility_conditions)
     )
 
 def _ensure_system_owner_user():
@@ -333,34 +320,13 @@ def create_tables_and_populate():
     with app.app_context():
         db.create_all()
         
-        # Detect database type for migration compatibility
         is_sqlite = 'sqlite' in str(db.engine.url).lower()
         
-        # Run migrations for new columns (safe to run multiple times)
+        # --- Run migrations (safe to repeat) ---
         try:
-            from sqlalchemy import text
-            
-            # Create UserDeletedWord table if it doesn't exist
-            try:
-                db.session.execute(text("""
-                    CREATE TABLE IF NOT EXISTS user_deleted_word (
-                        id SERIAL PRIMARY KEY,
-                        user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-                        vocabulary_id INTEGER NOT NULL REFERENCES vocabulary(id) ON DELETE CASCADE,
-                        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE(user_id, vocabulary_id)
-                    )
-                """))
-                db.session.commit()
-                logger.info("UserDeletedWord table ensured")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower():
-                    logger.warning(f"Could not create user_deleted_word table: {e}")
-            
-            # Create PracticeScore table if it doesn't exist
-            try:
-                db.session.execute(text("""
+            # Tables to create (only for PostgreSQL; SQLAlchemy's create_all handles SQLite)
+            _TABLE_SQL = [
+                ("practice_score", """
                     CREATE TABLE IF NOT EXISTS practice_score (
                         id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
@@ -370,315 +336,99 @@ def create_tables_and_populate():
                         percentage FLOAT,
                         session_duration INTEGER,
                         played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                db.session.commit()
-                logger.info("PracticeScore table ensured")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower():
-                    logger.warning(f"Could not create practice_score table: {e}")
-            
-            # Create PracticeResult table if it doesn't exist
-            try:
-                db.session.execute(text("""
+                    )"""),
+                ("practice_result", """
                     CREATE TABLE IF NOT EXISTS practice_result (
                         id SERIAL PRIMARY KEY,
                         practice_score_id INTEGER NOT NULL REFERENCES practice_score(id) ON DELETE CASCADE,
                         question_number INTEGER NOT NULL,
                         vocabulary_id INTEGER REFERENCES vocabulary(id) ON DELETE SET NULL,
-                        word_hanzi VARCHAR(100),
-                        word_pinyin VARCHAR(200),
-                        word_english VARCHAR(300),
-                        word_french VARCHAR(300),
-                        word_japanese_kanji VARCHAR(300),
-                        word_japanese_romaji VARCHAR(300),
-                        question_type VARCHAR(50),
-                        question_text TEXT,
-                        user_answer TEXT,
-                        correct_answer TEXT,
-                        is_correct BOOLEAN NOT NULL DEFAULT FALSE,
-                        feedback TEXT
-                    )
-                """))
-                db.session.commit()
-                logger.info("PracticeResult table ensured")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower():
-                    logger.warning(f"Could not create practice_result table: {e}")
-            
-            # Create AIFeedback cache table if it doesn't exist
-            try:
-                db.session.execute(text("""
+                        word_hanzi VARCHAR(100), word_pinyin VARCHAR(200),
+                        word_english VARCHAR(300), word_french VARCHAR(300),
+                        word_japanese_kanji VARCHAR(300), word_japanese_romaji VARCHAR(300),
+                        question_type VARCHAR(50), question_text TEXT,
+                        user_answer TEXT, correct_answer TEXT,
+                        is_correct BOOLEAN NOT NULL DEFAULT FALSE, feedback TEXT
+                    )"""),
+                ("ai_feedback", """
                     CREATE TABLE IF NOT EXISTS ai_feedback (
                         id SERIAL PRIMARY KEY,
-                        game_type VARCHAR(50) NOT NULL,
-                        question_type VARCHAR(50),
-                        correct_answer VARCHAR(500) NOT NULL,
-                        user_answer VARCHAR(500) NOT NULL,
+                        game_type VARCHAR(50) NOT NULL, question_type VARCHAR(50),
+                        correct_answer VARCHAR(500) NOT NULL, user_answer VARCHAR(500) NOT NULL,
                         feedback_text TEXT NOT NULL,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        usage_count INTEGER DEFAULT 1,
-                        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                db.session.commit()
-                logger.info("AIFeedback table ensured")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower():
-                    logger.warning(f"Could not create ai_feedback table: {e}")
-            
-            # Add missing Japanese columns to vocabulary table (safe migration)
-            try:
-                # Check if columns exist, add if missing
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN japanese_kanji VARCHAR(200) DEFAULT ''
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN IF NOT EXISTS japanese_kanji VARCHAR(200) DEFAULT ''
-                    """))
-                db.session.commit()
-                logger.info("Added japanese_kanji column to vocabulary")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.debug(f"japanese_kanji column might already exist: {e}")
-            
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN japanese_romaji VARCHAR(200) DEFAULT ''
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN IF NOT EXISTS japanese_romaji VARCHAR(200) DEFAULT ''
-                    """))
-                db.session.commit()
-                logger.info("Added japanese_romaji column to vocabulary")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.debug(f"japanese_romaji column might already exist: {e}")
-            
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN sent_japanese_kanji VARCHAR(200) DEFAULT ''
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN IF NOT EXISTS sent_japanese_kanji VARCHAR(200) DEFAULT ''
-                    """))
-                db.session.commit()
-                logger.info("Added sent_japanese_kanji column to vocabulary")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.debug(f"sent_japanese_kanji column might already exist: {e}")
-            
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN sent_japanese_romaji VARCHAR(200) DEFAULT ''
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN IF NOT EXISTS sent_japanese_romaji VARCHAR(200) DEFAULT ''
-                    """))
-                db.session.commit()
-                logger.info("Added sent_japanese_romaji column to vocabulary")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.debug(f"sent_japanese_romaji column might already exist: {e}")
+                        usage_count INTEGER DEFAULT 1, last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )"""),
+            ]
+            for name, sql in _TABLE_SQL:
+                try:
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    logger.info(f"{name} table ensured")
+                except Exception as e:
+                    db.session.rollback()
+                    if "already exists" not in str(e).lower():
+                        logger.warning(f"Could not create {name} table: {e}")
 
-            # Add global hide flag to vocabulary table
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN is_hidden BOOLEAN DEFAULT 0
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE vocabulary
-                        ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE
-                    """))
-                db.session.commit()
-                logger.info("Added is_hidden column to vocabulary")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.debug(f"is_hidden column might already exist: {e}")
+            # Column migrations — (table, column, pg_type, sqlite_type)
+            _COL_MIGRATIONS = [
+                ("vocabulary", "japanese_kanji",        "VARCHAR(200) DEFAULT ''",  "VARCHAR(200) DEFAULT ''"),
+                ("vocabulary", "japanese_romaji",       "VARCHAR(200) DEFAULT ''",  "VARCHAR(200) DEFAULT ''"),
+                ("vocabulary", "sent_japanese_kanji",   "VARCHAR(200) DEFAULT ''",  "VARCHAR(200) DEFAULT ''"),
+                ("vocabulary", "sent_japanese_romaji",  "VARCHAR(200) DEFAULT ''",  "VARCHAR(200) DEFAULT ''"),
+                ("vocabulary", "is_hidden",             "BOOLEAN DEFAULT FALSE",    "BOOLEAN DEFAULT 0"),
+                ("practice_result", "word_japanese_kanji",  "VARCHAR(300) DEFAULT NULL", "VARCHAR(300) DEFAULT NULL"),
+                ("practice_result", "word_japanese_romaji", "VARCHAR(300) DEFAULT NULL", "VARCHAR(300) DEFAULT NULL"),
+                ("photo_log", "user_id",    'INTEGER REFERENCES "user"(id) ON DELETE SET NULL',
+                                            'INTEGER REFERENCES "user"(id) ON DELETE SET NULL'),
+                ("photo_log", "image_data", "BYTEA",  "BLOB"),
+                ('"user"',    "languages",        "TEXT", "TEXT"),
+                ('"user"',    "visible_sections", "TEXT", "TEXT"),
+            ]
+            for tbl, col, pg_type, sq_type in _COL_MIGRATIONS:
+                try:
+                    if is_sqlite:
+                        db.session.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {sq_type}"))
+                    else:
+                        db.session.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {pg_type}"))
+                    db.session.commit()
+                    logger.info(f"Ensured {tbl}.{col}")
+                except Exception as e:
+                    db.session.rollback()
+                    if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                        logger.debug(f"{tbl}.{col} might already exist: {e}")
 
-            # Backfill is_hidden to false where missing
+            # Backfill NULLs
             try:
-                db.session.execute(text("""
-                    UPDATE vocabulary
-                    SET is_hidden = 0
-                    WHERE is_hidden IS NULL
-                """))
+                db.session.execute(text("UPDATE vocabulary SET is_hidden = 0 WHERE is_hidden IS NULL"))
                 db.session.commit()
-            except Exception as e:
+            except Exception:
                 db.session.rollback()
-                logger.debug(f"Could not backfill is_hidden: {e}")
-            
-            # Add missing Japanese columns to practice_result table
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE practice_result
-                        ADD COLUMN word_japanese_kanji VARCHAR(300) DEFAULT NULL
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE practice_result
-                        ADD COLUMN IF NOT EXISTS word_japanese_kanji VARCHAR(300) DEFAULT NULL
-                    """))
-                db.session.commit()
-                logger.info("Added word_japanese_kanji column to practice_result")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.debug(f"word_japanese_kanji column might already exist: {e}")
-            
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE practice_result
-                        ADD COLUMN word_japanese_romaji VARCHAR(300) DEFAULT NULL
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE practice_result
-                        ADD COLUMN IF NOT EXISTS word_japanese_romaji VARCHAR(300) DEFAULT NULL
-                    """))
-                db.session.commit()
-                logger.info("Added word_japanese_romaji column to practice_result")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.debug(f"word_japanese_romaji column might already exist: {e}")
-            
-            # Create index on AIFeedback for fast lookups
-            try:
-                db.session.execute(text("""
-                    CREATE INDEX IF NOT EXISTS idx_feedback_lookup 
-                    ON ai_feedback (game_type, correct_answer, user_answer)
-                """))
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-            
-            # Add user_id column to photo_log if it doesn't exist
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE photo_log 
-                        ADD COLUMN user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE photo_log 
-                        ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL
-                    """))
-                db.session.commit()
-                logger.info("PhotoLog: user_id column ensured")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.warning(f"Could not add user_id column: {e}")
 
-            # Add languages column to user table if it doesn't exist
             try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE "user"
-                        ADD COLUMN languages TEXT
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE "user"
-                        ADD COLUMN IF NOT EXISTS languages TEXT
-                    """))
+                db.session.execute(text(
+                    'UPDATE "user" SET languages = :langs WHERE languages IS NULL'
+                ), {"langs": json.dumps(["chinese"])})
                 db.session.commit()
-                logger.info("User: languages column ensured")
-            except Exception as e:
+            except Exception:
                 db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.warning(f"Could not add languages column: {e}")
 
-            # Add visible_sections column to user table if it doesn't exist
+            # Index
             try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE "user"
-                        ADD COLUMN visible_sections TEXT
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE "user"
-                        ADD COLUMN IF NOT EXISTS visible_sections TEXT
-                    """))
+                db.session.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_feedback_lookup "
+                    "ON ai_feedback (game_type, correct_answer, user_answer)"
+                ))
                 db.session.commit()
-                logger.info("User: visible_sections column ensured")
-            except Exception as e:
+            except Exception:
                 db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.warning(f"Could not add visible_sections column: {e}")
 
-            # Backfill default language for existing users
-            try:
-                db.session.execute(
-                    text("""
-                        UPDATE "user"
-                        SET languages = :langs
-                        WHERE languages IS NULL
-                    """),
-                    {"langs": json.dumps(["chinese"])}
-                )
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                logger.debug(f"Could not backfill user languages: {e}")
-            
-            # Add image_data column to photo_log if it doesn't exist
-            try:
-                if is_sqlite:
-                    db.session.execute(text("""
-                        ALTER TABLE photo_log 
-                        ADD COLUMN image_data BLOB
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE photo_log 
-                        ADD COLUMN IF NOT EXISTS image_data BYTEA
-                    """))
-                db.session.commit()
-                logger.info("PhotoLog: image_data column ensured")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
-                    logger.warning(f"Could not add image_data column: {e}")
-
-            # Ensure system owner bucket user (id=0) exists for deleted word reassignment
             _ensure_system_owner_user()
         except Exception as e:
             logger.warning(f"Migration check failed: {e}")
             db.session.rollback()
         
+        # --- Seed vocabulary data ---
         if Vocabulary.query.count() == 0:
             logger.info("Importing vocabulary data into database...")
             rows = extract_all_rows()
@@ -702,16 +452,13 @@ def create_tables_and_populate():
                     )
                     db.session.add(entry)
                 db.session.commit()
-                # Safety: ensure all seeded rows are marked approved so they appear in search
-                Vocabulary.query.filter(Vocabulary.is_approved != True).update({'is_approved': True})
-                db.session.commit()
                 logger.info(f"Imported {len(rows)} items.")
             else:
                 logger.info("No data to import.")
-        else:
-            # Ensure any existing rows (e.g., after migrations) are approved
-            Vocabulary.query.filter(Vocabulary.is_approved != True).update({'is_approved': True})
-            db.session.commit()
+
+        # Ensure all rows are approved
+        Vocabulary.query.filter(Vocabulary.is_approved != True).update({'is_approved': True})
+        db.session.commit()
         _db_populated = True
 
 @app.route('/')
@@ -787,24 +534,7 @@ def search():
         results = all_entries
     
     # Convert database objects to a list of dictionaries for the frontend (added missing sentences)
-    return jsonify([
-        {
-            "id": r.id,
-            "section": r.section,
-            "hanzi": r.hanzi,
-            "pinyin": r.pinyin,
-            "english": r.english,
-            "french": r.french,
-            "japanese_kanji": r.japanese_kanji,
-            "japanese_romaji": r.japanese_romaji,
-            "sent_hanzi": r.sent_hanzi,
-            "sent_pinyin": r.sent_pinyin,
-            "sent_english": r.sent_english,
-            "sent_french": r.sent_french,
-            "sent_japanese_kanji": r.sent_japanese_kanji,
-            "sent_japanese_romaji": r.sent_japanese_romaji
-        } for r in results
-    ])
+    return jsonify([_vocab_to_dict(r) for r in results])
 
 @app.route('/sections')
 def get_sections():
@@ -817,42 +547,9 @@ def get_sections():
     # Flatten the list of tuples and remove None/Empty values
     return jsonify(sorted([s[0] for s in sections if s[0]]))
 
-@app.route('/random_word')
-def random_word():
-    """Returns a random vocabulary word for practice."""
-    # Get a random word from the database
-    from sqlalchemy import func
-    
-    # Check if user is logged in
-    user_id = session.get('user_id')
-    
-    word = _get_user_visible_vocab_query(user_id).order_by(func.random()).first()
-    
-    if not word:
-        return jsonify({"error": "No words found"}), 404
-    
-    return jsonify({
-        "id": word.id,
-        "hanzi": word.hanzi,
-        "pinyin": word.pinyin,
-        "english": word.english,
-        "french": word.french,
-        "japanese_kanji": word.japanese_kanji,
-        "japanese_romaji": word.japanese_romaji,
-        "sent_hanzi": word.sent_hanzi,
-        "sent_pinyin": word.sent_pinyin,
-        "sent_english": word.sent_english,
-        "sent_french": word.sent_french,
-        "sent_japanese_kanji": word.sent_japanese_kanji,
-        "sent_japanese_romaji": word.sent_japanese_romaji,
-        "section": word.section
-    })
-
 @app.route('/random_words')
 def random_words():
     """Returns multiple random vocabulary words for practice, optionally filtered by section."""
-    from sqlalchemy import func
-    
     section = request.args.get('section', 'all')
     limit = int(request.args.get('limit', 10))
     
@@ -871,22 +568,7 @@ def random_words():
     if not words:
         return jsonify({"error": "No words found"}), 404
     
-    return jsonify([{
-        "id": word.id,
-        "hanzi": word.hanzi,
-        "pinyin": word.pinyin,
-        "english": word.english,
-        "french": word.french,
-        "japanese_kanji": word.japanese_kanji,
-        "japanese_romaji": word.japanese_romaji,
-        "sent_hanzi": word.sent_hanzi,
-        "sent_pinyin": word.sent_pinyin,
-        "sent_english": word.sent_english,
-        "sent_french": word.sent_french,
-        "sent_japanese_kanji": word.sent_japanese_kanji,
-        "sent_japanese_romaji": word.sent_japanese_romaji,
-        "section": word.section
-    } for word in words])
+    return jsonify([_vocab_to_dict(word) for word in words])
 
 # Route to update a word (called by your Save button in the modal)
 @app.route('/update', methods=['POST'])
@@ -1777,15 +1459,6 @@ def google_auth_callback():
         return redirect(url_for('index'))
 
 
-@app.route('/admin/logout', methods=['POST'])
-def admin_logout():
-    """Admin logout endpoint"""
-    session.pop('admin_logged_in', None)
-    session.pop('admin_email', None)
-    session.pop('oauth_state', None)
-    return jsonify({"success": True, "message": "Logged out"})
-
-
 @app.route('/logout')
 def logout():
     """User logout"""
@@ -1800,12 +1473,6 @@ def preferences_page():
     if not user_id:
         return redirect(url_for('admin_login'))
     return render_template('preferences.html')
-
-
-@app.route('/admin/check-auth')
-def admin_check_auth():
-    """Check if admin is logged in"""
-    return jsonify({"authenticated": session.get('admin_logged_in', False)})
 
 
 @app.route('/admin')
@@ -1829,8 +1496,6 @@ def admin_practice_page():
 def get_admin_logs():
     """Get all photo upload logs for admin review."""
     try:
-        # Use raw SQL to avoid column mismatch issues during migration
-        from sqlalchemy import text
         result = db.session.execute(text("""
             SELECT id, timestamp, user_ip, filename, section, detected_language, 
                    status, created_count, updated_count, error_message
@@ -2235,38 +1900,6 @@ def _get_similar_options(correct_word_id: int, max_options: int = 3, candidate_w
         logger.error(f"Error fetching similar options: {e}")
         return []
 
-def _get_or_generate_explanation(word: Vocabulary) -> str:
-    """
-    Return cached explanation or generate one using OpenAI and cache it.
-    """
-    if word.explanation:
-        return word.explanation
-    
-    try:
-        prompt = f"""Provide a brief, concise explanation (1-2 sentences max) for why the student should remember the word:
-Chinese: {word.hanzi}
-Pinyin: {word.pinyin}
-English: {word.english}
-French: {word.french}
-
-Explanation:"""
-        
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=100
-        )
-        
-        explanation = response.choices[0].message.content.strip()
-        word.explanation = explanation
-        db.session.commit()
-        logger.info(f"Generated explanation for word {word.id}: {explanation[:50]}...")
-        return explanation
-    except Exception as e:
-        logger.error(f"Error generating explanation: {e}")
-        return "Keep practicing this word!"
-
 @app.route('/quiz/options', methods=['POST'])
 def get_quiz_options():
     """
@@ -2311,7 +1944,6 @@ def get_quiz_options():
             # If we don't have enough similar words, add random ones to fill
             if len(similar_ids) < num_distractors:
                 random_ids = [wid for wid in all_ids if wid not in similar_ids]
-                import random
                 random.shuffle(random_ids)
                 similar_ids.extend(random_ids[:num_distractors - len(similar_ids)])
             
@@ -2321,40 +1953,15 @@ def get_quiz_options():
             distractors = [w for w in distractors if w and w.id != correct.id]  # Ensure no duplicates or correct word
         
         # Build final options list: correct word + distractors, then shuffle
-        import random
         options = [correct] + distractors
         random.shuffle(options)
         
-        explanation = _get_or_generate_explanation(correct)
+        explanation = correct.explanation or "Keep practicing this word!"
         
         return jsonify({
             "correct_id": correct.id,
-            "correct_word": {
-                "id": correct.id,
-                "hanzi": correct.hanzi,
-                "pinyin": correct.pinyin,
-                "english": correct.english,
-                "french": correct.french,
-                "japanese_kanji": correct.japanese_kanji,
-                "japanese_romaji": correct.japanese_romaji,
-                "sent_hanzi": correct.sent_hanzi,
-                "sent_pinyin": correct.sent_pinyin,
-                "sent_english": correct.sent_english,
-                "sent_french": correct.sent_french,
-                "sent_japanese_kanji": correct.sent_japanese_kanji,
-                "sent_japanese_romaji": correct.sent_japanese_romaji,
-            },
-            "options": [
-                {
-                    "id": opt.id,
-                    "hanzi": opt.hanzi,
-                    "pinyin": opt.pinyin,
-                    "english": opt.english,
-                    "french": opt.french,
-                    "japanese_kanji": opt.japanese_kanji,
-                    "japanese_romaji": opt.japanese_romaji,
-                } for opt in options
-            ],
+            "correct_word": _vocab_to_dict(correct),
+            "options": [_vocab_to_dict(opt, include_section=False) for opt in options],
             "explanation": explanation
         })
     except Exception as e:
@@ -2382,7 +1989,7 @@ def check_quiz_answer():
         if not correct_word:
             return jsonify({"error": "Correct word not found"}), 404
         
-        explanation = _get_or_generate_explanation(correct_word)
+        explanation = correct_word.explanation or "Keep practicing this word!"
         
         return jsonify({
             "correct": is_correct,
@@ -2690,22 +2297,7 @@ def get_user_vocabulary():
     
     vocab_items = _get_user_visible_vocab_query(user_id).all()
     
-    return jsonify([{
-        "id": v.id,
-        "section": v.section,
-        "hanzi": v.hanzi,
-        "pinyin": v.pinyin,
-        "english": v.english,
-        "french": v.french,
-        "japanese_kanji": v.japanese_kanji,
-        "japanese_romaji": v.japanese_romaji,
-        "sent_hanzi": v.sent_hanzi,
-        "sent_pinyin": v.sent_pinyin,
-        "sent_english": v.sent_english,
-        "sent_french": v.sent_french,
-        "sent_japanese_kanji": v.sent_japanese_kanji,
-        "sent_japanese_romaji": v.sent_japanese_romaji
-    } for v in vocab_items])
+    return jsonify([_vocab_to_dict(v) for v in vocab_items])
 
 
 @app.route('/api/user/preferences', methods=['POST'])
@@ -2797,15 +2389,10 @@ def get_deletable_words():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
-    
-    deleted_subquery = db.session.query(UserDeletedWord.vocabulary_id).filter(
-        UserDeletedWord.user_id == user_id
-    )
 
     vocab_items = Vocabulary.query.filter(
         Vocabulary.added_by_user_id == user_id,
-        Vocabulary.is_hidden != True,
-        ~Vocabulary.id.in_(deleted_subquery)
+        Vocabulary.is_hidden != True
     ).all()
 
     if not vocab_items:
@@ -2840,21 +2427,14 @@ def delete_user_word(vocab_id):
 
     if not _ensure_system_owner_user():
         return jsonify({"error": "System owner user (id=0) is required for deletion workflow"}), 500
-    
-    # Add to UserDeletedWord to track deletion
-    deleted = UserDeletedWord.query.filter_by(
-        user_id=user_id,
-        vocabulary_id=vocab_id
-    ).first()
-    
-    if not deleted:
-        deleted = UserDeletedWord(user_id=user_id, vocabulary_id=vocab_id)
-        db.session.add(deleted)
 
-    # Reassign ownership to admin bucket user_id=0 so admin can review
+    # Reassign ownership to admin bucket user_id=0 and hide
     vocab = db.session.get(Vocabulary, vocab_id)
-    if vocab:
-        vocab.added_by_user_id = SYSTEM_OWNER_USER_ID
+    if not vocab:
+        return jsonify({"error": "Word not found"}), 404
+
+    vocab.added_by_user_id = SYSTEM_OWNER_USER_ID
+    vocab.is_hidden = True
     
     db.session.commit()
     return jsonify({"success": True, "message": "Word deleted"})
@@ -3172,8 +2752,6 @@ def get_admin_users():
                 Vocabulary.added_by_user_id == user.id,
                 Vocabulary.is_hidden != True
             ).count()
-            deleted_count = UserDeletedWord.query.filter_by(user_id=user.id).count()
-            
             # Upload stats from PhotoLog
             try:
                 upload_count = PhotoLog.query.filter_by(user_id=user.id).count()
@@ -3193,7 +2771,6 @@ def get_admin_users():
                 "created_at": user.created_at.isoformat() if user.created_at else None,
                 "last_login": user.last_login.isoformat() if user.last_login else None,
                 "vocabulary_count": vocab_count,
-                "deleted_count": deleted_count,
                 "upload_count": upload_count,
                 "successful_uploads": successful_uploads,
                 "pending_uploads": pending_uploads,
@@ -3227,13 +2804,6 @@ def get_user_stats(user_id):
             logger.warning(f"Could not get vocab count: {e}")
             db.session.rollback()
             vocab_count = 0
-        
-        try:
-            deleted_count = UserDeletedWord.query.filter_by(user_id=user_id).count()
-        except Exception as e:
-            logger.warning(f"Could not get deleted count: {e}")
-            db.session.rollback()
-            deleted_count = 0
         
         # Get upload stats from PhotoLog
         try:
@@ -3285,7 +2855,6 @@ def get_user_stats(user_id):
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "last_login": user.last_login.isoformat() if user.last_login else None,
             "vocabulary_count": vocab_count,
-            "deleted_count": deleted_count,
             "upload_count": total_uploads,
             "successful_uploads": successful_uploads,
             "pending_uploads": pending_uploads,
@@ -3299,6 +2868,17 @@ def get_user_stats(user_id):
         return jsonify({"error": str(e)}), 500
 
 
+def _reset_user_scores(user_id):
+    """Delete all practice scores and results for a user. Returns deleted count."""
+    scores = PracticeScore.query.filter_by(user_id=user_id).all()
+    score_ids = [s.id for s in scores]
+    if score_ids:
+        PracticeResult.query.filter(PracticeResult.practice_score_id.in_(score_ids)).delete(synchronize_session=False)
+    deleted_count = PracticeScore.query.filter_by(user_id=user_id).delete()
+    db.session.commit()
+    return deleted_count
+
+
 @app.route('/api/admin/user/<int:user_id>/reset-scores', methods=['POST'])
 @admin_required
 def admin_reset_user_scores(user_id):
@@ -3308,17 +2888,7 @@ def admin_reset_user_scores(user_id):
         if not user:
             return jsonify({"error": "User not found"}), 404
         
-        # Delete all practice results for this user's scores
-        scores = PracticeScore.query.filter_by(user_id=user_id).all()
-        score_ids = [s.id for s in scores]
-        
-        if score_ids:
-            PracticeResult.query.filter(PracticeResult.practice_score_id.in_(score_ids)).delete(synchronize_session=False)
-        
-        # Delete all practice scores
-        deleted_count = PracticeScore.query.filter_by(user_id=user_id).delete()
-        db.session.commit()
-        
+        deleted_count = _reset_user_scores(user_id)
         logger.info(f"Admin reset scores for user {user_id}: deleted {deleted_count} scores")
         return jsonify({"success": True, "deleted_count": deleted_count})
     except Exception as e:
@@ -3360,134 +2930,12 @@ def reset_my_scores():
         return jsonify({"error": "Not authenticated"}), 401
     
     try:
-        
-        # Delete all practice results for this user's scores
-        scores = PracticeScore.query.filter_by(user_id=user_id).all()
-        score_ids = [s.id for s in scores]
-        
-        if score_ids:
-            PracticeResult.query.filter(PracticeResult.practice_score_id.in_(score_ids)).delete(synchronize_session=False)
-        
-        # Delete all practice scores
-        deleted_count = PracticeScore.query.filter_by(user_id=user_id).delete()
-        db.session.commit()
-        
+        deleted_count = _reset_user_scores(user_id)
         logger.info(f"User {user_id} reset their own scores: deleted {deleted_count} scores")
         return jsonify({"success": True, "deleted_count": deleted_count})
     except Exception as e:
         logger.error(f"Error resetting my scores: {e}")
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/api/admin/backfill-japanese', methods=['POST'])
-@admin_required
-def backfill_japanese_endpoint():
-    """Admin endpoint to trigger Japanese backfill directly"""
-    try:
-        mode = request.json.get('mode', 'count-only')  # count-only, dry-run, or live
-        limit = request.json.get('limit', 1000)
-        only_approved = request.json.get('only_approved', True)
-        
-        # Import backfill functions
-        import re
-        import json
-        from sqlalchemy import or_, and_
-        
-        def _has_japanese_value(value):
-            return bool((value or "").strip())
-        
-        def _extract_json_payload(text):
-            text = (text or "").strip()
-            if not text:
-                return None
-            try:
-                data = json.loads(text)
-                if isinstance(data, dict):
-                    return data
-            except:
-                pass
-            match = re.search(r"\{[\s\S]*\}", text)
-            if not match:
-                return None
-            try:
-                data = json.loads(match.group(0))
-                return data if isinstance(data, dict) else None
-            except:
-                return None
-        
-        # Build query for missing Japanese
-        query = db.session.query(Vocabulary)
-        
-        if only_approved:
-            query = query.filter_by(is_approved=True)
-        
-        # Filter rows with missing Japanese
-        missing = []
-        for vocab in query.all():
-            has_kanji = _has_japanese_value(vocab.japanese_kanji)
-            has_romaji = _has_japanese_value(vocab.japanese_romaji)
-            has_sent_jp = _has_japanese_value(vocab.sent_japanese) if hasattr(vocab, 'sent_japanese') else False
-            
-            if not (has_kanji and has_romaji and has_sent_jp):
-                missing.append(vocab)
-        
-        total_missing = len(missing)
-        
-        if mode == 'count-only':
-            return jsonify({
-                "status": "success",
-                "mode": "count-only",
-                "rows_with_missing_japanese": total_missing
-            })
-        
-        if mode == 'dry-run' or mode == 'live':
-            processed = 0
-            changes = []
-            
-            for vocab in missing[:limit]:
-                if vocab.hanzi and not _has_japanese_value(vocab.japanese_kanji):
-                    try:
-                        # Call OpenAI to get Japanese translation
-                        response = openai.ChatCompletion.create(
-                            model="gpt-4o-mini",
-                            messages=[{
-                                "role": "user",
-                                "content": f"Translate this Chinese word to natural Japanese (in kanji and hiragana romaji). Return JSON: {{\"kanji\": \"...\", \"romaji\": \"...\"}}\n\n{vocab.hanzi}"
-                            }],
-                            temperature=0.3,
-                            max_tokens=100
-                        )
-                        payload = _extract_json_payload(response.choices[0].message.content)
-                        if payload:
-                            kanji = (payload.get('kanji') or '').strip()
-                            romaji = (payload.get('romaji') or '').strip()
-                            if kanji and romaji:
-                                if mode == 'live':
-                                    vocab.japanese_kanji = kanji
-                                    vocab.japanese_romaji = romaji
-                                changes.append({"id": vocab.id, "hanzi": vocab.hanzi, "kanji": kanji, "romaji": romaji})
-                                processed += 1
-                    except Exception as e:
-                        logger.warning(f"Error translating {vocab.hanzi}: {e}")
-                    
-                    time.sleep(0.5)  # Rate limit
-            
-            if mode == 'live' and changes:
-                db.session.commit()
-                logger.info(f"Backfill complete: Updated {processed} rows")
-            
-            return jsonify({
-                "status": "success",
-                "mode": mode,
-                "rows_processed": processed,
-                "changes": changes
-            })
-        
-        return jsonify({"error": "Invalid mode"}), 400
-        
-    except Exception as e:
-        logger.error(f"Error in backfill endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
 
