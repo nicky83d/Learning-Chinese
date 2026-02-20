@@ -52,6 +52,7 @@ body {
 .search-container { position: relative; flex: 3; display: flex; align-items: center; }
 #searchInput { width: 100%; border: none; padding: 12px; background: transparent; color: var(--text-main); outline: none; }
 #fieldSelect { flex: 1.5; border: none; border-left: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); padding: 0 10px; outline: none; }
+#sortSelect { flex: 1.5; border: none; border-left: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); padding: 0 10px; outline: none; cursor: pointer; }
 
 /* RESPONSIVE GRID */
 .vocab-grid {

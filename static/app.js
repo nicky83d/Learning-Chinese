@@ -446,6 +446,127 @@
   function playFrench(text) { speak(text, 'fr-FR'); }
   function playJapanese(text) { speak(text, 'ja-JP'); }
 
+  // ===== Sorting Logic =====
+  const DAY_ORDER = {
+    'monday':0,'tuesday':1,'wednesday':2,'thursday':3,'friday':4,'saturday':5,'sunday':6,
+    'mon':0,'tue':1,'tues':1,'wed':2,'thu':3,'thur':3,'thurs':3,'fri':4,'sat':5,'sun':6
+  };
+  const MONTH_ORDER = {
+    'january':0,'february':1,'march':2,'april':3,'may':4,'june':5,
+    'july':6,'august':7,'september':8,'october':9,'november':10,'december':11,
+    'jan':0,'feb':1,'mar':2,'apr':3,'jun':5,'jul':6,'aug':7,'sep':8,'oct':9,'nov':10,'dec':11
+  };
+
+  function extractNumber(eng) {
+    // Map written-out numbers and digits to numeric values
+    const WORD_NUMS = {
+      'zero':0,'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,
+      'eight':8,'nine':9,'ten':10,'eleven':11,'twelve':12,'thirteen':13,
+      'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,
+      'nineteen':19,'twenty':20,'thirty':30,'forty':40,'fifty':50,
+      'sixty':60,'seventy':70,'eighty':80,'ninety':90,'hundred':100,
+      'thousand':1000,'million':1000000
+    };
+    if (!eng) return null;
+    const lower = eng.toLowerCase().trim();
+    // Try direct lookup first
+    if (WORD_NUMS[lower] !== undefined) return WORD_NUMS[lower];
+    // Try parsing as digit
+    const num = parseFloat(lower);
+    if (!isNaN(num)) return num;
+    // Try extracting first number from string like "half past three"
+    const match = lower.match(/\d+/);
+    if (match) return parseInt(match[0]);
+    return null;
+  }
+
+  function getSmartSortKey(section) {
+    // Returns a category name for smart sorting based on the section
+    if (!section) return 'alpha';
+    const s = section.toLowerCase();
+    if (s.includes('number') || s.includes('time') || s.includes('telling the time')) return 'numeric';
+    if (s.includes('day') || s.includes('month') || s.includes('season')) return 'calendar';
+    if (s.includes('verb')) return 'alpha';
+    return 'alpha'; // default alphabetical for specific categories
+  }
+
+  function sortWords(words, sortMode, activeSection) {
+    if (!words || words.length === 0) return words;
+    const arr = [...words]; // don't mutate original
+
+    if (sortMode === 'newest') {
+      return arr.sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+    if (sortMode === 'oldest') {
+      return arr.sort((a, b) => (a.id || 0) - (b.id || 0));
+    }
+    if (sortMode === 'alpha-eng') {
+      return arr.sort((a, b) => (a.english || '').localeCompare(b.english || ''));
+    }
+    if (sortMode === 'alpha-pinyin') {
+      return arr.sort((a, b) => (a.pinyin || '').localeCompare(b.pinyin || ''));
+    }
+
+    // Smart order: pick best sort by category
+    if (sortMode === 'smart') {
+      if (activeSection === 'all') {
+        // All categories: group by section, each section sorted smartly
+        const groups = {};
+        arr.forEach(w => {
+          const sec = w.section || 'Other';
+          if (!groups[sec]) groups[sec] = [];
+          groups[sec].push(w);
+        });
+        const result = [];
+        Object.keys(groups).sort().forEach(sec => {
+          result.push(...sortWordsInCategory(groups[sec], sec));
+        });
+        return result;
+      }
+      return sortWordsInCategory(arr, activeSection);
+    }
+
+    return arr;
+  }
+
+  function sortWordsInCategory(words, section) {
+    const kind = getSmartSortKey(section);
+    if (kind === 'numeric') {
+      return words.sort((a, b) => {
+        const na = extractNumber(a.english);
+        const nb = extractNumber(b.english);
+        if (na !== null && nb !== null) return na - nb;
+        if (na !== null) return -1;
+        if (nb !== null) return 1;
+        return (a.english || '').localeCompare(b.english || '');
+      });
+    }
+    if (kind === 'calendar') {
+      return words.sort((a, b) => {
+        const eng_a = (a.english || '').toLowerCase().trim();
+        const eng_b = (b.english || '').toLowerCase().trim();
+        const da = DAY_ORDER[eng_a];
+        const db = DAY_ORDER[eng_b];
+        if (da !== undefined && db !== undefined) return da - db;
+        const ma = MONTH_ORDER[eng_a];
+        const mb = MONTH_ORDER[eng_b];
+        if (ma !== undefined && mb !== undefined) return ma - mb;
+        // Days before months, months before others
+        if (da !== undefined) return -1;
+        if (db !== undefined) return 1;
+        if (ma !== undefined) return -1;
+        if (mb !== undefined) return 1;
+        // Remaining: try numeric, then alpha
+        const na = extractNumber(a.english);
+        const nb = extractNumber(b.english);
+        if (na !== null && nb !== null) return na - nb;
+        return (a.english || '').localeCompare(b.english || '');
+      });
+    }
+    // Default: alphabetical by English
+    return words.sort((a, b) => (a.english || '').localeCompare(b.english || ''));
+  }
+
   function performSearch() {
     const q = searchInput.value.trim();
     const field = document.getElementById('fieldSelect').value;
@@ -456,6 +577,7 @@
       .then(data => {
         grid.innerHTML = '';
         let filtered = (section === 'all') ? data : data.filter(r => r.section === section);
+        filtered = sortWords(filtered, document.getElementById('sortSelect').value, section);
         currentWords = filtered;
 
         filtered.forEach(row => {
@@ -1293,6 +1415,7 @@
   searchInput.addEventListener('input', performSearch);
   document.getElementById('clearSearch').onclick = () => { searchInput.value = ''; performSearch(); };
   sectionSelect.addEventListener('change', performSearch);
+  document.getElementById('sortSelect').addEventListener('change', performSearch);
 
   if (startChineseQuizBtn) startChineseQuizBtn.addEventListener('click', () => startQuiz('chinese'));
   if (startFrenchQuizBtn) startFrenchQuizBtn.addEventListener('click', () => startQuiz('french'));
