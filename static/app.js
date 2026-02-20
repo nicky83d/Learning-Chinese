@@ -481,11 +481,23 @@
 
           // Japanese section (if enabled)
           if (langSettings.japanese && (row.japanese_kanji || row.japanese_romaji)) {
-            cardHtml += `
-              <div style="position:relative; margin:2px -12px; width:calc(100% + 24px); box-sizing:border-box;">
-                <button class="speak-btn" onclick="event.stopPropagation(); playJapanese('${(row.japanese_kanji || '').replace(/'/g, "\\'")}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇯🇵</button>
-                <div class="pinyin-text" style="text-align:left; width:100%; padding-left:47px; padding-right:12px;">${row.japanese_kanji || ''} ${row.japanese_romaji ? '(' + row.japanese_romaji + ')' : ''}</div>
-              </div>`;
+            const jpKanjiEsc = (row.japanese_kanji || '').replace(/'/g, "\\'");
+            if (!langSettings.chinese) {
+              // Japanese is primary: big kanji + romaji below (same layout as Chinese)
+              cardHtml += `
+                <div class="hanzi-cell" style="margin-bottom:3px;">${row.japanese_kanji || ''}</div>
+                <div style="position:relative; margin:3px -12px; width:calc(100% + 24px); box-sizing:border-box;">
+                  <button class="speak-btn" onclick="event.stopPropagation(); playJapanese('${jpKanjiEsc}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇯🇵</button>
+                  <div class="pinyin-text" onclick="event.stopPropagation(); playJapanese('${jpKanjiEsc}')" style="text-align:left; width:100%; cursor:pointer; padding-left:47px; padding-right:12px;">${row.japanese_romaji || ''}</div>
+                </div>`;
+            } else {
+              // Japanese is secondary (Chinese is primary): compact row
+              cardHtml += `
+                <div style="position:relative; margin:2px -12px; width:calc(100% + 24px); box-sizing:border-box;">
+                  <button class="speak-btn" onclick="event.stopPropagation(); playJapanese('${jpKanjiEsc}')" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.3em; padding:0; line-height:1; z-index:1;">🇯🇵</button>
+                  <div class="pinyin-text" style="text-align:left; width:100%; padding-left:47px; padding-right:12px;">${row.japanese_kanji || ''} ${row.japanese_romaji ? '(' + row.japanese_romaji + ')' : ''}</div>
+                </div>`;
+            }
           }
 
           // French section (if enabled)
