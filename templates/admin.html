@@ -904,6 +904,17 @@
             return date.toLocaleString();
         }
 
+        function formatDaysSince(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            if (Number.isNaN(date.getTime())) return '';
+            const now = new Date();
+            const dayMs = 1000 * 60 * 60 * 24;
+            const diffDays = Math.max(0, Math.floor((now - date) / dayMs));
+            const label = diffDays === 1 ? 'day' : 'days';
+            return `(${diffDays} ${label})`;
+        }
+
         function toggleCollapse(sectionId) {
             const content = document.getElementById(sectionId);
             const icon = document.getElementById(sectionId + '-icon');
@@ -1111,6 +1122,8 @@
                             <div>${escapeHtml(user.name || 'N/A')}</div>
                             <div class="info-label">Status:</div>
                             <div>${user.is_admin ? '✅ Admin' : '👤 User'}</div>
+                            <div class="info-label">Last Login:</div>
+                            <div>${formatDate(user.last_login)} ${formatDaysSince(user.last_login)}</div>
                             <div class="info-label">Onboarded:</div>
                             <div>${user.is_onboarded ? '✅ Yes' : '⏳ No'}</div>
                         </div>
