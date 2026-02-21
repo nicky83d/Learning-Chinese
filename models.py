@@ -82,36 +82,6 @@ class User(db.Model):
     last_login = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-class UserVocabulary(db.Model):
-    """Track which vocabulary words each user has imported/learned"""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    vocabulary_id = db.Column(db.Integer, db.ForeignKey('vocabulary.id'), nullable=False)
-    added_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    user = db.relationship('User', backref='user_vocabulary')
-    vocabulary = db.relationship('Vocabulary', backref='user_vocabulary')
-    
-    # Ensure unique constraint
-    __table_args__ = (db.UniqueConstraint('user_id', 'vocabulary_id', name='unique_user_vocab'),)
-
-
-class UserDeletedWord(db.Model):
-    """Track words that users have hidden/deleted from their view (admin can see in deleted category)"""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    vocabulary_id = db.Column(db.Integer, db.ForeignKey('vocabulary.id'), nullable=False)
-    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    user = db.relationship('User', backref='deleted_words')
-    vocabulary = db.relationship('Vocabulary', backref='deleted_by_users')
-    
-    # Ensure unique constraint
-    __table_args__ = (db.UniqueConstraint('user_id', 'vocabulary_id', name='unique_user_deleted'),)
-
-
 class PracticeScore(db.Model):
     """Track practice game scores for each user"""
     id = db.Column(db.Integer, primary_key=True)
