@@ -2568,7 +2568,7 @@ def generate_practice_story():
 
     if language not in ['chinese', 'japanese', 'french']:
         return jsonify({"error": "Invalid language"}), 400
-    if word_count not in [50, 100, 250, 500]:
+    if word_count not in [50, 100, 250]:
         return jsonify({"error": "Invalid word count"}), 400
 
     query = _get_user_visible_vocab_query(user_id)

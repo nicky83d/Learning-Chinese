@@ -3102,6 +3102,7 @@
       // Get elements that require login
       const addWordsWrapper = document.getElementById('addWordsWrapper');
       const speakingWrapper = document.getElementById('speakingWrapper');
+      const storyWrapper = document.getElementById('storyWrapper');
       
       if (data.authenticated) {
         currentUser = data;
@@ -3116,6 +3117,7 @@
         // Enable login-required features
         if (addWordsWrapper) addWordsWrapper.classList.remove('disabled');
         if (speakingWrapper) speakingWrapper.classList.remove('disabled');
+        if (storyWrapper) storyWrapper.classList.remove('disabled');
         
         if (data.is_admin) {
           document.getElementById('adminLink').style.display = 'inline-block';
@@ -3140,6 +3142,7 @@
         // Disable login-required features
         if (addWordsWrapper) addWordsWrapper.classList.add('disabled');
         if (speakingWrapper) speakingWrapper.classList.add('disabled');
+        if (storyWrapper) storyWrapper.classList.add('disabled');
       }
     } catch (error) {
       console.error('Error checking auth:', error);
