@@ -2616,11 +2616,12 @@ def generate_practice_story():
     prompt = f"""Write a simple, learner-friendly story in {language}.
 Use as many of the provided words as you can, but keep the story coherent.
 Target about {word_count} words total.
+Use clear sentence punctuation so it reads with rhythm.
 
 Return ONLY valid JSON (no markdown, no extra text). Schema:
 {{
   \"language\": \"{language}\",
-  \"story\": \"TARGET_LANGUAGE_TEXT\",
+    \"story\": \"TARGET_LANGUAGE_TEXT_WITH_PUNCTUATION\",
   \"english\": \"ENGLISH_TRANSLATION\",
   \"tokens\": [{{\"surface\": \"...\", \"reading\": \"...\"}}]
 }}

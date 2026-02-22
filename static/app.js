@@ -3247,6 +3247,7 @@
   let practiceStoryState = {
     language: 'chinese',
     tokens: [],
+    storyText: '',
     english: '',
     storyId: null,
     isPlaying: false,
@@ -3258,6 +3259,7 @@
     practiceStoryState = {
       language: 'chinese',
       tokens: [],
+      storyText: '',
       english: '',
       storyId: null,
       isPlaying: false,
@@ -3340,15 +3342,23 @@
     const readingLine = document.getElementById('storyKaraokeReading');
     if (!mainLine || !readingLine) return;
 
-    mainLine.innerHTML = tokens.map((token, idx) => (
-      `<span class="karaoke-token" data-story-index="${idx}">${token.surface}</span>`
-    )).join('');
+    const segments = buildStorySegments(tokens, practiceStoryState.storyText);
+    mainLine.innerHTML = segments.map(segment => {
+      if (segment.type === 'sep') {
+        return `<span class="karaoke-sep">${segment.text}</span>`;
+      }
+      return `<span class="karaoke-token" data-story-index="${segment.idx}">${segment.text}</span>`;
+    }).join('');
 
     if (hasReading) {
       readingLine.style.display = 'flex';
-      readingLine.innerHTML = tokens.map((token, idx) => (
-        `<span class="karaoke-token" data-story-index="${idx}">${token.reading || ''}</span>`
-      )).join('');
+      readingLine.innerHTML = segments.map(segment => {
+        if (segment.type === 'sep') {
+          return `<span class="karaoke-sep">${segment.text}</span>`;
+        }
+        const readingText = tokens[segment.idx] ? (tokens[segment.idx].reading || '') : '';
+        return `<span class="karaoke-token" data-story-index="${segment.idx}">${readingText}</span>`;
+      }).join('');
     } else {
       readingLine.style.display = 'none';
       readingLine.innerHTML = '';
@@ -3384,6 +3394,52 @@
     return { text: textParts.join(' '), starts };
   }
 
+  function buildStorySegments(tokens, storyText) {
+    if (!storyText) {
+      return tokens.map((token, idx) => ({ type: 'token', idx, text: token.surface }));
+    }
+    const segments = [];
+    let cursor = 0;
+    tokens.forEach((token, idx) => {
+      const surface = (token.surface || '').trim();
+      if (!surface) return;
+      const pos = storyText.indexOf(surface, cursor);
+      if (pos === -1) {
+        if (segments.length) {
+          segments.push({ type: 'sep', text: ' ' });
+        }
+        segments.push({ type: 'token', idx, text: surface });
+        return;
+      }
+      const sep = storyText.slice(cursor, pos);
+      if (sep) {
+        segments.push({ type: 'sep', text: sep });
+      } else if (segments.length) {
+        segments.push({ type: 'sep', text: ' ' });
+      }
+      segments.push({ type: 'token', idx, text: surface });
+      cursor = pos + surface.length;
+    });
+    if (cursor < storyText.length) {
+      segments.push({ type: 'sep', text: storyText.slice(cursor) });
+    }
+    return segments;
+  }
+
+  function buildTokenStartsFromStory(storyText, tokens) {
+    const starts = [];
+    let cursor = 0;
+    tokens.forEach(token => {
+      const surface = (token.surface || '').trim();
+      if (!surface) return;
+      const pos = storyText.indexOf(surface, cursor);
+      if (pos === -1) return;
+      starts.push(pos);
+      cursor = pos + surface.length;
+    });
+    return starts;
+  }
+
   function storyLanguageCode(lang) {
     if (lang === 'japanese') return 'ja-JP';
     if (lang === 'french') return 'fr-FR';
@@ -3403,8 +3459,19 @@
     if (!practiceStoryState.tokens.length) return;
     stopStoryPlayback();
 
-    const { text, starts } = buildSpeechTextAndStarts(practiceStoryState.tokens);
-    practiceStoryState.tokenStarts = starts;
+    let text = (practiceStoryState.storyText || '').trim();
+    if (text) {
+      practiceStoryState.tokenStarts = buildTokenStartsFromStory(text, practiceStoryState.tokens);
+      if (!practiceStoryState.tokenStarts.length) {
+        const fallback = buildSpeechTextAndStarts(practiceStoryState.tokens);
+        text = fallback.text;
+        practiceStoryState.tokenStarts = fallback.starts;
+      }
+    } else {
+      const fallback = buildSpeechTextAndStarts(practiceStoryState.tokens);
+      text = fallback.text;
+      practiceStoryState.tokenStarts = fallback.starts;
+    }
     if (!text) return;
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -3456,6 +3523,7 @@
       const story = data.story;
       practiceStoryState.language = story.language || lang;
       practiceStoryState.tokens = Array.isArray(story.tokens) ? story.tokens : [];
+      practiceStoryState.storyText = story.story || '';
       practiceStoryState.english = story.english || '';
       practiceStoryState.storyId = data.id || null;
 
