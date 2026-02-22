@@ -127,6 +127,19 @@ class PracticeResult(db.Model):
     vocabulary = db.relationship('Vocabulary', backref='practice_results')
 
 
+class PracticeStory(db.Model):
+    """Persist AI-generated practice stories for reuse"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    section = db.Column(db.String(100), nullable=True)
+    language = db.Column(db.String(50), nullable=False)
+    word_count = db.Column(db.Integer, nullable=False, default=0)
+    story_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='practice_stories')
+
+
 class AIFeedback(db.Model):
     """Cache AI-generated feedback for common mistakes to reduce API costs"""
     id = db.Column(db.Integer, primary_key=True)

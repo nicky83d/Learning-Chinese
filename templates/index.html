@@ -64,6 +64,7 @@
           <div id="practiceSubmenu">
             <button id="menuPracticeListening">👂 Listening</button>
             <button id="menuPracticeWords">📝 Words</button>
+            <button id="menuPracticeStory">📖 Story</button>
             <div class="menu-disabled-wrapper" id="speakingWrapper" onclick="handleDisabledClick(event, this)">
               <button id="menuPracticeTalking">🎤 Speaking</button>
             </div>
@@ -461,6 +462,76 @@
         <span style="font-weight: 600; color: var(--primary);">📝 <a href="#" id="practiceWordsEndDetailLink" onclick="openGameDetailsFromEndModal(); return false;">Practice Words</a></span>
       </div>
       <button onclick="closePracticeWordsEndModal()" class="primary" style="padding: 12px 28px; font-size: 1.1em;">Close</button>
+    </div>
+  </div>
+
+  <!-- Practice Story Modal -->
+  <div id="practiceStoryModal" class="modal">
+    <div class="modal-backdrop" onclick="closePracticeStoryModal()"></div>
+    <div class="modal-card" style="max-width: 820px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2>📖 Practice Story</h2>
+        <button onclick="closePracticeStoryModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-main);">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
+        <div id="storyConfigSection">
+          <div>
+            <label for="ps_section" style="display:block; margin-bottom:6px; color:var(--text-muted);">Choose category</label>
+            <select id="ps_section" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+          <div id="ps_lang_select_area">
+            <p style="margin:12px 0 8px; color:var(--text-muted);">Choose language to practice</p>
+            <div id="ps_lang_options" style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label id="ps_lang_chinese" style="display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+                <input type="radio" name="ps_lang" value="chinese" checked>
+                🇨🇳 Chinese
+              </label>
+              <label id="ps_lang_japanese" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+                <input type="radio" name="ps_lang" value="japanese">
+                🇯🇵 Japanese
+              </label>
+              <label id="ps_lang_french" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; cursor:pointer;">
+                <input type="radio" name="ps_lang" value="french">
+                🇫🇷 French
+              </label>
+            </div>
+          </div>
+          <div>
+            <label for="ps_count" style="display:block; margin-bottom:6px; margin-top:12px; color:var(--text-muted);">Story size</label>
+            <select id="ps_count" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-main);">
+              <option value="50">50 words</option>
+              <option value="100" selected>100 words</option>
+              <option value="250">250 words</option>
+              <option value="500">500 words</option>
+            </select>
+          </div>
+          <div style="text-align:right; margin-top:16px;">
+            <button id="startPracticeStory" class="primary" style="padding:12px 18px; font-size:1.05em;">Generate Story</button>
+          </div>
+          <div id="practiceStoryStatus" style="display:none; padding:12px; border-radius:8px; background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-muted);"></div>
+        </div>
+
+        <div id="storyPlaybackSection" style="display:none;">
+          <div class="story-controls">
+            <button id="storyPlayBtn" class="primary">▶ Play</button>
+            <button id="storyStopBtn" class="secondary">⏹ Stop</button>
+            <button id="storyRewindBtn" class="secondary">⏮ Rewind</button>
+          </div>
+          <div class="story-layout">
+            <div class="story-box">
+              <div class="story-box-title">Practice Language</div>
+              <div id="storyKaraokeMain" class="story-karaoke-line"></div>
+              <div id="storyKaraokeReading" class="story-karaoke-line story-karaoke-reading"></div>
+            </div>
+            <div class="story-box">
+              <div class="story-box-title">English</div>
+              <div id="storyEnglishText" class="story-english-text"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

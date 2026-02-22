@@ -9,6 +9,7 @@
   const practiceSubmenu = document.getElementById('practiceSubmenu');
   const menuPracticeListening = document.getElementById('menuPracticeListening');
   const menuPracticeWords = document.getElementById('menuPracticeWords');
+  const menuPracticeStory = document.getElementById('menuPracticeStory');
   const menuPracticeTalking = document.getElementById('menuPracticeTalking');
   const menuPracticeDrawing = document.getElementById('menuPracticeDrawing');
   const menuAddWords = document.getElementById('menuAddWords');
@@ -3242,6 +3243,255 @@
     }
   });
 
+  // ============= PRACTICE STORY FUNCTIONALITY =============
+  let practiceStoryState = {
+    language: 'chinese',
+    tokens: [],
+    english: '',
+    storyId: null,
+    isPlaying: false,
+    tokenStarts: [],
+    utterance: null
+  };
+
+  function resetPracticeStory() {
+    practiceStoryState = {
+      language: 'chinese',
+      tokens: [],
+      english: '',
+      storyId: null,
+      isPlaying: false,
+      tokenStarts: [],
+      utterance: null
+    };
+    const mainLine = document.getElementById('storyKaraokeMain');
+    const readingLine = document.getElementById('storyKaraokeReading');
+    const englishBox = document.getElementById('storyEnglishText');
+    if (mainLine) mainLine.innerHTML = '';
+    if (readingLine) readingLine.innerHTML = '';
+    if (englishBox) englishBox.textContent = '';
+  }
+
+  function openPracticeStoryModal() {
+    resetPracticeStory();
+    const modal = document.getElementById('practiceStoryModal');
+    const config = document.getElementById('storyConfigSection');
+    const playback = document.getElementById('storyPlaybackSection');
+    const status = document.getElementById('practiceStoryStatus');
+    if (config) config.style.display = 'block';
+    if (playback) playback.style.display = 'none';
+    if (status) status.style.display = 'none';
+
+    // Populate categories
+    const psSection = document.getElementById('ps_section');
+    if (psSection && sectionSelect) {
+      psSection.innerHTML = '<option value="all">All Categories</option>';
+      const options = Array.from(sectionSelect.options).slice(1);
+      options.forEach(opt => {
+        const newOpt = document.createElement('option');
+        newOpt.value = opt.value;
+        newOpt.textContent = opt.textContent;
+        psSection.appendChild(newOpt);
+      });
+    }
+
+    // Update language options visibility
+    const psChinese = document.getElementById('ps_lang_chinese');
+    const psJapanese = document.getElementById('ps_lang_japanese');
+    const psFrench = document.getElementById('ps_lang_french');
+    if (psChinese) psChinese.style.display = langSettings.chinese ? 'flex' : 'none';
+    if (psJapanese) psJapanese.style.display = langSettings.japanese ? 'flex' : 'none';
+    if (psFrench) psFrench.style.display = langSettings.french ? 'flex' : 'none';
+
+    const chineseRadio = document.querySelector('#ps_lang_chinese input');
+    const japaneseRadio = document.querySelector('#ps_lang_japanese input');
+    const frenchRadio = document.querySelector('#ps_lang_french input');
+    if (chineseRadio) chineseRadio.checked = false;
+    if (japaneseRadio) japaneseRadio.checked = false;
+    if (frenchRadio) frenchRadio.checked = false;
+    if (langSettings.chinese && chineseRadio) {
+      chineseRadio.checked = true;
+    } else if (langSettings.japanese && japaneseRadio) {
+      japaneseRadio.checked = true;
+    } else if (langSettings.french && frenchRadio) {
+      frenchRadio.checked = true;
+    }
+
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function closePracticeStoryModal() {
+    stopStoryPlayback();
+    const modal = document.getElementById('practiceStoryModal');
+    if (modal) modal.style.display = 'none';
+    resetPracticeStory();
+  }
+
+  function setStoryStatus(message, type = 'info') {
+    const status = document.getElementById('practiceStoryStatus');
+    if (!status) return;
+    status.style.display = 'block';
+    status.textContent = message;
+    status.style.color = type === 'error' ? 'var(--danger)' : 'var(--text-muted)';
+  }
+
+  function renderStoryTokens(tokens, hasReading) {
+    const mainLine = document.getElementById('storyKaraokeMain');
+    const readingLine = document.getElementById('storyKaraokeReading');
+    if (!mainLine || !readingLine) return;
+
+    mainLine.innerHTML = tokens.map((token, idx) => (
+      `<span class="karaoke-token" data-story-index="${idx}">${token.surface}</span>`
+    )).join('');
+
+    if (hasReading) {
+      readingLine.style.display = 'flex';
+      readingLine.innerHTML = tokens.map((token, idx) => (
+        `<span class="karaoke-token" data-story-index="${idx}">${token.reading || ''}</span>`
+      )).join('');
+    } else {
+      readingLine.style.display = 'none';
+      readingLine.innerHTML = '';
+    }
+  }
+
+  function highlightStoryToken(index) {
+    const tokens = document.querySelectorAll('.karaoke-token[data-story-index]');
+    tokens.forEach(token => {
+      const idx = parseInt(token.getAttribute('data-story-index'), 10);
+      if (idx === index) {
+        token.classList.add('active');
+      } else {
+        token.classList.remove('active');
+      }
+    });
+  }
+
+  function buildSpeechTextAndStarts(tokens) {
+    let textParts = [];
+    let starts = [];
+    let cursor = 0;
+    tokens.forEach(token => {
+      const surface = (token.surface || '').trim();
+      if (!surface) return;
+      if (textParts.length > 0) {
+        cursor += 1;
+      }
+      starts.push(cursor);
+      textParts.push(surface);
+      cursor += surface.length;
+    });
+    return { text: textParts.join(' '), starts };
+  }
+
+  function storyLanguageCode(lang) {
+    if (lang === 'japanese') return 'ja-JP';
+    if (lang === 'french') return 'fr-FR';
+    return 'zh-CN';
+  }
+
+  function stopStoryPlayback() {
+    if (practiceStoryState.isPlaying) {
+      window.speechSynthesis.cancel();
+    }
+    practiceStoryState.isPlaying = false;
+    practiceStoryState.utterance = null;
+    highlightStoryToken(-1);
+  }
+
+  function playStoryFromStart() {
+    if (!practiceStoryState.tokens.length) return;
+    stopStoryPlayback();
+
+    const { text, starts } = buildSpeechTextAndStarts(practiceStoryState.tokens);
+    practiceStoryState.tokenStarts = starts;
+    if (!text) return;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = storyLanguageCode(practiceStoryState.language);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onboundary = (event) => {
+      if (typeof event.charIndex !== 'number') return;
+      const idx = practiceStoryState.tokenStarts.findIndex((start, i) => {
+        const next = practiceStoryState.tokenStarts[i + 1];
+        return event.charIndex >= start && (next === undefined || event.charIndex < next);
+      });
+      if (idx >= 0) highlightStoryToken(idx);
+    };
+    utterance.onend = () => {
+      practiceStoryState.isPlaying = false;
+    };
+    utterance.onerror = () => {
+      practiceStoryState.isPlaying = false;
+    };
+
+    practiceStoryState.utterance = utterance;
+    practiceStoryState.isPlaying = true;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  async function startPracticeStory() {
+    const lang = (document.querySelector('input[name="ps_lang"]:checked') || {}).value || 'chinese';
+    const section = (document.getElementById('ps_section') || {}).value || 'all';
+    const count = parseInt((document.getElementById('ps_count') || {}).value, 10) || 100;
+    const startBtn = document.getElementById('startPracticeStory');
+    if (startBtn) startBtn.disabled = true;
+
+    setStoryStatus('Generating story...');
+
+    try {
+      const response = await fetch('/api/story/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section, language: lang, word_count: count })
+      });
+      const data = await response.json();
+      if (!response.ok || !data || !data.story) {
+        throw new Error(data && data.error ? data.error : 'Story generation failed');
+      }
+
+      const story = data.story;
+      practiceStoryState.language = story.language || lang;
+      practiceStoryState.tokens = Array.isArray(story.tokens) ? story.tokens : [];
+      practiceStoryState.english = story.english || '';
+      practiceStoryState.storyId = data.id || null;
+
+      const hasReading = practiceStoryState.tokens.some(t => (t.reading || '').trim());
+      renderStoryTokens(practiceStoryState.tokens, hasReading);
+
+      const englishBox = document.getElementById('storyEnglishText');
+      if (englishBox) englishBox.textContent = practiceStoryState.english || 'No English translation available.';
+
+      const config = document.getElementById('storyConfigSection');
+      const playback = document.getElementById('storyPlaybackSection');
+      if (config) config.style.display = 'none';
+      if (playback) playback.style.display = 'block';
+
+      setStoryStatus('Story ready. Playing now...');
+      playStoryFromStart();
+    } catch (err) {
+      console.error('Story generation error:', err);
+      setStoryStatus(err.message || 'Error generating story', 'error');
+    } finally {
+      if (startBtn) startBtn.disabled = false;
+    }
+  }
+
+  const startPracticeStoryBtn = document.getElementById('startPracticeStory');
+  if (startPracticeStoryBtn) startPracticeStoryBtn.addEventListener('click', startPracticeStory);
+
+  const storyPlayBtn = document.getElementById('storyPlayBtn');
+  if (storyPlayBtn) storyPlayBtn.addEventListener('click', playStoryFromStart);
+
+  const storyStopBtn = document.getElementById('storyStopBtn');
+  if (storyStopBtn) storyStopBtn.addEventListener('click', stopStoryPlayback);
+
+  const storyRewindBtn = document.getElementById('storyRewindBtn');
+  if (storyRewindBtn) storyRewindBtn.addEventListener('click', playStoryFromStart);
+
   // Check auth on page load
   checkUserAuth();
 
@@ -3271,6 +3521,14 @@
     document.getElementById('addWordsSubmenu').classList.remove('show');
     updatePracticeLanguageSelectors(getEnabledLanguages());
     openPracticeListeningModal();
+  });
+
+  document.getElementById('menuPracticeStory').addEventListener('click', () => {
+    document.getElementById('hamburgerMenu').classList.remove('show');
+    document.getElementById('practiceSubmenu').classList.remove('show');
+    document.getElementById('addWordsSubmenu').classList.remove('show');
+    updatePracticeLanguageSelectors(getEnabledLanguages());
+    openPracticeStoryModal();
   });
 
   document.getElementById('menuPracticeTalking').addEventListener('click', () => {

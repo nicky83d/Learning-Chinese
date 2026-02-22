@@ -40,5 +40,18 @@ function updatePracticeLanguageSelectors(enabledLangs) {
       }
     }
   }
+  // Practice Story
+  const psLangArea = document.getElementById('ps_lang_select_area');
+  if (psLangArea) {
+    if (enabledLangs.length >= 2) {
+      psLangArea.style.display = '';
+    } else {
+      psLangArea.style.display = 'none';
+      if (enabledLangs.length === 1) {
+        const storyRadio = document.querySelector('input[name="ps_lang"][value="' + enabledLangs[0] + '"]');
+        if (storyRadio) storyRadio.checked = true;
+      }
+    }
+  }
 }
 // Example usage: updatePracticeLanguageSelectors(['chinese']);

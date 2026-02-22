@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file, session, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
-from models import db, Vocabulary, PhotoLog, User, PracticeScore, PracticeResult, AIFeedback
+from models import db, Vocabulary, PhotoLog, User, PracticeScore, PracticeResult, PracticeStory, AIFeedback
 from extract_data import extract_all_rows
 from config import get_config
 import unicodedata
@@ -349,6 +349,16 @@ def create_tables_and_populate():
                         question_type VARCHAR(50), question_text TEXT,
                         user_answer TEXT, correct_answer TEXT,
                         is_correct BOOLEAN NOT NULL DEFAULT FALSE, feedback TEXT
+                    )"""),
+                ("practice_story", """
+                    CREATE TABLE IF NOT EXISTS practice_story (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                        section VARCHAR(100),
+                        language VARCHAR(50) NOT NULL,
+                        word_count INTEGER NOT NULL DEFAULT 0,
+                        story_json TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )"""),
                 ("ai_feedback", """
                     CREATE TABLE IF NOT EXISTS ai_feedback (
@@ -730,6 +740,37 @@ def _extract_first_json_array(text: str):
                 except Exception:
                     pass
     return None
+
+
+def _extract_first_json_object(text: str):
+    """Robustly extract the first valid JSON object from model output."""
+    if not text:
+        return None
+    text = text.strip()
+
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, dict):
+            return obj
+    except Exception:
+        pass
+
+    start = text.find('{')
+    end = text.rfind('}')
+    if start == -1 or end == -1 or end <= start:
+        return None
+    try:
+        return json.loads(text[start:end + 1])
+    except Exception:
+        return None
 
 
 def _get_best_category_for_word(hanzi: str, english: str, french: str) -> str:
@@ -1810,7 +1851,7 @@ def admin_db_update():
             return jsonify({"success": False, "error": "Missing required fields"}), 400
         
         # Whitelist of allowed tables for editing
-        allowed_tables = ['vocabulary', 'photo_log', 'user', 'practice_score', 'ai_feedback']
+        allowed_tables = ['vocabulary', 'photo_log', 'user', 'practice_score', 'practice_story', 'ai_feedback']
         if table not in allowed_tables:
             return jsonify({"success": False, "error": f"Table '{table}' is not allowed for editing"}), 403
         
@@ -2508,6 +2549,150 @@ def save_practice_score():
         db.session.rollback()
         logger.error(f"Error saving practice score: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/story/generate', methods=['POST'])
+def generate_practice_story():
+    """Generate and persist an AI story for practice."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    data = request.get_json(silent=True) or {}
+    section = (data.get('section') or 'all').strip()
+    language = (data.get('language') or 'chinese').strip().lower()
+    try:
+        word_count = int(data.get('word_count') or 50)
+    except (TypeError, ValueError):
+        word_count = 50
+
+    if language not in ['chinese', 'japanese', 'french']:
+        return jsonify({"error": "Invalid language"}), 400
+    if word_count not in [50, 100, 250, 500]:
+        return jsonify({"error": "Invalid word count"}), 400
+
+    query = _get_user_visible_vocab_query(user_id)
+    if section and section != 'all':
+        query = query.filter(Vocabulary.section == section)
+
+    vocab_items = query.order_by(func.random()).limit(word_count).all()
+    if not vocab_items:
+        return jsonify({"error": "No words found for this category"}), 404
+
+    word_rows = []
+    for vocab in vocab_items:
+        if language == 'chinese':
+            if not vocab.hanzi:
+                continue
+            word_rows.append({
+                "surface": vocab.hanzi,
+                "reading": vocab.pinyin or "",
+                "english": vocab.english or ""
+            })
+        elif language == 'japanese':
+            if not (vocab.japanese_kanji or vocab.japanese_romaji):
+                continue
+            word_rows.append({
+                "surface": vocab.japanese_kanji or vocab.japanese_romaji or "",
+                "reading": vocab.japanese_romaji or "",
+                "english": vocab.english or ""
+            })
+        else:
+            if not vocab.french:
+                continue
+            word_rows.append({
+                "surface": vocab.french,
+                "reading": "",
+                "english": vocab.english or ""
+            })
+
+    if not word_rows:
+        return jsonify({"error": "No usable words found for this language"}), 404
+
+    words_block = "\n".join([
+        f"- {w['surface']} | {w['reading']} | {w['english']}" for w in word_rows
+    ])
+
+    prompt = f"""Write a simple, learner-friendly story in {language}.
+Use as many of the provided words as you can, but keep the story coherent.
+Target about {word_count} words total.
+
+Return ONLY valid JSON (no markdown, no extra text). Schema:
+{{
+  \"language\": \"{language}\",
+  \"story\": \"TARGET_LANGUAGE_TEXT\",
+  \"english\": \"ENGLISH_TRANSLATION\",
+  \"tokens\": [{{\"surface\": \"...\", \"reading\": \"...\"}}]
+}}
+
+Rules:
+- "tokens" must be the story words in order, matching the story. Words only, no punctuation.
+- For Chinese, "reading" must be pinyin with tone marks.
+- For Japanese, "reading" must be romaji.
+- For French, "reading" must be empty string.
+- Keep the tokens list close to {word_count} words.
+
+Words to use (surface | reading | english):
+{words_block}
+"""
+
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+            max_tokens=3500
+        )
+        raw_text = response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Story generation failed: {e}")
+        return jsonify({"error": "Story generation failed"}), 500
+
+    story_obj = _extract_first_json_object(raw_text)
+    if not story_obj:
+        logger.warning("Could not parse story JSON from model output")
+        return jsonify({"error": "Invalid story response"}), 502
+
+    tokens = story_obj.get('tokens') if isinstance(story_obj, dict) else None
+    if not tokens or not isinstance(tokens, list):
+        return jsonify({"error": "Story tokens missing"}), 502
+
+    cleaned_tokens = []
+    for token in tokens:
+        if not isinstance(token, dict):
+            continue
+        surface = (token.get('surface') or '').strip()
+        reading = (token.get('reading') or '').strip()
+        if not surface:
+            continue
+        cleaned_tokens.append({"surface": surface, "reading": reading})
+
+    if not cleaned_tokens:
+        return jsonify({"error": "Story tokens invalid"}), 502
+
+    story_payload = {
+        "language": language,
+        "story": (story_obj.get('story') or '').strip(),
+        "english": (story_obj.get('english') or '').strip(),
+        "tokens": cleaned_tokens
+    }
+
+    try:
+        story_record = PracticeStory(
+            user_id=user_id,
+            section=None if section == 'all' else section,
+            language=language,
+            word_count=word_count,
+            story_json=json.dumps(story_payload, ensure_ascii=False)
+        )
+        db.session.add(story_record)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving story: {e}")
+        return jsonify({"error": "Failed to save story"}), 500
+
+    return jsonify({"success": True, "id": story_record.id, "story": story_payload})
 
 
 @app.route('/api/user/practice/<int:score_id>/details')
